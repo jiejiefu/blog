@@ -1,4 +1,4 @@
-baseURL: "https://jiejiefu.github.io/"
+baseURL: "https://jiejiefu.github.io/blog/"
 title: "Jay Fu Blog"
 theme: "PaperMod"
 
@@ -21,9 +21,16 @@ params:
     title: "Jay Fu"
     subtitle: "Machine Learning | Edge Computing"
 
+  ShowTableOfContents: true
+  HighlightStyle: "monokai"
+  ## Footer: "© 2026 Jay Fu"
+
+  # hideCopyright: false      # 🔹 必須
+  # ShowCodeCopyButtons: true # 🔹 必須
+
 menu:
   main:
     - identifier: posts
       name: Posts
-      url: /posts/
+      url: posts/
       weight: 10
