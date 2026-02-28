@@ -1,3 +1,12 @@
-baseURL = 'https://example.org/'
-languageCode = 'en-us'
-title = 'My New Hugo Project'
+baseURL = "https://jiejiefu.github.io/"
+languageCode = "zh-tw"                  # 或 en-us
+title = 'My New Hugo Project - 我的部落格'
+theme = "PaperMod"
+[author]
+  name = "jiejiefu"
+
+[params]
+  author = "jiejiefu"  # 這是給主題顯示用的
+  homeInfoParams = { Title = "歡迎來到我的部落格", Content = "用 Hugo + GitHub Pages 建置" }
+  ShowReadingTime = true
+  ShowShareButtons = true
