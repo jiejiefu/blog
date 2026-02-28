@@ -1,0 +1,24 @@
+baseURL: "https://jiejiefu.github.io/"
+title: "Jay Fu Blog"
+theme: "PaperMod"
+
+pagination:
+  pagerSize: 10
+
+params:
+  env: production
+  title: Jay Fu Blog
+  description: Algorithm | Edge Computing | Software Engineer
+  author: Jay Fu
+
+  ShowReadingTime: true
+  ShowShareButtons: true
+  ShowPostNavLinks: true
+  ShowBreadCrumbs: true
+
+menu:
+  main:
+    - identifier: posts
+      name: Posts
+      url: /posts/
+      weight: 10
