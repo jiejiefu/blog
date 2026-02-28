@@ -11,6 +11,11 @@ params:
   description: Algorithm | Edge Computing | Software Engineer
   author: Jay Fu
 
+  profileMode:
+    enabled: true
+    title: "Jay Fu"
+    subtitle: "Machine Learning | Edge Computing"
+
   ShowReadingTime: true
   ShowShareButtons: true
   ShowPostNavLinks: true
