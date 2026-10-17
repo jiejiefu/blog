@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-02
 cover:
-    image: "cover.png"
+    image: "cover.jpg"
     alt: "TECH TRENDS FOR 2025"
     caption: "具備推理能力的人工智慧與自動化代理如何威脅軟體開發等白領職位。"
     relative: true
@@ -48,7 +48,7 @@ Strategically, these models currently represent high technical debt and operatio
 
 This evolution in AI capability is fundamentally altering our requirements for foundational stability, dictating a shift in the very languages we use to build our core systems.
 
-![2025 年技術景觀](images/Gemini_Generated_Image_edksq8edksq8edks.png)
+![2025 年技術景觀](images/Gemini_Generated_Image_edksq8edksq8edks.webp)
 ---
 
 ## 2. Strategic Language Migration: The Transition to Rust
@@ -66,7 +66,7 @@ A primary example of this shift is the DARPA-led "Tractor" project. This initiat
 
 The underlying safety of the language provides the necessary foundation for the rapid, AI-driven prototyping tools that are currently reshaping the development lifecycle.
 
-![2025 年技術戰略路線圖中「向 Rust 轉型」](images/Gemini_Generated_Image_htpom8htpom8htpo.png)
+![2025 年技術戰略路線圖中「向 Rust 轉型」](images/Gemini_Generated_Image_htpom8htpom8htpo.webp)
 ---
 
 ## 3. The Tool-Centric Shift: AI-Powered Development Workflows
@@ -77,7 +77,7 @@ We have entered the era of **"Prototyping-as-a-Service."** Tools like v0 and Bol
 
 This increased speed of application deployment is creating a massive expansion in application portfolios, forcing a critical re-evaluation of where and how these assets are hosted.
 
-![AI 驅動開發工作流中以工具為中心的轉移](images/Gemini_Generated_Image_jm723ejm723ejm72.png)
+![AI 驅動開發工作流中以工具為中心的轉移](images/Gemini_Generated_Image_jm723ejm723ejm72.webp)
 ---
 
 ## 4. Infrastructure Rationalization: The "Anti-Cloud" Movement
@@ -88,7 +88,7 @@ Breaking this addiction involves a shift back to Virtual Private Servers (VPS) o
 
 Achieving infrastructure sovereignty is not merely a cost-saving measure; it is a strategic prerequisite for the next phase of technological integration: the control of proprietary "robotic brains" and physical automation.
 
-![基礎設施合理化和脫離雲端「反雲」運動](images/Gemini_Generated_Image_v9myutv9myutv9my.png)
+![基礎設施合理化和脫離雲端「反雲」運動](images/Gemini_Generated_Image_v9myutv9myutv9my.webp)
 ---
 
 ## 5. Future-Proofing the Organization: Robotics and the Human-AI Interface
@@ -99,7 +99,7 @@ However, we must also account for emerging security risks. Google’s Willow chi
 
 The tech job market reflects this era of transition. Data from "True Up" and the Federal Reserve show that while open tech jobs are down 50% from the 2022 peak, the market has recovered 30% from its recent lows. This "flight to quality" favors those who can navigate the following strategic priorities:
 
-![這是一張關於組織未來佈局和人機界面擴展的 1280x720 資訊圖表。它詳細展示了 AI 如何從數位螢幕邁向物理自動化，以及新興的安全風險與就業市場的轉變。](images/Gemini_Generated_Image_4c0fzj4c0fzj4c0f.png)
+![這是一張關於組織未來佈局和人機界面擴展的 1280x720 資訊圖表。它詳細展示了 AI 如何從數位螢幕邁向物理自動化，以及新興的安全風險與就業市場的轉變。](images/Gemini_Generated_Image_4c0fzj4c0fzj4c0f.webp)
 
 ### Strategic Workforce Checklist for 2025
 
@@ -111,5 +111,5 @@ The tech job market reflects this era of transition. Data from "True Up" and the
 
 In an era of volatile hiring and rapid technological displacement, the ultimate competitive advantage for any organization is architectural adaptability and the mastery of the human-AI interface.
 
-![2025 年技術人才量身定制](images/Gemini_Generated_Image_1ik8it1ik8it1ik8.png)
+![2025 年技術人才量身定制](images/Gemini_Generated_Image_1ik8it1ik8it1ik8.webp)
 ---

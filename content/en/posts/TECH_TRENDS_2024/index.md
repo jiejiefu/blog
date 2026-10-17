@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-03
 cover:
-    image: "cover.png"
+    image: "cover.jpg"
     alt: "TECH TRENDS FOR 2024"
     caption: "軟體工程師職缺市場的波動，虛擬實境的影響，以及自研晶片對硬體架構的改變。"
     relative: true
@@ -49,7 +49,7 @@ The labor market is recovering from a brutal "one-two punch": massive 2023 layof
 
 In an environment where a cardboard box costs $900,000 with an 8% mortgage, the tech industry’s addiction to low rates is facing a painful withdrawal. The primary casualty is the "cash-burning" startup. A definitive case study is Spotify, which executed its third layoff of the year—cutting 1,500 heads—explicitly because the higher cost of capital made its previous growth trajectory unsustainable. Your employer is likely living "bailout to bailout," much like the U.S. government lives "war to war." This systemic pressure for efficiency is driving a desperate search for hardware solutions that can slash operational overhead.
 
-![總體經濟氣候與技術勞動力市場轉型](images/Gemini_Generated_Image_mfy2e5mfy2e5mfy2.png)
+![總體經濟氣候與技術勞動力市場轉型](images/Gemini_Generated_Image_mfy2e5mfy2e5mfy2.webp)
 ---
 
 ## 2. The Silicon Revolution: ARM Architecture and Custom Silicon
@@ -72,7 +72,7 @@ Beyond general CPUs, the emergence of chips like Microsoft’s "Maya" signifies 
 
 The launch of Project Volterra and the maturation of Windows on ARM signify that the PC and server landscape has permanently shifted. As compute becomes specialized, the general-purpose hardware era dies. This new hardware baseline provides the necessary efficiency to power the next generation of AI tools without bankrupting the enterprise on energy bills.
 
-![矽革命、ARM 架構與定製晶片](images/Gemini_Generated_Image_ff40i6ff40i6ff40.png)
+![矽革命、ARM 架構與定製晶片](images/Gemini_Generated_Image_ff40i6ff40i6ff40.webp)
 ---
 
 ## 3. Artificial Intelligence: From Experimental Novelty to Enterprise Utility
@@ -96,7 +96,7 @@ The industry is currently obsessed with the leap to Artificial General Intellige
 
 AI has been successfully weaponized. 75% of stock trading is now algorithmic, but the more visceral impact is in defense. Companies like Palantir are helping our "Military-Industrial Complex" friends—Lockheed Martin and Boeing—blow people up in an "environmentally friendly and equitable way." AI is no longer a toy; it is the engine of modern warfare and geopolitical survival.
 
-![工智慧從實驗轉向企業實用](images/Gemini_Generated_Image_ht5nkbht5nkbht5n.png)
+![工智慧從實驗轉向企業實用](images/Gemini_Generated_Image_ht5nkbht5nkbht5n.webp)
 ---
 
 ## 4. The Future of Software Development and Systems Engineering
@@ -119,7 +119,7 @@ Memory safety and raw performance have become the new priorities for a post-x86 
 
 The mobile app market is stagnant. Users are NPCs who refuse to download new apps, preferring to stay within the walled gardens of Twitter and Discord. Consequently, investment is shifting away from native apps toward web-based "low-code" and cross-platform tools that allow for rapid, low-overhead deployment.
 
-![軟體開發與系統工程未來](images/Gemini_Generated_Image_x6khfx6khfx6khfx.png)
+![軟體開發與系統工程未來](images/Gemini_Generated_Image_x6khfx6khfx6khfx.webp)
 ---
 
 ## 5. Emerging Platforms: XR, Gaming, and Digital Assets
@@ -140,7 +140,7 @@ The legal front is also shifting: Epic Games’ ongoing war against the 30% App 
 
 Crypto is back. Bitcoin’s breakthrough past 40k was the warning shot; the 69k price point is the target to watch. Reaching that milestone will trigger "biblical level FOMO," flooding the market with memes and a fresh round of Ponzi schemes for "Crypto Bros" to invest their parents' money in.
 
-![新興平台（XR、遊戲與數位資產）轉型](images/Gemini_Generated_Image_7jfqnw7jfqnw7jfq.png)
+![新興平台（XR、遊戲與數位資產）轉型](images/Gemini_Generated_Image_7jfqnw7jfqnw7jfq.webp)
 ---
 
 ## 6. Strategic Conclusion: Survival and Growth in the Simulation
@@ -157,5 +157,5 @@ Crypto is back. Bitcoin’s breakthrough past 40k was the warning shot; the 69k 
 
 As technological acceleration reaches a terminal velocity, we are facing a Faustian bargain: unlimited AI-driven knowledge in exchange for moral and spiritual decline. The trade-off may involve lab-grown babies and simulated suffering to offset our newfound digital pleasures. You might already be in that simulation. If you aren't, you'd have to be crazy not to realize that in 2024, you either adapt to the code or you become a legacy bug.
 
-![戰略總結和在模擬中生存與成長](images/Gemini_Generated_Image_r8yh3yr8yh3yr8yh.png)
+![戰略總結和在模擬中生存與成長](images/Gemini_Generated_Image_r8yh3yr8yh3yr8yh.webp)
 ---

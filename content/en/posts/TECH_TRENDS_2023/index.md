@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-04
 cover:
-    image: "cover.png"
+    image: "cover.jpg"
     alt: "TECH TRENDS FOR 2023"
     caption: "大型科技公司出現裁員潮，探討了 Web3 與元宇宙遭遇的挫折，AI 生成技術（如 ChatGPT）正迎來爆發式成長。"
     relative: true
@@ -48,7 +48,7 @@ The 2020–2022 Work-From-Home (WFH) experiment is facing a forced correction. E
 
 These economic pressures—inflation, high interest rates, and the need for lean operations—necessitate a radical leap in developer productivity. This demand for extreme efficiency leads us directly to the primary catalyst of 2023: the AI-driven development lifecycle.
 
-![總體經濟背景與 2023 年人才景觀](images/Gemini_Generated_Image_thrwkbthrwkbthrw.png)
+![總體經濟背景與 2023 年人才景觀](images/Gemini_Generated_Image_thrwkbthrwkbthrw.webp)
 ---
 
 ## 2. The AI Revolution: Transforming the Development Lifecycle
@@ -69,7 +69,7 @@ The year 2022 marked a point of no return for Generative AI. It has transitioned
 
 Large Language Models (LLMs) have disrupted the traditional community-knowledge model. For the modern developer, the workflow is shifting away from manual troubleshooting on community forums toward real-time, AI-assisted code fixing. While AI now generates the logic, the frameworks we use to deliver that logic are also undergoing a radical architectural shift toward efficiency.
 
-![AI 革命和開發生命週期轉型](images/Gemini_Generated_Image_9hj7au9hj7au9hj7.png)
+![AI 革命和開發生命週期轉型](images/Gemini_Generated_Image_9hj7au9hj7au9hj7.webp)
 ---
 
 ## 3. Frontend Evolution: Diversification and the New Build Paradigm
@@ -93,7 +93,7 @@ Vite has won the mindshare of the developer community. However, the emergence of
 
 2023 is seeing the rise of Neo-Brutalism—defined by high-contrast strokes and vibrant colors. Architects should be wary of adopting this for long-lived enterprise products, as it is likely to feel dated quickly.
 
-![前端演進、多樣化與新的建構範式](images/Gemini_Generated_Image_d3gcrvd3gcrvd3gc.png)
+![前端演進、多樣化與新的建構範式](images/Gemini_Generated_Image_d3gcrvd3gcrvd3gc.webp)
 ---
 
 ## 4. Architectural Re-alignment: The Death of the Single Page Application (SPA)
@@ -118,7 +118,7 @@ The industry is moving decisively away from client-side heavy SPAs toward **Serv
 
 As logic migrates back to the server, tools like **trpc** are essential. They allow the frontend to call backend functions with shared types, eliminating the "API contract" guessing game.
 
-![架構重新校準與 ARM 生態系統崛起](images/Gemini_Generated_Image_txnkf8txnkf8txnk.png)
+![架構重新校準與 ARM 生態系統崛起](images/Gemini_Generated_Image_txnkf8txnkf8txnk.webp)
 ---
 
 ## 5. The "New Wave" Database Era: Cloud-Native and Multi-Paradigm
@@ -132,7 +132,7 @@ We have entered an era of "New Wave" databases that challenge the operational ov
 * **Multi-Paradigm / Innovative:** SurrealDB, EdgeDB, Fauna, Xata (Relational + Graph + Document).
 * **Traditional-to-Serverless:** PlanetScale, CockroachDB, Neo4j, MongoDB (Established engines with serverless scaling).
 
-![「新浪潮」資料庫時代的關鍵趨勢](images/Gemini_Generated_Image_r2buy4r2buy4r2bu.png)
+![「新浪潮」資料庫時代的關鍵趨勢](images/Gemini_Generated_Image_r2buy4r2buy4r2bu.webp)
 ---
 
 ## 6. Systems Programming: The Rust Ascendancy
@@ -145,7 +145,7 @@ There is an industry-wide mandate to move away from memory-unsafe languages like
 
 Rust has won the systems programming war for mindshare. Its official acceptance into the **Linux kernel** is the highest possible "Future-Proof" signal. Rust is the safe, high-performance foundation for the next decade of infrastructure.
 
-![系統編程中 Rust 優勢地位](images/Gemini_Generated_Image_mhfzj9mhfzj9mhfz.png)
+![系統編程中 Rust 優勢地位](images/Gemini_Generated_Image_mhfzj9mhfzj9mhfz.webp)
 ---
 
 ## 7. Strategic Recommendations for 2023 Technical Leadership
@@ -155,5 +155,5 @@ Rust has won the systems programming war for mindshare. Its official acceptance 
 3. **Standardize Tooling on Vite/Rust:** Adopt Vite immediately and evaluate Rust-based build tools like TurboPack.
 4. **Strategic Talent Acquisition:** Capitalize on the displacement of high-value engineers from Big Tech by offering flexible, high-trust workplace policies.
 
-![給 2023 年技術領導層的策略建議](images/Gemini_Generated_Image_1cldd81cldd81cld.png)
+![給 2023 年技術領導層的策略建議](images/Gemini_Generated_Image_1cldd81cldd81cld.webp)
 ---

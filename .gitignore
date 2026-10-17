@@ -6,8 +6,15 @@
 .sisyphus/
 AGENTS.md
 CLAUDE.md
+/fab_predictive_maintenance_ppt169/
+/edge_ai_platform_ppt169/
 
 /content/zh-tw/posts/hello-world.md
+
+# --- Anti-theft watermarked source images ---
+# 已燒進投影片 PNG 的來源圖，不進版控。** 開頭的 ** 不可省略：
+# 少了它只擋根目錄，擋不住 content/zh-tw/posts/*/images/ 底下的同名檔。
+**/*_protected.png
 
 # --- Generated site output ---
 /public/

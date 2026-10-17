@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-01
 cover:
-    image: "cover.png" # 直接寫檔名即可
+    image: "cover.jpg" # 直接寫檔名即可
     alt: "TECH TRENDS FOR 2026" # 替代文字（SEO 用）
     caption: "探討人工智慧、硬體與就業市場的劇烈變動。" # 圖片下方的說明文字
     relative: true # 👈 關鍵：使用 Page Bundle 必須設為 true
@@ -49,7 +49,7 @@ The release of **GPT-5 in late 2025** confirmed the "death of the scaling myth."
 
 > **The Takeaway:** Exponential leaps toward super-intelligence failed to materialize. We have hit a plateau where marginal gains require logarithmic increases in compute and power, forcing capital toward physical hardware and energy infrastructure.
 
-![AI 估值的悖論與技術平台期的挑戰](images/Gemini_Generated_Image_bw4t1sbw4t1sbw4t.png)
+![AI 估值的悖論與技術平台期的挑戰](images/Gemini_Generated_Image_bw4t1sbw4t1sbw4t.webp)
 ---
 
 ## 2. The Semiconductor Hegemony and State-Led Interventions
@@ -67,7 +67,7 @@ The total abandonment of free-market mechanics in favor of **"compute-sovereignt
 * **Strategic Case Study: The Intel Nationalization (January 2026)**
 Following a catastrophic 2025, the U.S. government took a 10% stake in Intel. This "Too Big to Fail" intervention transformed Intel from a corporate entity into a state-sponsored infrastructure project essential for national security.
 
-![2026 年半導體霸權與國家主導干預](images/Gemini_Generated_Image_9c339x9c339x9c33.png)
+![2026 年半導體霸權與國家主導干預](images/Gemini_Generated_Image_9c339x9c339x9c33.webp)
 ---
 
 ## 3. The Humanoid Robotics Frontier and Wearable Flops
@@ -91,7 +91,7 @@ The consumer wearable sector remains a graveyard of overengineered gimmicks:
 * **Metaverse**: Remains a fiscal black hole despite billions in investment.
 * **Trend**: Consumers are rejecting face-worn computers in favor of discrete, task-specific hardware (e.g., Nike’s battery-powered performance shoes).
 
-![圖表左側詳細比較了 1X (Neo)、Figure Robots 與 Tesla Optimus 三款類人機器人的特性，右側則聚焦於 Apple Vision Pro 與元宇宙等穿戴式設備市場的失敗案例。](images/Gemini_Generated_Image_rcjclwrcjclwrcjc.png)
+![圖表左側詳細比較了 1X (Neo)、Figure Robots 與 Tesla Optimus 三款類人機器人的特性，右側則聚焦於 Apple Vision Pro 與元宇宙等穿戴式設備市場的失敗案例。](images/Gemini_Generated_Image_rcjclwrcjclwrcjc.webp)
 ---
 
 ## 4. Energy Constraints and the Nuclear/Quantum Pivot
@@ -101,7 +101,7 @@ The **"Electricity Wall"** is the new ceiling for AI scaling. Energy independenc
 * **The Nuclear Resurgence**: U.S. "Big Tech" has pivoted to **Small Modular Reactors (SMRs)**. The *Zuckerberg/Oklo* deal serves as the blueprint for private, neighborhood-scale reactors designed to fuel data center clusters.
 * **Quantum Supremacy**: The AI plateau has accelerated quantum interest. The **Google Willow** chip and **Quantum Echoes** algorithm have demonstrated verifiable success at subatomic scales, suggesting the next frontier beyond traditional AI.
 
-![2026 年科技市場能源與計算轉向](images/Gemini_Generated_Image_7w2zpt7w2zpt7w2z.png)
+![2026 年科技市場能源與計算轉向](images/Gemini_Generated_Image_7w2zpt7w2zpt7w2z.webp)
 ---
 
 ## 5. The Labor Market Transformation and Policy Impacts
@@ -118,7 +118,7 @@ A new labor class has emerged. Software engineers are increasingly functioning a
 2. Remediating AI hallucinations.
 3. Managing "vibe-coded" technical debt.
 
-![2026 年勞動力市場轉型與政策影響](images/Gemini_Generated_Image_rffmdtrffmdtrffm.png)
+![2026 年勞動力市場轉型與政策影響](images/Gemini_Generated_Image_rffmdtrffmdtrffm.webp)
 ---
 
 ## 6. Regulatory Sovereignty and Digital Currency Integration
@@ -132,7 +132,7 @@ We are witnessing a "speedrun to a Black Mirror finale," where government policy
 
 > **Result:** The smartphone has become a state portal tracking bank accounts, location, and social activity, making consumer privacy a regulatory impossibility.
 
-![2026 年監管主權與數位貨幣整合](images/Gemini_Generated_Image_27luq227luq227lu.png)
+![2026 年監管主權與數位貨幣整合](images/Gemini_Generated_Image_27luq227luq227lu.webp)
 ---
 
 ## Summary: The 2026 Landscape
@@ -145,5 +145,5 @@ The year is defined by the struggle between **overengineered hype** and **essent
 
 **The "cloud" has been grounded.**
 
-![2026 年科技景觀的三個權力核心：電力（核能 / SMR）、矽（三巨頭與國家支持的晶圓廠） 以及 數位主權（強制性 ID 與 CBDC）。](images/Gemini_Generated_Image_cyuxygcyuxygcyux.png)
+![2026 年科技景觀的三個權力核心：電力（核能 / SMR）、矽（三巨頭與國家支持的晶圓廠） 以及 數位主權（強制性 ID 與 CBDC）。](images/Gemini_Generated_Image_cyuxygcyuxygcyux.webp)
 ---
