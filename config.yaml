@@ -13,6 +13,7 @@ outputs:
 
 params:
   env: production
+  defaultTheme: "light"
   title: Jay Fu Blog
   description: Algorithm | Edge Computing | Software Engineer
   author: Jay Fu
@@ -32,21 +33,17 @@ params:
 
   homeInfoParams:
     Title: "Hello 👋"
-    Content: >
-      任職於半導體產業的**軟體工程師**。
+    AlignSocialIconsTo: center
+    Content: |
+      軟體工程師，專注於機器學習與邊緣運算的整合應用，熱衷於智慧數據視覺化。
 
-      專注於 **機器學習** 與 **邊緣運算** 的整合應用，同時熱衷於 **智慧數據視覺化** 。
+      歡迎來到我的數位花園，探索演算法、邊緣運算與軟體工程筆記。
 
-      歡迎來到我的數位花園。
+      [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
 
-
-      Software Engineer @ Semiconductor Industry
-
-
-      Algorithms • Edge Computing • Data Visualization
-
-
-      Building intelligence where hardware meets software.
+  socialIcons:
+    - name: GitHub
+      url: "https://github.com/jiejiefu"
 
   ShowTableOfContents: true
   HighlightStyle: "monokai"
@@ -76,19 +73,13 @@ languages:
       description: "演算法 | 邊緣運算 | 軟體工程師"
       homeInfoParams:
         Title: "你好，我是Jay 👋"
-        Content: >
-          任職於半導體產業的**軟體工程師**。
-          專注於 **機器學習** 與 **邊緣運算** 的整合應用，同時熱衷於 **智慧數據視覺化** 。
-          歡迎來到我的數位花園。
+        AlignSocialIconsTo: center
+        Content: |
+          軟體工程師，專注於機器學習與邊緣運算的整合應用，熱衷於智慧數據視覺化。
 
+          歡迎來到我的數位花園，探索演算法、邊緣運算與軟體工程筆記。
 
-          Software Engineer @ Semiconductor Industry
-
-
-          Algorithms • Edge Computing • Data Visualization
-
-
-          Building intelligence where hardware meets software.
+          [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
 
   en:
     languageName: "English"
@@ -99,30 +90,13 @@ languages:
       description: "Algorithm | Edge Computing | Software Engineer"
       homeInfoParams:
         Title: "Hello, I'm Jay 👋"
-        Content: >
-          ### 1. **Optimizing high-performance algorithms for mission-critical semiconductor systems.**
-        
+        AlignSocialIconsTo: center
+        Content: |
+          Software Engineer in the semiconductor industry, focused on integrating **machine learning** and **edge computing**, with a passion for **smart data visualization**.
 
-          Bridging the gap between raw sensor data and actionable edge intelligence through scalable software architectures.
-          
+          Welcome to my digital garden — notes on algorithms, edge computing, and software engineering.
 
-          ---
-
-
-          ### 2. **Translating complex physical signals into intuitive digital insights.**
-          
-          
-          Dedicated to engineering robust Edge AI solutions that empower real-time decision-making and autonomous equipment diagnostics.
-          
-
-          ---
-
-          ### 3. **Pioneering the next generation of intelligent manufacturing.**
-
-
-          I explore the synergy between low-latency computing and human-centric data storytelling to redefine industrial automation.
-
-
+          [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
 
 menu:
   main:

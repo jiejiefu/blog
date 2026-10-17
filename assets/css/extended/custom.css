@@ -14,3 +14,27 @@
 .first-entry, .post-entry, .home-info {
     animation: fadeInUp 0.8s ease-out forwards;
 }
+
+/* 黑白色系 – 淺色模式 */
+:root {
+    --primary: rgb(0, 0, 0);
+    --content: rgb(0, 0, 0);
+    --secondary: rgb(60, 60, 60);
+    --tertiary: rgb(230, 230, 230);
+    --border: rgb(230, 230, 230);
+    --code-block-bg: rgb(245, 245, 245);
+    --code-bg: rgb(245, 245, 245);
+}
+
+/* 黑白色系 – 深色模式 */
+:root[data-theme="dark"] {
+    --theme: rgb(0, 0, 0);
+    --entry: rgb(0, 0, 0);
+    --primary: rgb(255, 255, 255);
+    --content: rgb(255, 255, 255);
+    --secondary: rgb(200, 200, 200);
+    --tertiary: rgb(20, 20, 20);
+    --border: rgb(40, 40, 40);
+    --code-block-bg: rgb(0, 0, 0);
+    --code-bg: rgb(0, 0, 0);
+}
