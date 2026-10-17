@@ -11,9 +11,9 @@ cover:
 ---
 ## Introduction
 
-This article is based on an interview presentation deck (10 slides) showcasing the complete engineering practice of a Semiconductor Equipment Edge AI Platform, covering real-time health inference from sensor data ingestion to AI Agent and MLOps operations across the full stack. All images have been de-identified; company names and sensitive information have been removed, and data and technical parameters are logical illustrations only, for architecture and visual reference purposes.
+This article is based on an interview presentation deck (10 slides) showcasing the complete engineering practice of a Semiconductor Equipment Edge AI Platform, covering real-time health inference from sensor data ingestion to AI Agent and MLOps operations across the full stack. All images have been de-identified; company names and sensitive information have been removed, and data and technical parameters are logical illustrations only, for architecture and visual reference purposes. When reposting, please cite the source.
 
-> ⚠️ **Intellectual Property Notice**: All images in this article are copyrighted by their respective original companies. Unauthorized download, reproduction, or modification is prohibited. This article is for personal technical demonstration and interview reference only. All images have been de-identified and virtualized and do not contain any undisclosed trade secrets, real customer names, specific process nodes, or internal project codenames.
+> ⚠️ **Intellectual Property Notice**: All images in this article are copyrighted by the blog author. Unauthorized download, reproduction, or modification is prohibited. This article is for personal technical demonstration and interview reference only. All images have been de-identified and virtualized and do not contain any undisclosed trade secrets, real customer names, specific process nodes, or internal project codenames.
 
 ---
 
@@ -414,4 +414,4 @@ Current SQLite single-machine architecture is an engineering choice for current 
 
 ---
 
-> **Copyright and Terms of Use**: All images in this article are copyrighted by their respective original companies. Reproduction requires authorization. The image content has been de-identified and virtualized for logical and visual reference purposes only and does not constitute any trade secret disclosure.
+> **Copyright and Terms of Use**: All images in this article are copyrighted by the blog author. Reproduction requires attribution. The image content has been de-identified and virtualized for logical and visual reference purposes only and does not constitute any trade secret disclosure.
