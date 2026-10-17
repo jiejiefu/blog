@@ -1,0 +1,4 @@
+<div data-aos="{{ .Get "type" | default "fade-up" }}" 
+     data-aos-delay="{{ .Get "delay" | default "0" }}">
+    {{ .Inner | markdownify }}
+</div>
