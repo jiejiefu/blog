@@ -21,7 +21,7 @@ This article is based on an interview presentation deck (10 slides) showcasing t
 
 ![Project Overview: Semiconductor Equipment Edge AI Platform](images/01_project_overview.png)
 
-The platform is positioned as a "Semiconductor Equipment Edge AI Platform," subtitled "Edge AI and Fault Prediction Health Management," integrating fragmented Sensor + ML workflows into executable engineering closed loops from sensor data to intelligent decisions.
+The platform is positioned as a "Semiconductor Equipment Edge AI Platform," subtitled "Edge AI and Fault Prediction Health Management (PHM)," integrating fragmented Sensor + ML workflows into executable engineering closed loops from sensor data to intelligent decisions.
 
 ### End-to-End Execution Pipeline
 
