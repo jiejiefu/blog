@@ -65,7 +65,7 @@ hasCJKLanguage: true # 修正中文內容字數統計與搜尋
 
 languages:
   zh-tw:
-    languageName: "繁體中文"
+    label: "繁體中文"
     contentDir: content/zh-tw  # 中文內容存放路徑
     weight: 1
     title: Jay Fu 的科技部落格
@@ -82,7 +82,7 @@ languages:
           [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
 
   en:
-    languageName: "English"
+    label: "English"
     contentDir: content/en     # 英文內容存放路徑
     weight: 2
     title: Jay Fu's Tech Blog
