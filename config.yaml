@@ -41,6 +41,8 @@ params:
 
       [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
 
+      [Machine Learning](/tags/machine-learning/) · [Edge Computing](/tags/edge-computing/) · [AI Applications](/tags/ai-applications/)
+
   socialIcons:
     - name: GitHub
       url: "https://github.com/jiejiefu"
@@ -81,6 +83,8 @@ languages:
 
           [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
 
+          [Machine Learning](/tags/machine-learning/) · [Edge Computing](/tags/edge-computing/) · [AI Applications](/tags/ai-applications/)
+
   en:
     label: "English"
     contentDir: content/en     # 英文內容存放路徑
@@ -97,6 +101,8 @@ languages:
           Welcome to my digital garden — notes on algorithms, edge computing, and software engineering.
 
           [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
+
+          [Machine Learning](/tags/machine-learning/) · [Edge Computing](/tags/edge-computing/) · [AI Applications](/tags/ai-applications/)
 
 menu:
   main:
