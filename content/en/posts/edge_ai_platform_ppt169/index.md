@@ -39,16 +39,16 @@ Five stages connected:
 
 Four core modules:
 
-1. **IoT Data Ingestion**: deque memory ring buffer · 500 entries/s batch flush write-in · SQLite dual-database isolation and backup
-2. **ML & PHM Engine**: One-Class SVM anomaly detection · PCA dimensionality reduction feature extraction and anomaly analysis · unsupervised degradation trend cumulative quantification
-3. **Edge Deployment**: PyInstaller standalone binary packaging · offline environment level software ready-to-use · version release and update check mechanism
-4. **GenAI & RAG Agent**: LLM automated maintenance tool generation · RAG retrieval of historical maintenance knowledge base · open-loop fault root cause diagnosis and dispatch
+1. **IoT Data Ingestion**: deque in-memory peak-shaving buffer · 500 entries / 5s batch flush · SQLite dual-database rolling isolation and backup
+2. **ML & PHM Engine**: One-Class SVM anomaly detection · PCA dimensionality reduction, feature extraction and drift analysis · unsupervised degradation trend metric quantification · Mahalanobis distance / outlier detection
+3. **Edge Deployment**: PyInstaller standalone binary packaging · zero-dependency, ready-to-use in offline environments · version release and update check mechanism
+4. **GenAI & RAG Agent**: LLM-generated repair work orders · RAG retrieval over the historical maintenance knowledge base · closed-loop fault root cause diagnosis and dispatch
 
 ### System Tech Stack
 
 - Frontend: React UI
 - Backend: Flask / SSE
-- Database: SQLite Dual
+- Database: SQLite (dual DB)
 - ML: scikit-learn / PCA
 - Infra: Docker Compose
 - GenAI: LLM Agent / RAG
@@ -65,7 +65,7 @@ Four core modules:
 2. Python Scripts: Ad-hoc / one-time data cleaning scripts, lack version control
 3. ML Notebooks: Offline model experimentation and training, no real-time inference
 4. Config Files: Static JSON/YAML configuration, fixed thresholds
-5. Edge C++ Runtime: Device-side monolithic executable, isolated updates difficult
+5. Edge C++ Runtime: Device-side monolithic executable, difficult to update in isolation
 6. Web Dashboard: Independent frontend monitoring interface, status cannot sync
 
 ### Critical System Pain Points
@@ -74,6 +74,8 @@ Four core modules:
 - **Broken Data Lineage**: Inference results cannot be traced back to original sensor parameter versions and training datasets
 - **High Time-to-Market Latency**: Model updates require weeks of manual re-implementation and verification
 
+> **Core cost**: engineers shift from manual hand-off to system maintenance and exception handling.
+
 ### After: 1 Executable Engineering Loop
 
 1. Sensor Data Ingestion: Automatic data streaming
@@ -81,14 +83,14 @@ Four core modules:
 3. Edge AI Inference Engine: One-click device deployment
 4. Continuous Health Monitor: Real-time health monitoring alerts
 5. AI Agent Diagnostics: Intelligent root cause diagnosis
-6. Closed-Loop Feedback: Data model continuous adjustment
+6. Closed-Loop Feedback: Data model closed-loop continuous tuning
 
 ### Engineering Impact
 
 | Metric | Before | After | Benefit |
 |---|---|---|---|
-| Model Deployment Cycle | 28 days (manual) | 1 day (automated pipeline) | → shortened 96% time |
-| Glue Code Reduction | — | -85% | Significantly reduce repetitive development |
+| Model Deployment Cycle | 28 days (manual) | 1 day (automated pipeline) | → 96% reduction |
+| Glue Code Reduction | — | -85% | Significant reduction in repetitive development |
 | Data Lineage Integrity | — | 100% Sync | End-to-end automatic alignment |
 
 ---
@@ -101,15 +103,15 @@ Four core modules:
 
 | Layer | Name | Technical Details |
 |---|---|---|
-| 1 | User & Frontend | React 18 · MUI · React Flow · 31 routes, monitoring dashboard UI |
+| 1 | User & Frontend | React 18 · MUI · React Flow · 31 routes · monitoring dashboard UI |
 | 2 | Backend Core / REST & SSE Hub | Flask · 15 Blueprints · JWT authentication · Agent Tool collaborative dispatch |
-| 3 | ML & Analytics | scikit-learn · feature extraction · One-ClassSVM anomaly detection · batch inference |
+| 3 | ML & Analytics | scikit-learn · feature extraction · One-Class SVM anomaly detection · batch inference |
 | 4 | Edge Execution | Sensor data ingestion → Edge.exe engine → real-time health score (Health Score) |
-| 5 | Data & Persistence | SQLite (dual database), model storage and feature storage management (Model Registry) |
+| 5 | Data & Persistence | SQLite (dual database), model file and feature file management (Model Registry) |
 
 ### AI Agent Collaborative Architecture
 
-**Controllable Tool Calling Architecture Design**:
+**Controllable Tool-Calling Architecture**:
 - Strict Boundary Control: Agent does not bypass backend logic; only executes via validated Tool APIs
 - Real-time SSE Context Ingestion: Device real-time Alert signals streamed into LLM reasoning context
 - Actionable Insights: Root cause analysis and maintenance suggestions automatically returned to frontend UI
@@ -119,12 +121,12 @@ Four core modules:
 | Metric | Value |
 |---|---|
 | Module Count | 15 modules (Flask Blueprints) |
-| Edge Carrier Execution | 8 ms |
+| Edge Data Ingestion | 8 ms |
 | Backend Tool Execution | 35 ms |
-| SSE Event Transmission | 15 ms |
-| Agent Reasoning Decision | 85 ms |
+| SSE Broadcast | 15 ms |
+| Agent Reasoning Decision | 120 ms |
 
-Core architecture value: AI Agent acts only as an intelligent coordinator through Tool Calling, fully retaining backend system determinism and security.
+Core architecture value: the AI Agent acts only as an intelligent coordinator through Tool Calling, preserving the determinism and security of the backend system.
 
 ---
 
@@ -134,32 +136,32 @@ Core architecture value: AI Agent acts only as an intelligent coordinator throug
 
 ### Stage 1: Data Ingestion and Streaming
 
-- Thread-safe queue (deque maxlen=5k)
+- Thread-safe queue (deque maxlen=5000)
 - Batch write every 5 seconds (max 500 entries)
 - Database capacity limit: 10,000 records
 - Prevent I/O blocking under high-frequency signal bursts
 
-**Buffer and Batch Write Mechanism**:
+**Buffering & Batch Write Mechanism**:
 - Bounded Queue: collections.deque(maxlen=5000), effectively absorbs high-frequency sensor burst signals, avoiding blocking system main thread
-- Asynchronous SQLite Flush: 500 entries / 5 seconds, flexible database capacity limit 10,000 records, ensuring frontend maintains extremely low latency
+- Asynchronous SQLite Flush: 500 entries / 5 seconds, hard database cap of 10,000 records, ensuring queries stay extremely low latency
 
 ### Stage 2: Preprocessing and ML Scoring
 
 - Time-domain and frequency-domain feature extraction
 - One-Class SVM batch inference engine
-- Real-time health score optimization
+- Real-time health score normalization
 - Converts original vibration data into quantified metrics
 
 ### Stage 3: Monitoring Alert and AI Response
 
 - Frontend 10-second polling mechanism
-- GET /api/vibration/latest snapshot
+- GET /api/vibration/latest endpoint
 - SSE event stream drives AI Agent inference
 - Automated root cause diagnosis and maintenance recommendations
 
-**Buffer Queue and DB Write Simulation**:
+**Buffering Queue & DB Write Simulation**:
 - Sensor anomaly signal (2,500 pts/s)
-- DB asynchronous write-in (500 pts/s)
+- DB asynchronous write (500 pts / 5s)
 - I/O load control < 5%
 
 Core architecture value: Asynchronous buffering isolates high-frequency signal burst impact on the database, ensuring stable system operation during abnormal bursts.
@@ -172,8 +174,8 @@ Core architecture value: Asynchronous buffering isolates high-frequency signal b
 
 ### Preprocessing and Feature Processing Pipeline
 
-1. Signal Ingestion: High-frequency vibration acceleration, acceleration data x(t), continuous sensor streaming
-2. Time Slicing: Time-domain sliding window slicing, overlapping coverage, fixed-length signal frames
+1. Signal Ingestion: High-frequency vibration acceleration signal x(t), continuous sensor streaming
+2. Time Slicing: Time-domain sliding window slicing, overlapping windows, fixed-length signal frames
 3. Feature Matrix Extraction: accRMS · peak · kurtosis, time-domain and frequency-domain feature metrics, input to downstream ML model
 
 ### Anomaly Detection
@@ -182,7 +184,7 @@ Core architecture value: Asynchronous buffering isolates high-frequency signal b
 
 ### Feature Alignment
 
-**DTW Sequence Alignment**: Overcomes rotational speed fluctuation and time axis phase misalignment, non-linear time series dynamic alignment
+**DTW Sequence Alignment**: overcomes rotational speed fluctuation and time axis phase misalignment via non-linear time-series dynamic alignment
 
 ### Trend and Drift
 
@@ -190,7 +192,7 @@ Core architecture value: Asynchronous buffering isolates high-frequency signal b
 
 ### Algorithm Selection Criteria
 
-Based on physical signal characteristics → lacking fault labels → **OCSVM** → rotational phase misalignment → **DTW** → long-term wear degradation → **PCA feature drift**
+Selected based on physical signal characteristics — lacking fault labels → **OCSVM** → rotational phase misalignment → **DTW** → long-term wear degradation → **PCA feature drift**
 
 ---
 
@@ -211,9 +213,10 @@ Based on physical signal characteristics → lacking fault labels → **OCSVM** 
 
 ### Data and Stream I/O
 
-**Dual DB cross-library query and asynchronous buffering write-in mechanism**:
-- edge_ai.db (configuration and model layer compression) + vibration.db (high-frequency time-domain database)
+**Dual DB cross-database query and asynchronous buffering write mechanism**:
+- edge_ai.db (configuration and model history) + vibration.db (high-frequency time-domain database)
 - SQLite ATTACH → high-efficiency single SQL join query
+- API reads are decoupled from high-frequency writes, so queries are never blocked by write spikes
 - High-frequency signal → deque queue maxlen=5000 → batch DB write (5s / 500 entries)
 
 ### Model Lifecycle
@@ -224,7 +227,7 @@ Based on physical signal characteristics → lacking fault labels → **OCSVM** 
 
 ### 15 Domain Blueprints
 
-Split by business domain for independent maintenance (Sensor / ML / Edge), avoiding large single Route file, improving modular extensibility.
+Split by business domain for independent maintenance (Sensor / ML / Edge), avoiding monolithic Route files, improving modular extensibility.
 
 **Authentication Flow**: LDAP / AD ↔ JWT Access ↔ Refresh (1-hour short token / 30-day refresh renewal)
 
@@ -248,7 +251,7 @@ Split by business domain for independent maintenance (Sensor / ML / Edge), avoid
 1. Client Layer: User input → React Agent UI conversation interface
 2. Backend Gateway: POST /agent/chat/stream · SSE real-time streaming
 3. Agent Orchestrator: OpenAI Agents SDK · automatic tool selection · ReAct reasoning chain
-4. Platform Tools: Flask controller directly invoked controlled sandbox functions
+4. Platform Tools: controlled sandbox functions invoked directly by the Flask controller
    - get_health_score
    - get_vibration_data
    - run_sql_query_safe
@@ -256,10 +259,13 @@ Split by business domain for independent maintenance (Sensor / ML / Edge), avoid
    - read_file
    - export_report
 
+Sandboxed execution with Read-only API permissions only.
+
 ### Reasoning Engine
 
-- LLM focuses on understanding user intent, decomposes problem steps, selects appropriate Tool
-- Eliminates hallucination, does not directly generate data; all physical data queried via Tools
+- Core framework: OpenAI Agents SDK (with 20+ built-in Function Tools); fallback: LangGraph ReAct; real-time feedback via SSE Streaming
+- LLM focuses on understanding user intent, decomposing the problem into steps, and selecting the appropriate Tool
+- Prevents hallucinations: the model never fabricates data, and all actual data is queried through Tools
 
 ### Deterministic Tool Execution
 
@@ -270,7 +276,7 @@ Split by business domain for independent maintenance (Sensor / ML / Edge), avoid
 
 - Backend strictly controls API access and permission authentication; Unrestricted Shell strictly prohibited
 - SQL query limited to Read-only mode with parameterized passing, preventing injection attacks
-- Combined with JWT Token authentication, ensuring model sensitive data and business settings access security
+- Combined with JWT Token authentication, ensuring secure access to sensitive sensor data and project configuration
 
 ### Agent Execution Latency Display
 
@@ -278,9 +284,9 @@ Split by business domain for independent maintenance (Sensor / ML / Edge), avoid
 |---|---|
 | LLM reasoning | ~320 ms |
 | Tool execution | ~35 ms |
-| SSE event transmission | ~85 ms |
+| SSE stream transmission | ~85 ms |
 
-Deterministic data 0%, direct DB risk 100% (emphasizes all data accessed via controlled Tools).
+100% deterministic data, 0% direct DB risk (all data is accessed through controlled Tools).
 
 ---
 
@@ -296,9 +302,9 @@ Deterministic data 0%, direct DB risk 100% (emphasizes all data accessed via con
 | Backend API (:5000) | edgeai-backend:latest, Flask WSGI + APScheduler scheduling |
 | Persistent Data Volume (Docker Volume) | SQLite dual database · ML model files (.pkl) · sensor logs, Volume mount, reducing data loss risk |
 
-Key application configuration injection: entrypoint.sh → env.js → window.ENV → backend endpoint, same Image across environments (Deploy Once · Configure at Runtime)
+Zero-rebuild dynamic injection: entrypoint.sh → env.js → window.ENV → backend endpoint, same Image across environments (Deploy Once · Configure at Runtime)
 
-### APScheduler: Proactive Health Detection and Rapid Recommendation
+### APScheduler: Proactive Health Detection and Cached Inference
 
 | Background Engine Task | Frequency |
 |---|---|
@@ -306,7 +312,7 @@ Key application configuration injection: entrypoint.sh → env.js → window.ENV
 | Model Anomaly Inference | Every 5 minutes |
 | Email Alert Notification | Event-triggered |
 
-**State Buffer & Cache**: MonitorSnapshot state pool, RAM two-tier cache (API read value 0.2ms), disk fallback persistence
+**State Buffer & Cache**: MonitorSnapshot state pool, RAM two-tier cache (API reads in just 0.2ms), disk file fallback persistence
 
 ### Automated Schedule Timeline
 
@@ -314,7 +320,7 @@ Key application configuration injection: entrypoint.sh → env.js → window.ENV
 - Health detection: Every 5 minutes
 - Model anomaly inference: Every 5 minutes
 - Email alert delivery: Immediate event trigger
-- High-frequency data write-in: 5s / 500 entries batch
+- High-frequency data writes: 5s / 500 entries batch
 
 ### Frontend Visualization Panel
 
@@ -335,8 +341,8 @@ Sensor data → deque queue → batch write → SQLite DB
 
 **Burst traffic peak shaving simulation**:
 - Burst traffic peak: 2.5k
-- 5s (burst point) → 15s (peak) → 25s (digestion complete)
-- Smooth write-in limit 1000 req/s (Batch Flush)
+- 5s (burst start) → 15s (peak) → 25s (backlog fully absorbed)
+- Smoothed write throughput 1000 req/s (Batch Flush)
 
 **Bounded queue buffer**: deque(maxlen=5000) memory isolation
 **Batch write strategy**: Every 5 seconds / 500 entries batch flush
@@ -357,9 +363,9 @@ MQTT Broker ↔ Message Queue ↔ Worker Cluster (N instances each)
 
 **Three expansion principles**:
 
-1. **Ingress and compute node decoupling**: Message Queue (Kafka / RabbitMQ) fully absorbs high-frequency burst traffic, eliminating single-point lock
-2. **Worker elastic horizontal expansion**: Stateless Worker nodes can be automatically scaled based on Queue backlog Auto-Scaling
-3. **Enterprise-grade read/write separation**: PostgreSQL responsible for persistence, Redis provides high-speed API access, thoroughly separating read/write pressure
+1. **Complete decoupling of writes from compute**: the Message Queue (Kafka / RabbitMQ) fully absorbs ten-thousand-scale burst traffic, eliminating single-point locks
+2. **Elastic horizontal scaling of Workers**: stateless Worker nodes can be auto-scaled based on queue backlog
+3. **Enterprise-grade read/write separation**: PostgreSQL handles persistence while Redis serves high-speed API reads, fully separating read and write pressure
 
 > Current SQLite is an engineering choice for current Edge Deployment scale; as scale grows, it will evolve into Scale-Out distributed architecture.
 
@@ -373,23 +379,25 @@ MQTT Broker ↔ Message Queue ↔ Worker Cluster (N instances each)
 
 | Component | Current Solution (TODAY) | Bottleneck & Limit | Future Evolution (NEXT) |
 |---|---|---|---|
-| Flask | Simple REST · ML integration easy | Architecture norm limits less | FastAPI (Service Split) |
-| SQLite | Deployment simple, maintenance low | Single-file write concurrency lock | PostgreSQL HA Cluster |
+| Flask | Simple REST · ML integration easy | Few architectural constraints; hard to split services | FastAPI (Service Split) |
+| SQLite | Deployment simple, low maintenance burden | Single-file write concurrency lock | PostgreSQL HA Cluster |
 | APScheduler | Background work built-in integrated | Single process limit | Worker Queue (Celery / RQ) |
 | Local ML files | Edge direct load | Model version tracking weak | Model Registry (MLflow) |
 | SSE | Unidirectional HTTP stream simple | No bidirectional communication | WebSocket (bidirectional demand) |
-| One-Class SVM | No fault label threshold applicable | Over-parameterized boundary sensitive | Advanced PHM Model |
-| React Context | Lightweight component state sharing | Large scale easy multi-render | Zustand / Redux |
-| Queue | Memory queue buffer (deque) | Capacity limited by memory | Durable MQ (Kafka) |
+| One-Class SVM | Applicable when fault labels are unavailable | Over-parameterized boundary sensitive | Advanced PHM Model |
+| React Context | Lightweight component state sharing | Excessive re-renders at scale | Zustand / Redux |
+| Queue | In-memory peak-shaving buffer (deque) | Capacity limited by memory | Durable MQ (Kafka) |
 | Docker Compose | Single-machine containerized deployment simple | Container orchestration capability limited | Kubernetes (K8s) |
 
 ### System Trade-off Radar Chart (Edge-Optimal vs. Scale-Out)
 
-- **Deployment Difficulty**: Current architecture low, future Scale-Out increases with K8s introduction
-- **Low Maintenance Cost**: Current solution better, distributed architecture maintenance complexity increases
-- **Throughput**: Current single-machine limited, future Scale-Out significantly improves
-- **Fault Tolerance**: Current single-point risk high, future distributed has high fault tolerance
-- **Storage Capacity**: Current SQLite limited, future PostgreSQL + Redis significantly improves
+- **Deployment Speed**: Fast for the current design; Scale-Out slows down once K8s is introduced
+- **Low Ops Cost**: Lower for the current design; distributed architectures add significant ops complexity
+- **Scalability**: Limited on a single machine; Scale-Out scales out substantially
+- **Fault Tolerance**: High single-point risk today; the distributed design is highly fault tolerant
+- **Throughput**: Limited on a single machine; Message Queue + Worker Cluster raise it substantially
+
+Overall stance: design for today's edge constraints while leaving a clear evolution path for future scale-out.
 
 ### Architecture Evolution Blueprint
 
@@ -407,8 +415,8 @@ The Semiconductor Equipment Edge AI Platform, from sensor data ingestion to AI A
 
 - Model deployment cycle compressed from 28 days to 1 day (shortened 96%)
 - Glue code reduced by 85%, data lineage integrity 100% synchronized
-- Real-time inference latency < 5ms, offline autonomous operation supported
-- 15 Domain Blueprints modular architecture, supporting future horizontal expansion to Kubernetes
+- Real-time inference latency < 5 ms; supports offline autonomous operation
+- 15 Domain Blueprints modular architecture, supporting future scale-out migration to Kubernetes
 
 Current SQLite single-machine architecture is an engineering choice for current Edge Deployment scale; as scale grows, it will evolve into Scale-Out distributed architecture.
 
