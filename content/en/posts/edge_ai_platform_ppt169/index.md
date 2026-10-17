@@ -342,7 +342,7 @@ Sensor data → deque queue → batch write → SQLite DB
 **Burst traffic peak shaving simulation**:
 - Burst traffic peak: 2.5k
 - 5s (burst start) → 15s (peak) → 25s (backlog fully absorbed)
-- Smoothed write throughput 1000 req/s (Batch Flush)
+- Smoothed write throughput 100 req/s (Batch Flush, i.e. 500 entries every 5 s)
 
 **Bounded queue buffer**: deque(maxlen=5000) memory isolation
 **Batch write strategy**: Every 5 seconds / 500 entries batch flush
