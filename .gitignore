@@ -1,0 +1,105 @@
+# =========================
+# Hugo Professional .gitignore
+# =========================
+
+# --- Private / agent instructions (keep local, not committed) ---
+.sisyphus/
+AGENTS.md
+CLAUDE.md
+
+/content/zh-tw/posts/hello-world.md
+
+# --- Generated site output ---
+/public/
+/resources/_gen/
+/assets/jsconfig.json
+hugo_stats.json
+
+# --- Hugo cache ---
+.hugo_build.lock
+/resources/_cache/
+
+# --- Node / Frontend tooling ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# --- Build tools ---
+dist/
+build/
+.cache/
+.tmp/
+temp/
+
+# --- OS generated files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Environment variables ---
+.env
+.env.*
+!.env.example
+
+# --- Deployment ---
+.vercel/
+.netlify/
+.firebase/
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Optional: Ignore local config ---
+config/_default/params.local.toml
+config/development/
+
+# --- Optional: Ignore draft content exports ---
+exports/
+backups/
+
+# --- Python (if using scripts/tools) ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- Go (Hugo modules) ---
+bin/
+pkg/
+
+# --- Mac/Linux temp files ---
+*~
+*.tmp
+
+# =========================
+# Keep Hugo module files
+# =========================
+!go.mod
+!go.sum
+
+# =========================
+# Keep important assets
+# =========================
+!/static/
+!/content/
+!/layouts/
+!/themes/
+!/archetypes/
+!/data/
+!/i18n/

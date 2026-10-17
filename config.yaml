@@ -5,6 +5,12 @@ theme: "PaperMod"
 pagination:
   pagerSize: 10
 
+outputs:
+    home:
+        - HTML
+        - RSS
+        - JSON # necessary for search
+
 params:
   env: production
   title: Jay Fu Blog
@@ -16,10 +22,31 @@ params:
   ShowPostNavLinks: true
   ShowBreadCrumbs: true
 
+  ShowFullTextinRSS: true
+  displayFullLangName: false # 設定為 true 會顯示 "English"，false 則可能顯示 "EN"
+
   profileMode:
-    enabled: true
+    enabled: false
     title: "Jay Fu"
     subtitle: "Machine Learning | Edge Computing"
+
+  homeInfoParams:
+    Title: "Hello 👋"
+    Content: >
+      任職於半導體產業的**軟體工程師**。
+
+      專注於 **機器學習** 與 **邊緣運算** 的整合應用，同時熱衷於 **智慧數據視覺化** 。
+
+      歡迎來到我的數位花園。
+
+
+      Software Engineer @ Semiconductor Industry
+
+
+      Algorithms • Edge Computing • Data Visualization
+
+
+      Building intelligence where hardware meets software.
 
   ShowTableOfContents: true
   HighlightStyle: "monokai"
@@ -28,9 +55,99 @@ params:
   # hideCopyright: false      # 🔹 必須
   # ShowCodeCopyButtons: true # 🔹 必須
 
+  cover:
+      responsiveImages: true  # 自動產生不同大小的圖片以優化載入速度（建議開啟）
+      linkFullImages: true    # 點擊文章封面圖時，是否跳轉開啟原圖
+      hidden: false           # 是否在文章內頁隱藏封面（僅在列表頁顯示）
+      hiddenInList: false     # 是否在列表頁隱藏封面（僅在文章內頁顯示）
+
+
+# 預設語言
+defaultContentLanguage: zh-tw
+hasCJKLanguage: true # 修正中文內容字數統計與搜尋
+
+languages:
+  zh-tw:
+    languageName: "繁體中文"
+    contentDir: content/zh-tw  # 中文內容存放路徑
+    weight: 1
+    title: Jay Fu 的科技部落格
+    params:
+      description: "演算法 | 邊緣運算 | 軟體工程師"
+      homeInfoParams:
+        Title: "你好，我是Jay 👋"
+        Content: >
+          任職於半導體產業的**軟體工程師**。
+          專注於 **機器學習** 與 **邊緣運算** 的整合應用，同時熱衷於 **智慧數據視覺化** 。
+          歡迎來到我的數位花園。
+
+
+          Software Engineer @ Semiconductor Industry
+
+
+          Algorithms • Edge Computing • Data Visualization
+
+
+          Building intelligence where hardware meets software.
+
+  en:
+    languageName: "English"
+    contentDir: content/en     # 英文內容存放路徑
+    weight: 2
+    title: Jay Fu's Tech Blog
+    params:
+      description: "Algorithm | Edge Computing | Software Engineer"
+      homeInfoParams:
+        Title: "Hello, I'm Jay 👋"
+        Content: >
+          ### 1. **Optimizing high-performance algorithms for mission-critical semiconductor systems.**
+        
+
+          Bridging the gap between raw sensor data and actionable edge intelligence through scalable software architectures.
+          
+
+          ---
+
+
+          ### 2. **Translating complex physical signals into intuitive digital insights.**
+          
+          
+          Dedicated to engineering robust Edge AI solutions that empower real-time decision-making and autonomous equipment diagnostics.
+          
+
+          ---
+
+          ### 3. **Pioneering the next generation of intelligent manufacturing.**
+
+
+          I explore the synergy between low-latency computing and human-centric data storytelling to redefine industrial automation.
+
+
+
 menu:
   main:
     - identifier: posts
       name: Posts
       url: posts/
       weight: 10
+
+    - identifier: projects
+      name: Projects
+      url: projects/
+      weight: 20
+
+    - identifier: resume
+      name: Resume
+      url: resume/
+      weight: 30
+
+    - identifier: search
+      name: "🔍 Search"  # 或是寫 "搜尋"
+      url: search/       # 對應到我們下一步要建立的文章路徑
+      weight: 50
+
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true # 允許在 Markdown 中直接使用 HTML 標籤
