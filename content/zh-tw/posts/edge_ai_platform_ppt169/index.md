@@ -39,9 +39,9 @@ cover:
 
 四大核心模組：
 
-1. **IoT Data Ingestion 感測資料鏈結 (IoT)**：deque 記憶體輪隊倉、500 筆 / s 批次 Flush 寫入、SQLite 雙資料庫隔離與備份
+1. **IoT Data Ingestion 感測資料鏈結 (IoT)**：deque 記憶體環狀緩衝區、500 筆 / s 批次 Flush 寫入、SQLite 雙資料庫隔離與備份
 2. **ML & PHM Engine 健康度推論**：One-Class SVM 異常偵測、PCA 降維與特徵萃取與異常分析、無監督退化趨勢積累量化
-3. **Edge Deployment 邊緣端架構 (Edge AI)**：Pylinstaller 獨立二進位檔打包、離線環境等級軟體即用即、版本發送與檢查更新機制
+3. **Edge Deployment 邊緣端架構 (Edge AI)**：PyInstaller 獨立二進位檔打包、離線環境等級軟體即用、版本發佈與檢查更新機制
 4. **GenAI & RAG Agent 智能維護 Agent**：LLM 自動化產生修復工具、RAG 檢索歷史維護知識庫、開環式故障根因診斷與派工
 
 ### 系統技術棧（System Tech Stack）
@@ -140,8 +140,8 @@ cover:
 - 突發高頻訊號下防止 I/O 阻塞
 
 **蓄流與批次寫入機制**：
-- 記憶體邊界佇列（Bounded Queue）：collections.deque(maxlen=5000），有效吸收高頻感測器突發訊號，避免阻塞系統主執行緒
-- 非同步 SQLite Flush：500 筆 / 5 秒，資料庫容量彈性限制 10,000 筆，確保前鋒維持極低延遲
+- 記憶體邊界佇列（Bounded Queue）：collections.deque(maxlen=5000), 有效吸收高頻感測器突發訊號，避免阻塞系統主執行緒
+- 非同步 SQLite Flush：500 筆 / 5 秒，資料庫容量彈性限制 10,000 筆，確保前端維持極低延遲
 
 ### Stage 2：預處理與 ML 推論（Scoring）
 
@@ -153,7 +153,7 @@ cover:
 ### Stage 3：監控告警與 AI 聯防（Action）
 
 - 前端 10 秒輪詢機制（10s Polling）
-- GET /api/vibration/latest 臨點
+- GET /api/vibration/latest 端點
 - SSE 事件串流驅動 AI Agent 推論
 - 自動化根因診斷與維修處置建議
 
@@ -335,10 +335,10 @@ cover:
 
 **突發流量削峰填谷模擬**：
 - 突發流量峰值：2.5k
-- 5s（突觸點）→ 15s（峰值）→ 25s（消化完成）
+- 5s（突發點）→ 15s（峰值）→ 25s（消化完成）
 - 平滑寫入上限 1000 req/s（Batch Flush）
 
-**有界佇列緩衝區**：deque(maxlen=5000）記憶體隔離
+**有界佇列緩衝區**：deque(maxlen=5000) 記憶體隔離
 **批次寫入策略**：每 5 秒 / 滿 500 筆批次 Flush
 **FIFO 容量保留限制**：資料庫紀錄上限 10,000 筆
 **雙 DB 滾動備份機制**：每日 03:00 自動備份（保留 7 份）
@@ -357,7 +357,7 @@ MQTT Broker ↔ Message Queue ↔ Worker Cluster（各 N 個）
 
 **三大擴充原則**：
 
-1. **高入與計算節點解耦**：Message Queue（Kafka / RabbitMQ）完全吸收高頻突發流量，免除單點鎖定
+1. **高頻與計算節點解耦**：Message Queue（Kafka / RabbitMQ）完全吸收高頻突發流量，免除單點鎖定
 2. **Worker 彈性橫向擴充**：無狀態 Worker 節點可根據 Queue 堆積量自動實施 Auto-Scaling
 3. **企業級讀寫分離**：PostgreSQL 負責持久化，Redis 提供極速 API 讀取，徹底分攤讀寫壓力
 

@@ -41,7 +41,7 @@ Four core modules:
 
 1. **IoT Data Ingestion**: deque memory ring buffer · 500 entries/s batch flush write-in · SQLite dual-database isolation and backup
 2. **ML & PHM Engine**: One-Class SVM anomaly detection · PCA dimensionality reduction feature extraction and anomaly analysis · unsupervised degradation trend cumulative quantification
-3. **Edge Deployment**: PyInstaller standalone binary packaging · offline environment level software ready-to-use · version delivery and inspection update mechanism
+3. **Edge Deployment**: PyInstaller standalone binary packaging · offline environment level software ready-to-use · version release and update check mechanism
 4. **GenAI & RAG Agent**: LLM automated maintenance tool generation · RAG retrieval of historical maintenance knowledge base · open-loop fault root cause diagnosis and dispatch
 
 ### System Tech Stack
@@ -296,7 +296,7 @@ Deterministic data 0%, direct DB risk 100% (emphasizes all data accessed via con
 | Backend API (:5000) | edgeai-backend:latest, Flask WSGI + APScheduler scheduling |
 | Persistent Data Volume (Docker Volume) | SQLite dual database · ML model files (.pkl) · sensor logs, Volume mount, reducing data loss risk |
 
-Key reconstruction application injection: entrypoint.sh → env.js → window.ENV → backend endpoint, same Image across environments (Deploy Once · Configure at Runtime)
+Key application configuration injection: entrypoint.sh → env.js → window.ENV → backend endpoint, same Image across environments (Deploy Once · Configure at Runtime)
 
 ### APScheduler: Proactive Health Detection and Rapid Recommendation
 
