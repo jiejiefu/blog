@@ -380,7 +380,7 @@ MQTT Broker ↔ Message Queue ↔ Worker Cluster（各 N 個）
 | SSE | 單向 HTTP 串流簡單 | 不支援雙向通訊 | WebSocket（雙向需求） |
 | One-Class SVM | 無故障標籤時適用 | 超參數與邊界敏感 | Advanced PHM Model |
 | React Context | 輕量級元件狀態共用 | 規模大易多重渲染 | Zustand / Redux |
-| Queue | 記憶體佇列緩衝衝（deque） | 容量受限於記憶體 | Durable MQ（Kafka） |
+| Queue | 記憶體佇列緩衝（deque） | 容量受限於記憶體 | Durable MQ（Kafka） |
 | Docker Compose | 單機容器化部署簡單 | 容器編排能力有限 | Kubernetes (K8s) |
 
 ### 系統權衡雷達圖（Edge-Optimal vs. Scale-Out）
