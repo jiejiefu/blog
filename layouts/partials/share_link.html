@@ -1,0 +1,27 @@
+{{- /*
+  分享連結區塊
+  分享文字在伺服器端組好（走 i18n，中英文自動分流），丟進 data-share-text，
+  JS 只負責複製。網址用 .Permalink，不用 window.location.href，
+  避免讀者從 staging 網址進來時複製到錯的網址。
+*/ -}}
+{{- $url := .Permalink -}}
+{{- $titled := printf (T "share_title_format") .Title -}}
+{{- $shareText := printf "%s\n%s%s\n%s%s" $titled (T "share_url_label") $url (T "share_source_label") site.Title -}}
+<div class="share-box" data-share-text="{{ $shareText }}">
+  <p class="share-box__label">{{ T "share_quote" }}</p>
+  <div class="share-box__row">
+    <input class="share-box__url" type="text" readonly value="{{ .Title }} — {{ $url }}"
+           aria-label="{{ T "share_quote" }}">
+    <button class="share-box__btn" type="button" data-share-copy
+            data-label="{{ T "code_copy" }}" data-done="{{ T "code_copied" }}">{{ T "code_copy" }}</button>
+  </div>
+  <div class="share-box__social">
+    <a class="share-box__link" target="_blank" rel="noopener noreferrer"
+       href="https://www.facebook.com/sharer/sharer.php?u={{ $url }}">Facebook</a>
+    <a class="share-box__link" target="_blank" rel="noopener noreferrer"
+       href="https://x.com/intent/tweet/?text={{ .Title }}&amp;url={{ $url }}">X</a>
+    <a class="share-box__link" target="_blank" rel="noopener noreferrer"
+       href="https://social-plugins.line.me/lineit/share?url={{ $url }}">LINE</a>
+  </div>
+  <span class="share-box__status" role="status" aria-live="polite"></span>
+</div>

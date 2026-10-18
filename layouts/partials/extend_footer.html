@@ -8,3 +8,11 @@
         });
     });
 </script>
+{{- /* 分享連結的複製功能。
+       ⚠️ 必須用 .RelPermalink / .Permalink 取得網址。
+       直接寫 {{ . | minify | fingerprint }} 會輸出「來源」路徑
+       （/js/share-link.js，檔案根本不存在），不會是加工後的指紋檔名。 */}}
+{{- with resources.Get "js/share-link.js" }}
+{{- $js := . | minify | fingerprint }}
+<script src="{{ $js.RelPermalink }}" defer></script>
+{{- end }}

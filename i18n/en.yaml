@@ -1,0 +1,11 @@
+- id: share_quote
+  translation: "Share this post with attribution:"
+
+- id: share_title_format
+  translation: '"%s"'
+
+- id: share_url_label
+  translation: "Link: "
+
+- id: share_source_label
+  translation: "Source: "

@@ -38,3 +38,84 @@
     --code-block-bg: rgb(0, 0, 0);
     --code-bg: rgb(0, 0, 0);
 }
+
+/* 分享連結區塊 */
+.share-box {
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    margin: 16px 0;
+    background-color: var(--code-bg);
+}
+
+.share-box__label {
+    margin: 0 0 10px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--content);
+}
+
+.share-box__row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.share-box__url {
+    flex: 1 1 18rem;
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background-color: var(--theme);
+    color: var(--secondary);
+    font-size: 0.85rem;
+}
+
+.share-box__btn {
+    flex: 0 0 auto;
+    padding: 8px 15px;
+    /* 反色配對只能用 --primary ↔ --theme。
+       PaperMod 的 --theme / --entry 在淺色模式是同一個值（皆白），
+       深色模式也幾乎同值（皆黑），拿來當底色+文字會看不見。 */
+    background-color: var(--primary);
+    color: var(--theme);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.share-box__btn:hover {
+    opacity: 0.85;
+}
+
+.share-box__social {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.share-box__link {
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--secondary);
+}
+
+.share-box__link:hover {
+    color: var(--content);
+    border-color: var(--secondary);
+}
+
+.share-box__status {
+    display: block;
+    min-height: 1.2em;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: var(--secondary);
+}

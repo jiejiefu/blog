@@ -3,3 +3,15 @@
 
 - id: resume
   translation: "履歷"
+
+- id: share_quote
+  translation: "分享本篇連結與出處："
+
+- id: share_title_format
+  translation: "《%s》"
+
+- id: share_url_label
+  translation: "文章連結："
+
+- id: share_source_label
+  translation: "出處："
