@@ -87,7 +87,7 @@ python anti_theft_watermark.py -i ./raw_photos -o ./protected_output -t "© 2026
 import os
 import argparse
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageStat
 
 def get_system_font(font_size):
     """跨平台自動尋找可用字型，若找不到則回退至系統預設字型"""
@@ -105,39 +105,99 @@ def get_system_font(font_size):
                 continue
     return ImageFont.load_default()
 
-def add_anti_theft_watermark(input_image_path, output_image_path, text="© Unauthorised Use Prohibited", opacity=35, angle=45):
-    """單張圖片加上防盜網格浮水印核心函式"""
+def detect_image_theme(img):
+    """
+    自動檢測圖片是深色還是淺色主題
+    回傳: 'light' 或 'dark'
+    """
+    # 轉為灰階並計算平均亮度
+    gray_img = img.convert("L")
+    stat = ImageStat.Stat(gray_img)
+    avg_brightness = stat.mean[0]  # 數值介於 0 ~ 255 之間
+    
+    # 閥值設為 127（大於等於 127 視為淺色背景）
+    return "light" if avg_brightness >= 127 else "dark"
+
+def add_anti_theft_watermark(
+    input_image_path, 
+    output_image_path, 
+    text="© Unauthorised Use Prohibited", 
+    opacity=35, 
+    angle=45, 
+    mode="grid",
+    fill=None,          # 預設為 None，代表啟用自動偵測
+):
+    """
+    單張圖片加上防盜網格浮水印核心函式
+    防盜浮水印核心函式，支援 grid（網格小字）與 diagonal（左上到右上對角線大字）模式
+    """
     try:
         # 1. 讀取圖片並轉為 RGBA 模式（才能處理透明度）
         img = Image.open(input_image_path).convert("RGBA")
         width, height = img.size
+
+        # --- 💡 智慧主題檢測與自動填色 ---
+        if fill is None:
+            theme = detect_image_theme(img)
+            if theme == "light":
+                fill = (140, 140, 140, opacity)  # 淺色投影片用較深的灰，確保看得見
+                print(f"[自動偵測] 偵測為【淺色】投影片，自動套用深灰浮水印")
+            else:
+                fill = (180, 180, 180, opacity)  # 深色投影片用亮白灰，才不會被吃掉
+                print(f"[自動偵測] 偵測為【深色】投影片，自動套用亮灰浮水印")
         
         # 2. 建立一個與原圖一樣大的透明圖層用來畫浮水印
         watermark_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(watermark_layer)
-        
-        # 3. 設定字型與大小（動態計算比例）
-        font_size = int(width * 0.025)
-        font = get_system_font(font_size)
-        
-        # 獲取文字寬高
-        text_bbox = font.getbbox(text) if hasattr(font, 'getbbox') else draw.textbbox((0, 0), text, font=font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        
-        # 4. 以網格狀（Grid）在透明圖層上寫滿文字
-        x_spacing = int(text_width * 1.5)
-        y_spacing = int(text_height * 3.0)
-        
-        # 故意將範圍擴大，確保旋轉後邊角也能被字蓋到
-        for x in range(-width, width * 2, x_spacing):
-            for y in range(-height, height * 2, y_spacing):
-                # 設定顏色與透明度：(紅, 綠, 藍, 透明度)
-                draw.text((x, y), text, font=font, fill=(128, 128, 128, opacity))
-                
-        # 5. 將浮水印圖層旋轉指定角度（預設 45 度）
-        watermark_layer = watermark_layer.rotate(angle, resample=Image.BICUBIC)
-        
+
+        if mode == "grid":
+            # 3. 設定字型與大小（動態計算比例）
+            font_size = int(width * 0.025)
+            font = get_system_font(font_size)
+            
+            # 獲取文字寬高
+            text_bbox = font.getbbox(text) if hasattr(font, 'getbbox') else draw.textbbox((0, 0), text, font=font)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+            
+            # 4. 以網格狀（Grid）在透明圖層上寫滿文字
+            x_spacing = int(text_width * 1.5)
+            y_spacing = int(text_height * 3.0)
+            
+            # 故意將範圍擴大，確保旋轉後邊角也能被字蓋到
+            for x in range(-width, width * 2, x_spacing):
+                for y in range(-height, height * 2, y_spacing):
+                    # 設定顏色與透明度：(紅, 綠, 藍, 透明度)
+                    draw.text((x, y), text, font=font, fill=fill)
+                    
+            # 5. 將浮水印圖層旋轉指定角度（預設 45 度）
+            watermark_layer = watermark_layer.rotate(angle, resample=Image.BICUBIC)
+
+        elif mode == "diagonal":
+            # --- 模式 B：單一一行大字從左上到右上對角線 ---
+            # 字型設大一點（例如圖片寬度的 4.85%）
+            font_size = int(width * 0.0485)
+            font = get_system_font(font_size)
+            
+            # 獲取文字寬高
+            text_bbox = font.getbbox(text) if hasattr(font, 'getbbox') else draw.textbbox((0, 0), text, font=font)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+            
+            # 設定起點：從左下角開始，並預留邊距避免文字超出圖片
+            x = int(width * 0)
+            y = int(height * 0.45)
+            
+            # 繪製單行文字
+            draw.text((x, y), text, font=font, fill=fill)
+            
+            # 計算對角線傾斜角度（根據圖片長寬比例動態計算數學角度）
+            import math
+            diag_angle = math.degrees(math.atan2(height, width))
+            
+            # 將浮水印圖層旋轉對角線角度（讓文字剛好從左上角斜向右下角）
+            watermark_layer = watermark_layer.rotate(diag_angle, resample=Image.BICUBIC)
+
         # 6. 將原圖與浮水印圖層合併
         final_img = Image.alpha_composite(img, watermark_layer)
         
@@ -154,8 +214,11 @@ def add_anti_theft_watermark(input_image_path, output_image_path, text="© Unaut
         print(f"[錯誤] 處理圖片 {input_image_path} 失敗: {e}")
         return False
 
-def get_safe_output_path(input_path, output_arg=None):
-    """確保輸出路徑安全，預設同路徑且絕對不覆蓋原檔"""
+def get_safe_output_path(input_path, output_arg=None, overwrite=False):
+    """
+    確保輸出路徑安全，預設同路徑且絕對不覆蓋原檔
+    確保輸出路徑。若 overwrite=True 且未指定 output，則直接覆蓋原檔
+    """
     input_p = Path(input_path)
     
     if output_arg:
@@ -163,11 +226,15 @@ def get_safe_output_path(input_path, output_arg=None):
         if output_p.is_dir():
             output_p = output_p / f"{input_p.stem}_protected{input_p.suffix}"
     else:
-        # 預設同路徑，加上 _protected 字尾避免覆蓋
-        output_p = input_p.parent / f"{input_p.stem}_protected{input_p.suffix}"
+        if overwrite:
+            # 直接返回原路徑以達到覆蓋效果
+            return str(input_p)
+        else:
+            # 預設同路徑，加上 _protected 字尾避免覆蓋
+            output_p = input_p.parent / f"{input_p.stem}_protected{input_p.suffix}"
         
-    # 如果路徑不幸與原檔完全相同，自動加上流水號字尾
-    if output_p.resolve() == input_p.resolve():
+    # 如果路徑與原檔相同，但沒有開 overwrite，做安全防呆，自動加上流水號字尾
+    if not overwrite and output_p.resolve() == input_p.resolve():
         output_p = input_p.parent / f"{input_p.stem}_protected_new{input_p.suffix}"
         
     return str(output_p)
@@ -177,17 +244,19 @@ def main():
     parser.add_argument("-i", "--input", required=True, help="輸入的圖片檔案路徑或資料夾路徑")
     parser.add_argument("-o", "--output", help="輸出的圖片檔案路徑或資料夾路徑（預設同路徑，自動防覆蓋）")
     parser.add_argument("-t", "--text", default="© Unauthorised Use Prohibited", help="浮水印文字內容")
+    parser.add_argument("--mode", choices=["grid", "diagonal"], default="grid", help="浮水印模式：grid (網格小字) 或 diagonal (左上到右下對角線大字)")
     parser.add_argument("--opacity", type=int, default=50, help="浮水印透明度 (0-255，預設 50)")
     parser.add_argument("--angle", type=int, default=45, help="浮水印旋轉角度（預設 45）")
     parser.add_argument("--ext", nargs="+", default=[".jpg", ".jpeg", ".png", ".webp"], help="處理資料夾時支援的副檔名列表")
+    parser.add_argument("--overwrite", action="store_true", help="直接覆蓋原檔案（不加 _protected 字尾）")
     
     args = parser.parse_args()
     input_path = Path(args.input)
     
     # 模式 A：單張圖片處理
     if input_path.is_file():
-        output_path = get_safe_output_path(input_path, args.output)
-        add_anti_theft_watermark(str(input_path), output_path, args.text, args.opacity, args.angle)
+        output_path = get_safe_output_path(input_path, args.output, args.overwrite)
+        add_anti_theft_watermark(str(input_path), output_path, args.text, args.opacity, args.angle, args.mode)
         
     # 模式 B：整個資料夾批次處理
     elif input_path.is_dir():
@@ -204,16 +273,13 @@ def main():
         print(f"[*] 開始批量處理資料夾，共找到 {len(files)} 張符合的圖片...")
         success_count = 0
         for file_path in files:
-            if args.output:
-                out_file = output_dir / f"{file_path.stem}_protected{file_path.suffix}"
-            else:
-                out_file = file_path.parent / f"{file_path.stem}_protected{file_path.suffix}"
-            
-            # 防覆蓋防呆檢查
-            if out_file.resolve() == file_path.resolve():
-                out_file = file_path.parent / f"{file_path.stem}_protected_new{file_path.suffix}"
+            out_file = get_safe_output_path(
+                file_path,
+                str(output_dir) if args.output else None,
+                args.overwrite,
+            )
                 
-            if add_anti_theft_watermark(str(file_path), str(out_file), args.text, args.opacity, args.angle):
+            if add_anti_theft_watermark(str(file_path), out_file, args.text, args.opacity, args.angle, args.mode):
                 success_count += 1
                 
         print(f"[✨] 批次處理完成！成功處理 {success_count} / {len(files)} 張圖片。")
