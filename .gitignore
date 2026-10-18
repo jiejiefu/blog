@@ -9,6 +9,13 @@ CLAUDE.md
 /fab_predictive_maintenance_ppt169/
 /edge_ai_platform_ppt169/
 
+# --- Scratch drafts (原始草稿，非發布內容) ---
+# 這些檔案若放進 content/*/posts/*/ 會被 Hugo 當成頁面渲染，
+# 甚至因 shortcode 缺 template 直接讓 hugo build 失敗。統一放 drafts/。
+/drafts/
+**/ChatGPT_artical.md
+**/edge-ai-platform-blog-en.md
+
 /content/zh-tw/posts/hello-world.md
 
 # --- Anti-theft watermarked source images ---
