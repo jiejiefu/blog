@@ -1,0 +1,27 @@
+{{- /*
+  首頁技術卡的小圖示
+  ---------------------------------------------------------------------------
+  ⚠️ 為什麼是 partial 而不是 assets/ 下的 sprite？
+     因為這些圖示只有首頁用得到（~4 個 × 24px），走 partial 直接 inline 進 HTML
+     既不會多一個 network request，也不會為了 4 個 path 去 sprite 一張圖。
+     檔案大小差不到 1 KB，inline 純賺。
+
+  ⚠️ 為什麼手寫 inline SVG 而不用 PaperMod 的 svg.html？
+     那個 partial 畫的是固定 icon（rss / 搜尋 / 列印…），不是任意 icon 名稱。
+
+  ⚠️ 所有 path 都要帶 fill="none" stroke="currentColor"，這樣 icon 會跟著
+     CSS 的 color 走（淺色模式黑、深色模式白），不需要為深色模式準備第二套圖。
+     忘了 stroke 就會變成「永遠那個顏色」，在深色模式下直接消失。
+
+  風格對齊 PaperMod header/footer 既有 icon：24×24 viewBox、stroke-width 2、
+  round linecap、round linejoin。
+*/ -}}
+{{- $icons := dict
+  "cpu" `<rect x="7" y="7" width="10" height="10" rx="1"/><path d="M4 10h3M4 14h3M17 10h3M17 14h3M10 4v3M14 4v3M10 17v3M14 17v3"/>`
+  "chart" `<path d="M4 19V5M4 19h16"/><path d="M8 15l3.5-4 3 2.5L20 7"/>`
+  "layers" `<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17.5l9 5 9-5"/>`
+  "agent" `<rect x="4" y="7" width="16" height="12" rx="2"/><path d="M12 7V4"/><circle cx="12" cy="3" r="1"/><path d="M9 12.5v1.5M15 12.5v1.5"/><path d="M9.5 16h5"/>`
+-}}
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+     focusable="false">{{ index $icons . | safeHTML }}</svg>

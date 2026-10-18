@@ -151,3 +151,355 @@
 :root[data-theme="dark"] .mermaid svg {
     filter: invert(1) hue-rotate(180deg);
 }
+
+/* ==========================================================================
+   首頁：Personal Engineering Lab（layouts/index.html）
+   ==========================================================================
+   ⚠️ 為什麼主色是「黑白 + 一個藍紫」而不是參考圖的彩色漸層？
+   custom.css 前面的變數區刻意是純黑白色系（見 AGENTS.md），
+   所以這裡只新增一個 --accent 點綴色，其餘一律沿用既有變數。
+   新增點綴色時務必看下面的對比度數字，別用「感覺」選色。
+
+   對比度（實測值，非估算；WCAG AA 一般文字要 4.5:1，大字 3:1）：
+     淺色 --accent rgb(79,70,229)    on 白底   = 6.29:1  ✓ AA
+     深色 --accent rgb(147,139,255) on 黑底   = 7.38:1  ✓ AAA
+     淺色 accent 底 + 白字（primary 按鈕）    = 6.29:1  ✓ AA
+     深色 accent 底 + 黑字（primary 按鈕）    = 7.38:1  ✓ AAA
+   點綴色用於 icon 線條、eyebrow、卡片計數與按鈕，**沒有用在內文**，
+   所以 6.29:1 足以覆蓋所有使用點（一般文字門檻 4.5:1）。
+   ⚠️ 若日後把 --accent 拿來當長段內文色，淺色模式會掉到 AA 邊緣，
+      請重新挑一個更深的值並重跑下面的驗證腳本。
+*/
+
+:root {
+    --accent: rgb(79, 70, 229);
+}
+
+:root[data-theme="dark"] {
+    --accent: rgb(147, 139, 255);
+}
+
+/* ---------- Hero ---------- */
+.lab-hero {
+    padding: clamp(1.5rem, 4vw, 2.75rem) 0 clamp(1.5rem, 3vw, 2rem);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.lab-hero__eyebrow {
+    margin: 0 0 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.lab-hero__prompt {
+    font-weight: 700;
+    margin-right: 0.35em;
+}
+
+/* margin: 0 是必要的 —— PaperMod 的 h1 有 margin-bottom: 20px，
+   hero 內的間距全部由下方 margin 統一控制 */
+.lab-hero__title {
+    margin: 0 0 0.6rem;
+    font-size: clamp(1.75rem, 5vw, 2.6rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.lab-hero__topics {
+    margin: 0 0 1rem;
+    font-size: 0.95rem;
+    color: var(--secondary);
+}
+
+.lab-hero__lede {
+    margin: 0 0 1.5rem;
+    max-width: 46em;
+    color: var(--secondary);
+    line-height: 1.75;
+}
+
+.lab-hero__lede p {
+    margin: 0;
+}
+
+.lab-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: 0;
+}
+
+/* ---------- 按鈕 ----------
+   配色沿用 .share-box__btn 的反色配對：底色用變數、文字用 --theme，
+   不要寫死 color: white（深色模式底色變亮，白字會看不見）。 */
+.lab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    padding: 0.6rem 1.15rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--primary);
+    color: var(--theme);
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: opacity 160ms ease, border-color 160ms ease;
+}
+
+.lab-btn:hover {
+    opacity: 0.85;
+    text-decoration: none;
+}
+
+.lab-btn--primary {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+:root[data-theme="dark"] .lab-btn--primary {
+    color: #000;
+}
+
+.lab-btn__arrow {
+    font-size: 0.95em;
+    line-height: 1;
+}
+
+/* ---------- 區塊 ---------- */
+.lab-section {
+    margin-bottom: clamp(2rem, 4vw, 3rem);
+}
+
+.lab-section__title {
+    margin: 0 0 1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--secondary);
+}
+
+/* ---------- 卡片網格 ----------
+   auto-fit + minmax 是必要的：欄數讓瀏覽器算，窄螢幕自動收成單欄，
+   不需要 media query，也不會在 720px 主欄寬下擠成三欄。 */
+.lab-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.9rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.lab-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--entry);
+    transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.lab-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.lab-card__link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1.15rem;
+    color: inherit;
+    text-decoration: none;
+    height: 100%;
+}
+
+/* focus-visible 而不是 :focus —— 滑鼠點擊不該留外框，鍵盤 Tab 才該 */
+.lab-card__link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius);
+}
+
+.lab-card__icon {
+    color: var(--accent);
+    line-height: 0;
+}
+
+.lab-card__title {
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--content);
+}
+
+.lab-card__blurb {
+    font-size: 0.87rem;
+    line-height: 1.6;
+    color: var(--secondary);
+}
+
+.lab-card__count {
+    margin-top: auto;
+    padding-top: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--accent);
+}
+
+/* ---------- 精選文章卡（有封面） ---------- */
+.lab-card--wide .entry-cover {
+    margin-bottom: 0;
+    text-align: left;
+}
+
+.lab-card--wide .entry-cover img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.lab-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+.lab-tag {
+    padding: 0.1rem 0.45rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    color: var(--secondary);
+}
+
+/* ---------- Engineering Console ---------- */
+.lab-console {
+    margin: 0 0 clamp(2rem, 4vw, 3rem);
+    padding: 1rem 1.15rem;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    background-color: var(--code-bg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    line-height: 1.9;
+}
+
+.lab-console__line {
+    display: flex;
+    gap: 0.9rem;
+    margin: 0;
+}
+
+.lab-console__key {
+    flex: 0 0 4.2em;
+    color: var(--accent);
+}
+
+.lab-console__val {
+    color: var(--content);
+}
+
+.lab-console__line--wisdom {
+    display: block;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--secondary);
+}
+
+.lab-console__prompt {
+    margin-right: 0.5em;
+    color: var(--accent);
+}
+
+/* 純 CSS 游標，不加任何 JS */
+.lab-console__caret {
+    display: inline-block;
+    width: 0.5em;
+    height: 1em;
+    margin-left: 0.3em;
+    vertical-align: text-bottom;
+    background-color: var(--accent);
+    animation: lab-blink 1.1s step-end infinite;
+}
+
+@keyframes lab-blink {
+    0%, 50% { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
+}
+
+/* ---------- 進場動畫（純 CSS，不用 AOS） ----------
+   ⚠️ 為什麼不用 AOS 的 data-aos？
+   AOS 的 CSS 裡有這條：
+       [data-aos^=fade][data-aos^=fade] { opacity: 0 }
+   也就是說**只要頁面上有 data-aos，CDN 的 aos.js 掛掉時內容就永遠是隱形的**，
+   而且不會報錯、沒有 fallback、沒有 console warning。
+   AOS 是從 jsdelivr 載入的（extend_footer.html），CDN 被擋就會發生。
+   這與 AGENTS.md 記錄的 mermaid「不要用 visibility:hidden」是同一個道理：
+   寧可不要動畫，也不要讓 CDN 失敗等於內容消失。
+
+   所以首頁改用純 CSS 動畫：不依賴任何 JS，動畫跑不跑都不影響內容可見性。
+   起始狀態寫在 .lab-hero / .lab-card 上，動畫結束後停在 opacity:1，
+   所以就算 animation 整個被瀏覽器忽略，元素仍然是可見的（只少了位移效果）。 */
+@keyframes lab-rise {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.lab-hero,
+.lab-section,
+.lab-console {
+    animation: lab-rise 0.6s ease-out both;
+}
+
+/* 階梯延遲：同層的元素依序進場。用 nth-child 而不是 inline style，
+   這樣改順序時不用動模板。 */
+.lab-grid > .lab-card:nth-child(1) { animation-delay: 0.05s; }
+.lab-grid > .lab-card:nth-child(2) { animation-delay: 0.10s; }
+.lab-grid > .lab-card:nth-child(3) { animation-delay: 0.15s; }
+.lab-grid > .lab-card:nth-child(4) { animation-delay: 0.20s; }
+
+/* ---------- 無障礙 / 動態偏好 ----------
+   使用者要求減少動態時，內容必須完全可見且靜止。
+   這裡要把 animation 整個取消（不是只關 transition）——
+   .lab-card:hover 的 translateY 也要一併停掉。 */
+@media (prefers-reduced-motion: reduce) {
+    .lab-console__caret {
+        animation: none;
+        opacity: 1;
+    }
+
+    .lab-hero,
+    .lab-section,
+    .lab-console,
+    .lab-grid > .lab-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+
+    .lab-card,
+    .lab-btn {
+        transition: none;
+    }
+
+    .lab-card:hover {
+        transform: none;
+    }
+}

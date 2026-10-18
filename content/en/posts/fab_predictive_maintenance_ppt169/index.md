@@ -1,4 +1,5 @@
 ---
+featured: true
 title: "Smart Fab Edge-AI: Predictive Maintenance and Autonomous Decision Agent System"
 date: 2026-10-18
 draft: false

@@ -31,17 +31,14 @@ params:
     title: "Jay Fu"
     subtitle: "Machine Learning | Edge Computing"
 
-  homeInfoParams:
-    Title: "Hello 👋"
-    AlignSocialIconsTo: center
-    Content: |
-      軟體工程師，專注於機器學習與邊緣運算的整合應用，熱衷於智慧數據視覺化。
-
-      歡迎來到我的數位花園，探索演算法、邊緣運算與軟體工程筆記。
-
-      [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
-
-      [Machine Learning](/tags/machine-learning/) · [Edge Computing](/tags/edge-computing/) · [AI Applications](/tags/ai-applications/)
+  # ⚠️ 首頁自我介紹已改由 layouts/index.html + data/home.yaml 渲染，
+  # homeInfoParams 不再使用（PaperMod 的 home_info.html 只會被
+  # _default/list.html 呼叫，而首頁現在走 layouts/index.html）。
+  # ⚠️ 舊的 homeInfoParams 內容裡有 4 個死鏈，已全數移除：
+  #   /resume/ 與 /projects/ 都是 draft: true，正式 build 是 404
+  #   /tags/edge-computing/ 與 /tags/ai-applications/ 這兩個 tag 不存在
+  # 站上實際存在的 tag：edge-ai / machine-learning / system-design / ai-agent 等。
+  # 頂部選單的 Projects / Resume 連結同樣是 404（待 projects 頁寫完再處理）。
 
   socialIcons:
     - name: GitHub
@@ -73,17 +70,6 @@ languages:
     title: Jay Fu 的科技部落格
     params:
       description: "演算法 | 邊緣運算 | 軟體工程師"
-      homeInfoParams:
-        Title: "你好，我是Jay 👋"
-        AlignSocialIconsTo: center
-        Content: |
-          軟體工程師，專注於機器學習與邊緣運算的整合應用，熱衷於智慧數據視覺化。
-
-          歡迎來到我的數位花園，探索演算法、邊緣運算與軟體工程筆記。
-
-          [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
-
-          [Machine Learning](/tags/machine-learning/) · [Edge Computing](/tags/edge-computing/) · [AI Applications](/tags/ai-applications/)
 
   en:
     label: "English"
@@ -92,17 +78,6 @@ languages:
     title: Jay Fu's Tech Blog
     params:
       description: "Algorithm | Edge Computing | Software Engineer"
-      homeInfoParams:
-        Title: "Hello, I'm Jay 👋"
-        AlignSocialIconsTo: center
-        Content: |
-          Software Engineer in the semiconductor industry, focused on integrating **machine learning** and **edge computing**, with a passion for **smart data visualization**.
-
-          Welcome to my digital garden — notes on algorithms, edge computing, and software engineering.
-
-          [All Posts](/posts/) · [Resume](/resume/) · [Projects](/projects/)
-
-          [Machine Learning](/tags/machine-learning/) · [Edge Computing](/tags/edge-computing/) · [AI Applications](/tags/ai-applications/)
 
 menu:
   main:

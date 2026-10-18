@@ -1,0 +1,119 @@
+{{ define "main" }}
+{{- /*
+  首頁（Personal Engineering Lab）
+  ===========================================================================
+  ⚠️ 這個檔案存在的唯一原因：Hugo 的 home page lookup 順序是
+     layouts/index.html > layouts/_default/list.html。
+     只要這裡有 index.html，PaperMod 的 _default/list.html 在首頁就**永遠不會被呼叫**，
+     所以 homeInfoParams / home_info.html 那套自我介紹機制在首頁已經完全失效。
+     —— 這也是為什麼 config.yaml 裡的 homeInfoParams 可以整段刪掉而不影響任何東西。
+
+  ⚠️ 逐頁條件（哪些區塊要不要渲染）要放這裡，不能放 partialCached 的 footer。
+     這跟 mermaid 的坑是同一個原因（見 AGENTS.md）：footer 的快取鍵是
+     .Layout/.Kind，不是頁面本身。
+
+  資料來源：
+    - 文案、卡片、console → data/home.yaml，語言用 site.Language.Lang 分組
+    - Featured 清單 → front matter featured: true（自動帶出，發新文只需加一行）
+*/ -}}
+
+{{- $home := index hugo.Data "home" site.Language.Lang }}
+{{- $allPosts := where site.RegularPages "Type" "in" site.Params.mainSections }}
+{{- $allPosts = where $allPosts "Params.hiddenInHomeList" "!=" "true" }}
+{{- /* featured 不設上限：文章加一篇，這裡就多一張卡（使用者需求）。
+       依日期新到舊排序，所以新增的文章一定排在最前面。 */ -}}
+{{- $featured := (where $allPosts "Params.featured" true).ByDate.Reverse }}
+
+{{- /* ---------- 1. Hero ---------- */ -}}
+<header class="lab-hero">
+  <p class="lab-hero__eyebrow">
+    <span class="lab-hero__prompt" aria-hidden="true">&gt;_</span>
+    {{ $home.hero.eyebrow }}
+  </p>
+  <h1 class="lab-hero__title">{{ $home.hero.title }}</h1>
+  <p class="lab-hero__topics">{{ $home.hero.topicsLine }}</p>
+  <p class="lab-hero__lede">{{ $home.hero.lede | markdownify }}</p>
+  <p class="lab-hero__actions">
+    <a class="lab-btn lab-btn--primary" href="{{ $home.hero.primaryCta.url | absLangURL }}">
+      {{ $home.hero.primaryCta.text }}
+      <span class="lab-btn__arrow" aria-hidden="true">&#8599;</span>
+    </a>
+    <a class="lab-btn" href="{{ "/posts/" | absLangURL }}">
+      {{ $home.sections.allPosts }}
+    </a>
+  </p>
+</header>
+
+{{- /* ---------- 2. 技術領域卡 ----------
+     tag 對不到實際頁面就整張卡跳過（不渲染），不會產生死鏈。
+     這是刻意的：與其輸出一個 404 的入口，不如先不給這張卡。
+     data/home.yaml 註解有提醒，新增 tag 前先確認 /tags/<slug>/ 存在。 */ -}}
+{{- $cards := slice }}
+{{- range $home.topics }}
+  {{- $term := site.GetPage (printf "/tags/%s" (urlize .tag)) }}
+  {{- if $term }}{{ $cards = $cards | append (dict "page" $term "icon" .icon "blurb" .blurb "tag" .tag) }}{{ end }}
+{{- end }}
+
+{{- with $cards }}
+<section class="lab-section" aria-labelledby="lab-topics-title">
+  <h2 class="lab-section__title" id="lab-topics-title">{{ $home.sections.topics }}</h2>
+  <ul class="lab-grid" role="list">
+    {{- range . }}
+    <li class="lab-card">
+      <a class="lab-card__link" href="{{ .page.RelPermalink }}">
+        <span class="lab-card__icon" aria-hidden="true">
+          {{- partial "lab_icon.html" .icon }}
+        </span>
+        <span class="lab-card__title">{{ .tag }}</span>
+        <span class="lab-card__blurb">{{ .blurb }}</span>
+        <span class="lab-card__count">{{ len .page.Pages }} &middot; &#8599;</span>
+      </a>
+    </li>
+    {{- end }}
+  </ul>
+</section>
+{{- end }}
+
+{{- /* ---------- 3. 精選文章（front matter featured: true） ---------- */ -}}
+{{- with $featured }}
+<section class="lab-section" aria-labelledby="lab-featured-title">
+  <h2 class="lab-section__title" id="lab-featured-title">{{ $home.sections.featured }}</h2>
+  <ul class="lab-grid" role="list">
+    {{- range . }}
+    <li class="lab-card lab-card--wide">
+      <a class="lab-card__link" href="{{ .RelPermalink }}">
+        {{- /* 封面直接沿用 PaperMod 的 cover.html：它已經處理好
+               page bundle 資源 / 全域資源 / 絕對網址三種來源的分支，
+               自己重寫只會漏掉其中一種（en 版就是走絕對網址那條）。
+               樣式由 .lab-card--wide .entry-cover 覆寫，不改 partial。 */ -}}
+        {{- partial "cover.html" (dict "cxt" . "IsSingle" false "isHidden" false) }}
+        <span class="lab-card__title">{{ .Title }}</span>
+        <span class="lab-card__blurb">{{ .Description | default (.Summary | plainify | htmlUnescape) }}</span>
+        {{- with .Params.tags }}
+        <span class="lab-card__tags">
+          {{- range first 3 . }}<span class="lab-tag">{{ . }}</span>{{ end }}
+        </span>
+        {{- end }}
+      </a>
+    </li>
+    {{- end }}
+  </ul>
+</section>
+{{- end }}
+
+{{- /* ---------- 4. Engineering Console（純 CSS，零 JS） ---------- */ -}}
+<section class="lab-console" aria-label="{{ $home.console.label }}">
+  <p class="lab-console__line"><span class="lab-console__key">status</span><span class="lab-console__val">{{ $home.console.status }}</span></p>
+  <p class="lab-console__line"><span class="lab-console__key">focus</span><span class="lab-console__val">{{ $home.console.focus }}</span></p>
+  <p class="lab-console__line lab-console__line--wisdom">
+    <span class="lab-console__prompt" aria-hidden="true">#</span>{{ $home.console.wisdom }}<span class="lab-console__caret" aria-hidden="true"></span>
+  </p>
+</section>
+
+{{- /* ---------- 5. 最新文章（沿用 PaperMod 原生卡片） ---------- */ -}}
+<section class="lab-section" aria-labelledby="lab-latest-title">
+  <h2 class="lab-section__title" id="lab-latest-title">{{ $home.sections.latest }}</h2>
+  {{- partial "home_posts_list.html" . }}
+</section>
+
+{{ end }}

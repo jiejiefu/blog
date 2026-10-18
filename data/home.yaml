@@ -1,0 +1,98 @@
+# 首頁內容（雙語）
+# ------------------------------------------------------------------
+# ⚠️ 語言檔名後綴（home.zh-tw.yaml / home.en.yaml）在本站**無效**：
+# 實測 Hugo v0.168 會把 `data/home.zh-tw.yaml` 註冊成 key "home.zh-tw"，
+# `site.Data.home` 取不到（實測輸出空字串，不是 fallback 到別的語言，是直接 nil）。
+#
+# 正確做法（本檔用的方式）：單一 data/home.yaml，頂層以語言代碼分組，
+# 模板端用 `(index site.Data "home" site.Language.Lang)` 取出。
+# 已在 layouts/index.html 驗證 zh-tw / en 各自取到正確字串。
+#
+# ⚠️ 另一個相關陷阱：`site.Data.home.zh-tw.title` 這種寫法在模板裡
+# 會被當成 map 走訪，語言代碼含連字號（zh-tw）時解析行為不可靠。
+# 一律用 `index` 取值，不要用點號取含連字號的 key。
+
+zh-tw:
+  hero:
+    eyebrow: "JAY FU · ENGINEERING LAB"
+    title: "把演算法帶進真實世界"
+    topicsLine: "Machine Learning · Edge AI · 訊號處理 · 軟體工程"
+    lede: >-
+      這裡記錄模型如何接上真實資料、跑進邊緣裝置，最後解決真正的問題 ——
+      以及理論與生產環境之間，那道沒人寫在文件裡的縫隙。
+    primaryCta:
+      text: "讀技術文章"
+      url: "/posts/"
+
+  # 技術領域卡：icon 對應 layouts/index.html 內的 SVG symbol
+  # ⚠️ tag 必須是站上**實際存在**的分類，否則整張卡不會渲染（模板會跳過不存在的 tag 頁）
+  topics:
+    - tag: "Edge AI"
+      icon: "cpu"
+      blurb: "從感測器串流到邊緣推論，再到完整的平台化部署與故障處理。"
+    - tag: "Machine Learning"
+      icon: "chart"
+      blurb: "模型、特徵與實驗 —— 以及準確率之外真正在乎的那些事。"
+    - tag: "System Design"
+      icon: "layers"
+      blurb: "分層架構、API 邊界、部署取捨，還有那些被取捨掉的選項。"
+    - tag: "AI Agent"
+      icon: "agent"
+      blurb: "讓模型從「回答問題」走到「自己動手把事情做完」。"
+
+  # ⚠️ zh-tw 的 wisdom 是使用者指定的原文，**逐字保留，不要改寫、不要潤稿**。
+  #    「小貓」在 AGENTS.md 的「兩邊刻意不同」清單裡沒有出現過，
+  #    這是刻意為之的彩蛋措辭，日後統一用詞時請略過這個欄位。
+  console:
+    label: "Engineering Console"
+    status: "learning"
+    focus: "edge_ai"
+    wisdom: >-
+      模型會過擬合，程式會有 Bug，但「一句 AI 否定了小貓的所有努力」最好不要。
+
+  # 區塊標題（Featured / Latest 兩個清單由 front matter featured: true 自動帶出）
+  sections:
+    featured: "精選文章"
+    latest: "最新文章"
+    topics: "技術領域"
+    allPosts: "查看全部文章"
+
+en:
+  hero:
+    eyebrow: "JAY FU · ENGINEERING LAB"
+    title: "Turning Algorithms Into Reality"
+    topicsLine: "Machine Learning · Edge AI · Signal Processing · Software Engineering"
+    lede: >-
+      How models connect to real data, run on edge devices, and end up solving
+      actual problems — plus the gap between theory and production that nobody
+      writes down.
+    primaryCta:
+      text: "Read Technical Notes"
+      url: "/posts/"
+
+  topics:
+    - tag: "Edge AI"
+      icon: "cpu"
+      blurb: "From sensor streams to edge inference, then a full platform with deployment and failure handling."
+    - tag: "Machine Learning"
+      icon: "chart"
+      blurb: "Models, features, experiments — and everything that matters beyond accuracy."
+    - tag: "System Design"
+      icon: "layers"
+      blurb: "Layered architecture, API boundaries, deployment trade-offs, and the options you gave up."
+    - tag: "AI Agent"
+      icon: "agent"
+      blurb: "Moving models from answering questions to going and finishing the job."
+
+  console:
+    label: "Engineering Console"
+    status: "learning"
+    focus: "edge_ai"
+    wisdom: >-
+      Models overfit. Code breaks. Curiosity should never run out of memory.
+
+  sections:
+    featured: "Featured Write-ups"
+    latest: "Latest Posts"
+    topics: "Explore by Topic"
+    allPosts: "View all posts"

@@ -1,4 +1,5 @@
 ---
+featured: true
 title: "Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions"
 date: 2026-10-18
 draft: false
