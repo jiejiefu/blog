@@ -171,6 +171,13 @@ A bounded Python `deque`, for example `deque(maxlen=5000)`, can be used to hold 
 
 A bounded deque automatically discards the oldest entries when it reaches capacity. It is therefore a useful short-term buffer, but it is **not** a durable message queue. If samples must survive process crashes or temporary downstream failures, the system needs an explicit persistence and replay strategy.
 
+```mermaid
+flowchart LR
+    A["Sensor Stream"] --> B["Bounded In-Memory Queue"]
+    B --> C["Batch Flush Worker"]
+    C --> D["SQLite Persistence"]
+```
+
 ### 4.2 Feature extraction and analysis
 
 The batch is transformed into signal features and passed to the relevant analytical methods. The output may include feature values, anomaly indicators, a health score, and supporting metadata.
@@ -214,6 +221,14 @@ Important considerations include:
 - Monitor false positives and false negatives; an anomaly score is not automatically a diagnosis.
 - Revisit the baseline when operating conditions or equipment configurations change.
 
+```mermaid
+flowchart LR
+    A["Historical Normal Data"] --> B["Feature Scaling"]
+    B --> C["Train One-Class SVM"]
+    C --> D["Learn Decision Boundary"]
+    D --> E["New Feature Vector: Normal or Anomaly"]
+```
+
 ### 5.3 Dynamic Time Warping (DTW)
 
 Dynamic Time Warping measures similarity between sequences that may differ in timing or duration. It can be useful when comparing signal patterns whose important events do not occur at exactly the same time.
@@ -231,6 +246,13 @@ where \(d(x_i,y_j)\) is the local distance between two points. Constraints such 
 Principal Component Analysis (PCA) projects correlated features into a lower-dimensional space. Comparing current data with a reference baseline can help identify distribution changes.
 
 A drift signal does not necessarily mean equipment failure. It may also reflect a changed recipe, sensor replacement, a different operating regime, or a preprocessing change. Drift should trigger investigation and contextual checks rather than an automatic conclusion.
+
+```mermaid
+flowchart LR
+    A["Historical Baseline Features"] --> B["Fit PCA Model"]
+    B --> C["Reference Feature Space"]
+    C --> D["New Features: Projection and Drift Analysis"]
+```
 
 ### 5.5 Choosing the method
 
@@ -260,6 +282,14 @@ The platform uses LDAP / Active Directory integration for organizational identit
 
 These mechanisms serve different purposes: directory authentication verifies a user's identity, while a token can carry authenticated-session claims to subsequent API calls. Authorization still needs to be checked for each protected operation. Tokens should have appropriate expiry and signing configuration, and secrets must not be hard-coded into source code or container images.
 
+```mermaid
+flowchart LR
+    A["User Login"] --> B["LDAP / AD Authentication"]
+    B --> C["Issue JWT Access Token"]
+    C --> D["Authorized API Requests"]
+    D --> E["Backend Permission Checks"]
+```
+
 ### 6.3 SQLite and data separation
 
 The design separates application data and vibration data into two SQLite databases, such as:
@@ -278,6 +308,15 @@ APScheduler can run periodic jobs such as drift checks, report generation, or ma
 One important deployment detail: starting the scheduler in multiple web-worker processes can cause the same job to run more than once unless scheduling is coordinated. For multi-process deployments, consider a dedicated scheduler process or another mechanism that ensures a single active job owner.
 
 Model-build history should record enough metadata to reproduce an analysis, such as model version, training-data reference, configuration, creation time, and evaluation results. The exact fields depend on the platform's traceability requirements.
+
+A build also needs explicit states, so that a failed run is distinguishable from one that never started:
+
+```mermaid
+stateDiagram-v2
+    [*] --> building
+    building --> completed
+    building --> failed
+```
 
 ## 7. AI Agent: From Data Retrieval to Assisted Investigation
 
@@ -355,6 +394,15 @@ If the frontend needs to be deployed as a static bundle whose backend URL can ch
 
 The runtime configuration must be loaded before application code reads it, validated at startup, and treated as public configuration. Do not put passwords, API secrets, or other credentials in browser-visible variables.
 
+```mermaid
+flowchart LR
+    A["Docker Image"] --> B["Container Entrypoint"]
+    B --> C["Runtime Environment Variables"]
+    C --> D["env.js"]
+    D --> E["window.ENV"]
+    E --> F["Frontend API Endpoint"]
+```
+
 ### 8.3 Monitoring
 
 Useful operational signals include:
@@ -401,6 +449,20 @@ flowchart LR
 **Stage 3 — Cloud or multi-node scale-out.** When workload, availability, or concurrent access demands it, consider a client-server database, shared job coordination, centralized observability, and horizontally scalable services. The edge component can remain responsible for latency-sensitive local functions.
 
 Potential technologies such as MQTT, durable message brokers, Redis, PostgreSQL, and load balancers are options for future evolution — not proof that the current deployment already uses them.
+
+```mermaid
+flowchart LR
+    A["Sensors / Edge Devices"] --> B["MQTT Broker"]
+    B --> C["Durable Message Queue"]
+    C --> D["Worker Cluster"]
+    D --> E["ML Inference"]
+    D --> F["PostgreSQL"]
+    D --> G["Redis Cache"]
+    E --> H["Flask API"]
+    F --> H
+    G --> H
+    H --> I["Frontend"]
+```
 
 ## 10. Engineering Trade-offs
 

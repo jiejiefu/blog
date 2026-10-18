@@ -278,17 +278,11 @@ flowchart TD
 
 概念上的資料流如下：
 
-```
-Sensor Stream
-     |
-     v
-Bounded In-Memory Queue
-     |
-     v
-Batch Flush Worker
-     |
-     v
-SQLite Persistence
+```mermaid
+flowchart LR
+    A["感測器串流"] --> B["有界記憶體緩衝區"]
+    B --> C["批次寫出 Worker"]
+    C --> D["SQLite 持久化"]
 ```
 
 這個設計能吸收一定程度的短暫流量波動，避免每筆資料都觸發獨立的寫入操作。
@@ -374,20 +368,12 @@ $$
 
 其基本想法是利用正常資料學習一個決策邊界，之後判斷新的資料是否偏離正常資料所形成的區域。
 
-```
-Historical Normal Data
-          |
-          v
-    Feature Scaling
-          |
-          v
-    Train One-Class SVM
-          |
-          v
-   Learn Decision Boundary
-          |
-          v
-New Feature Vector -> Normal / Anomaly
+```mermaid
+flowchart LR
+    A["歷史正常資料"] --> B["特徵標準化"]
+    B --> C["訓練 One-Class SVM"]
+    C --> D["學習決策邊界"]
+    D --> E["新特徵向量：正常或異常"]
 ```
 
 OCSVM 的優點是可以在缺少完整故障標籤的情境下建立異常偵測基準。
@@ -425,17 +411,11 @@ PCA（Principal Component Analysis）透過線性投影，將多個可能相關�
 
 例如：
 
-```
-Historical Baseline Features
-             |
-             v
-        Fit PCA Model
-             |
-             v
-      Reference Feature Space
-             |
-             v
-New Features -> Projection / Drift Analysis
+```mermaid
+flowchart LR
+    A["歷史基準特徵"] --> B["擬合 PCA 模型"]
+    B --> C["參考特徵空間"]
+    C --> D["新特徵：投影與漂移分析"]
 ```
 
 若新資料的分布持續偏離歷史基準，可能表示設備狀態、操作條件或資料來源出現變化。
@@ -485,20 +465,12 @@ Blueprint 的價值在於讓不同領域的路由與邏輯有相對清楚的歸�
 
 典型流程為：
 
-```
-User Login
-    |
-    v
-LDAP / AD Authentication
-    |
-    v
-Issue JWT Access Token
-    |
-    v
-Authorized API Requests
-    |
-    v
-Backend Permission Checks
+```mermaid
+flowchart LR
+    A["使用者登入"] --> B["LDAP / Active Directory 分身驗證"]
+    B --> C["核發 JWT Access Token"]
+    C --> D["已授權的 API 請求"]
+    D --> E["後端權限檢查"]
 ```
 
 這裡需要區分身分驗證與授權：
@@ -529,12 +501,11 @@ Backend Permission Checks
 
 模型生命週期也需要明確的狀態紀錄。例如，`ModelBuildingHistory` 可追蹤模型建置任務的狀態：
 
-```
-building
-   |
-   +----> completed
-   |
-   +----> failed
+```mermaid
+stateDiagram-v2
+    [*] --> building
+    building --> completed
+    building --> failed
 ```
 
 除了狀態，還應保存模型設定、執行時間、資料範圍及相關評估指標。這些紀錄能幫助工程師釐清模型是否成功建置、使用了哪些設定，以及異常發生在哪個階段。
@@ -669,23 +640,13 @@ SSE 允許伺服器透過單向 HTTP 連線持續傳送事件，適合用來顯�
 
 概念如下：
 
-```
-Docker Image
-     |
-     v
-Container Entrypoint
-     |
-     v
-Runtime Environment
-     |
-     v
-env.js
-     |
-     v
-window.ENV
-     |
-     v
-Frontend API Endpoint
+```mermaid
+flowchart LR
+    A["Docker Image"] --> B["Container Entrypoint"]
+    B --> C["執行時期環境變數"]
+    C --> D["env.js"]
+    D --> E["window.ENV"]
+    E --> F["前端 API 端點"]
 ```
 
 這種設計讓同一份前端建置產物可以在不同環境使用不同的後端位址，減少因環境切換而重新編譯的需求。
@@ -754,29 +715,18 @@ SQLite 適合許多單機與低維運負擔的應用，但它的寫入併發能�
 
 當系統需要處理更多設備、更高吞吐量或更嚴格的可靠性要求時，可以逐步演進至下列架構：
 
-```
-Sensors / Edge Devices
-          |
-          v
-      MQTT Broker
-          |
-          v
-  Durable Message Queue
-          |
-          v
-     Worker Cluster
-          |
-          +------> ML Inference
-          |
-          +------> PostgreSQL
-          |
-          +------> Redis Cache
-                         |
-                         v
-                    Flask API
-                         |
-                         v
-                    Frontend
+```mermaid
+flowchart LR
+    A["感測器 / 設備端裝置"] --> B["MQTT Broker"]
+    B --> C["持久化訊息佇列"]
+    C --> D["Worker 叢集"]
+    D --> E["ML 推論"]
+    D --> F["PostgreSQL"]
+    D --> G["Redis 快取"]
+    E --> H["Flask API"]
+    F --> H
+    G --> H
+    H --> I["前端"]
 ```
 
 這是未來演進方向，而不是目前單機架構已經具備的所有能力。

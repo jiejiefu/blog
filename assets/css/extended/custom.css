@@ -133,10 +133,19 @@
  * 日後若真的有語意色需求，再改成重繪路線。
  */
 .mermaid {
-    display: flex;
-    justify-content: center;
+    display: block;
     margin: 1.5rem 0;
     overflow-x: auto;
+}
+
+/* 置中用子元素的 margin:auto，不要用 justify-content:center。
+ * flex + justify-content:center + overflow:auto 是個陷阱：
+ * 內容比容器寬時溢出被平均推到左右兩側，而「左側溢出」捲不到，
+ * 讀者會發現圖的左邊怎麼滑都看不到。全改 LR 之後最寬的那張
+ * （§9.3 未來架構，9 節點 7 欄）就會踩到。 */
+.mermaid > svg {
+    display: block;
+    margin: 0 auto;
 }
 
 :root[data-theme="dark"] .mermaid svg {
