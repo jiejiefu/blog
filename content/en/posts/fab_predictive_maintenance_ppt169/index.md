@@ -1,17 +1,18 @@
 ---
 title: "Smart Fab Edge-AI: Predictive Maintenance and Autonomous Decision Agent System"
 tags: ["Edge AI", "Predictive Maintenance", "Fab Domain", "Interview", "AI Agent"]
-draft: true
+draft: false
 date: 2026-10-17
 cover:
-    image: "01_cover.png"
+    image: "https://jiejiefu.github.io/blog/posts/fab_predictive_maintenance_ppt169/images/01_cover.png"
     alt: "Smart Fab Edge-AI Predictive Maintenance Cover"
-    relative: true
     hidden: false
 ---
 ## Introduction
 
-This article is based on an interview presentation deck (11 slides) showcasing how a Smart Fab Edge-AI Predictive Maintenance and Autonomous Decision Agent System is built in a semiconductor advanced process environment, starting from sensor signal streams. All images have been de-identified; company names are replaced with the placeholder "company name," and data and technical parameters are logical illustrations only, for architecture and visual reference purposes. When reposting, please cite the source.
+This is the written version of an interview deck. The 11 slides follow the same order I designed the system in: starting from raw sensor streams and ending at an autonomous decision agent, with each layer's trade-offs written out alongside it.
+
+Company names in the slides are replaced with the placeholder "company name," and the numbers are illustrative — read them for the architecture, not as benchmarks. Attribution required when reposting.
 
 > ⚠️ **Intellectual Property Notice**: All images in this article are copyrighted by the blog author. Unauthorized download, reproduction, or modification is prohibited. This article is for personal technical demonstration and interview reference only. All images have been de-identified and virtualized and do not contain any undisclosed trade secrets, real customer names, specific process nodes, or internal project codenames.
 
@@ -56,7 +57,7 @@ The edge side handles real-time inference (< 12ms), while cloud/on-prem handles 
 Moving from "point-by-point processing" to "windowed vectorized processing" turns a fully saturated CPU into stable inference throughput of < 12ms.
 
 Key metrics:
-- Connected equipment: 200+
+- Connected equipment: 500+
 - High sampling rate: 2kHz
 - Daily streaming data volume: 50GB+
 - Processing latency: 45ms → < 12ms (-73%, throughput improved 2.5×)
@@ -101,7 +102,7 @@ Measured benefits: unplanned downtime ↓ 42%, overall equipment maintenance cos
 
 ![Edge Deployment and Low-Code Platform](images/06_edge_deployment.png)
 
-The platform achieves simultaneous deployment across 200+ production lines, compressing the model go-live cycle from 6 months to 2 weeks (-90%). It lets production line engineers independently manage and maintain models through a low-code interface.
+The platform achieves simultaneous deployment across 20+ production lines, compressing the model go-live cycle from 6 months to 2 weeks (-90%). It lets production line engineers independently manage and maintain models through a low-code interface.
 
 Four-stage deployment pipeline: containerized packaging (< 300MB) → shadow deployment validation (parallel inference for 2 weeks, compared against existing rules) → canary staged release (5% → 20% → 100% weighted traffic) → automatic rollback (switches back to the previous version when the drift threshold is breached).
 
@@ -157,7 +158,7 @@ Ops and automation: a daily effectiveness dashboard (precision, recall, and late
 
 ![Strategic Impact and Growth Plan](images/10_star_impact.png)
 
-Six systems × 200+ production lines form a smart manufacturing decision nervous system — and this is only the beginning of 1.0. Evolving from the 1.0 scope (perception, prediction, decision, and learning, completed in 2025) to 2.0 (adding control and knowledge), the platform becomes a fully autonomous edge AI brain.
+Six systems × 20+ production lines form a smart manufacturing decision nervous system — and this is only the beginning of 1.0. Evolving from the 1.0 scope (perception, prediction, decision, and learning, completed in 2025) to 2.0 (adding control and knowledge), the platform becomes a fully autonomous edge AI brain.
 
 Six-dimension capability radar: perception, prediction, decision, and learning are the dimensions delivered in 1.0; control and knowledge are the two new dimensions introduced in 2.0.
 
@@ -165,14 +166,14 @@ Six systems 1.0 key results and 2.0 expansion plans:
 
 | System Name | 1.0 Key Results | 2.0 Expansion Plan |
 |---|---|---|
-| Real-time Streaming Platform | 200+ production lines real-time monitoring | Expand to entire factory area, support 100kHz-level high-frequency time series data |
+| Real-time Streaming Platform | 20+ production lines real-time monitoring | Expand to entire factory area, support 100kHz-level high-frequency time series data |
 | Anomaly Detection (Two-Tier) | False alarm rate 15% → 3.2% | Introduce multi-sensor heterogeneous feature dynamic fusion mechanism |
 | RUL Prediction | Estimation error RMSE ≤ 32h | Connect to automated procurement decisions, optimize spare parts inventory cost |
 | Edge-Agent | Command round-trip latency < 20ms | Extend the control chain to C2 control-class edge automation equipment (C2 and below) |
 | Industrial RAG | Knowledge retrieval 3h → 40s | Support composite equipment knowledge graph and cross-factory joint queries |
 | MLOps Closed Loop | Automatic retraining cycle 2 weeks | Commercialize AI models and enable cross-business-group knowledge sharing |
 
-The end state is an Edge Agent Swarm — an array of autonomous micro-agents across 200+ production lines. The ultimate goal: from single-point AI to full-factory autonomous collaboration, so that every production line has a complete autonomous brain.
+The end state is an Edge Agent Swarm — an array of autonomous micro-agents across 20+ production lines. The ultimate goal: from single-point AI to full-factory autonomous collaboration, so that every production line has a complete autonomous brain.
 
 ---
 
@@ -180,7 +181,7 @@ The end state is an Edge Agent Swarm — an array of autonomous micro-agents acr
 
 ![Thank You](images/11_thanks.png)
 
-Looking forward to joining the team and contributing value to smart factories and AI infrastructure.
+That's the system as it stands today. If your team is building in this direction, I'd be glad to talk.
 
 ---
 

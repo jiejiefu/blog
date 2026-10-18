@@ -1,17 +1,18 @@
 ---
 title: "Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions"
 tags: ["Edge AI", "Predictive Maintenance", "MLOps", "AI Agent", "Backend Engineering"]
-draft: true
+draft: false
 date: 2026-10-17
 cover:
-    image: "01_project_overview.png"
+    image: "https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/images/01_project_overview.png"
     alt: "Semiconductor Equipment Edge AI Platform Cover"
-    relative: true
     hidden: false
 ---
 ## Introduction
 
-This article is based on an interview presentation deck (10 slides) showcasing the complete engineering practice of a Semiconductor Equipment Edge AI Platform, covering real-time health inference from sensor data ingestion to AI Agent and MLOps operations across the full stack. All images have been de-identified; company names and sensitive information have been removed, and data and technical parameters are logical illustrations only, for architecture and visual reference purposes. When reposting, please cite the source.
+This is the written version of an interview deck — 10 slides. Slides can only show conclusions, so here I've written out why each piece was chosen the way it was and what got traded away. The last slide in particular (the limits of a single-node SQLite architecture) is where the whole design started: you can't pick a direction until you're honest about where the ceiling is.
+
+All diagrams have been de-identified — company names and sensitive details removed, numbers are illustrative. Attribution required when reposting.
 
 > ⚠️ **Intellectual Property Notice**: All images in this article are copyrighted by the blog author. Unauthorized download, reproduction, or modification is prohibited. This article is for personal technical demonstration and interview reference only. All images have been de-identified and virtualized and do not contain any undisclosed trade secrets, real customer names, specific process nodes, or internal project codenames.
 
@@ -411,14 +412,14 @@ Overall stance: design for today's edge constraints while leaving a clear evolut
 
 ## Conclusion
 
-The Semiconductor Equipment Edge AI Platform, from sensor data ingestion to AI Agent autonomous decision, has undergone transformation from "fragmented tools and data silos" to "unified executable engineering loop." Key achievements include:
+Looking back, the most valuable part of this project wasn't any particular model — it was collapsing "fragmented tools + data silos" into one engineering loop that actually runs and can be handed off:
 
 - Model deployment cycle compressed from 28 days to 1 day (shortened 96%)
 - Glue code reduced by 85%, data lineage integrity 100% synchronized
 - Real-time inference latency < 5 ms; supports offline autonomous operation
 - 15 Domain Blueprints modular architecture, supporting future scale-out migration to Kubernetes
 
-Current SQLite single-machine architecture is an engineering choice for current Edge Deployment scale; as scale grows, it will evolve into Scale-Out distributed architecture.
+Not reaching for a heavier stack was deliberate: edge equipment has to keep running when the network drops, so the orchestrated architecture sits in Phase 3. Migrating later means you'll see exactly where the ceiling is, instead of guessing now.
 
 ---
 
