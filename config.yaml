@@ -129,5 +129,13 @@ menu:
 
 markup:
   goldmark:
+    extensions:
+      passthrough:
+        enable: true # 數學語法：將 $$...$$ 與 \(...\) 原樣輸出，交由 KaTeX auto-render 渲染
+        delimiters:
+          block:
+            - ['$$', '$$']
+          inline:
+            - ['\(', '\)']
     renderer:
       unsafe: true # 允許在 Markdown 中直接使用 HTML 標籤
