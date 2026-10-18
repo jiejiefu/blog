@@ -1,0 +1,1 @@
+import mermaid from"mermaid";var ready=document.readyState;mermaid.initialize({startOnLoad:!1,securityLevel:"strict",theme:"default",deterministicIds:!0});function render(){mermaid.run({querySelector:".mermaid"}).catch(function(e){console.error("[mermaid] render failed:",e)})}ready==="loading"?document.addEventListener("DOMContentLoaded",render):render()

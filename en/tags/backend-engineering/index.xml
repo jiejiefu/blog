@@ -1,638 +1,485 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Backend Engineering on Jay Fu's Tech Blog</title><link>https://jiejiefu.github.io/blog/en/tags/backend-engineering/</link><description>Recent content in Backend Engineering on Jay Fu's Tech Blog</description><generator>Hugo -- 0.168.0</generator><language>en</language><lastBuildDate>Sat, 17 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/en/tags/backend-engineering/index.xml" rel="self" type="application/rss+xml"/><item><title>Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions</title><link>https://jiejiefu.github.io/blog/en/posts/edge_ai_platform_ppt169/</link><pubDate>Sat, 17 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/en/posts/edge_ai_platform_ppt169/</guid><description>&lt;h2 id="introduction"&gt;Introduction&lt;/h2&gt;
-&lt;p&gt;This is the written version of an interview deck — 10 slides. Slides can only show conclusions, so here I&amp;rsquo;ve written out why each piece was chosen the way it was and what got traded away. The last slide in particular (the limits of a single-node SQLite architecture) is where the whole design started: you can&amp;rsquo;t pick a direction until you&amp;rsquo;re honest about where the ceiling is.&lt;/p&gt;
-&lt;p&gt;All diagrams have been de-identified — company names and sensitive details removed, numbers are illustrative. Attribution required when reposting.&lt;/p&gt;</description><content:encoded><![CDATA[<h2 id="introduction">Introduction</h2>
-<p>This is the written version of an interview deck — 10 slides. Slides can only show conclusions, so here I&rsquo;ve written out why each piece was chosen the way it was and what got traded away. The last slide in particular (the limits of a single-node SQLite architecture) is where the whole design started: you can&rsquo;t pick a direction until you&rsquo;re honest about where the ceiling is.</p>
-<p>All diagrams have been de-identified — company names and sensitive details removed, numbers are illustrative. Attribution required when reposting.</p>
-<blockquote>
-<p>⚠️ <strong>Intellectual Property Notice</strong>: All images in this article are copyrighted by the blog author. Unauthorized download, reproduction, or modification is prohibited. This article is for personal technical demonstration and interview reference only. All images have been de-identified and virtualized and do not contain any undisclosed trade secrets, real customer names, specific process nodes, or internal project codenames.</p>
-</blockquote>
-<hr>
-<h2 id="01-project-overview-semiconductor-equipment-edge-ai-platform">01. Project Overview: Semiconductor Equipment Edge AI Platform</h2>
-<p><img alt="Project Overview: Semiconductor Equipment Edge AI Platform" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/01_project_overview.png"></p>
-<p>The platform is positioned as a &ldquo;Semiconductor Equipment Edge AI Platform,&rdquo; subtitled &ldquo;Edge AI and Fault Prediction Health Management (PHM),&rdquo; integrating fragmented Sensor + ML workflows into executable engineering closed loops from sensor data to intelligent decisions.</p>
-<h3 id="end-to-end-execution-pipeline">End-to-End Execution Pipeline</h3>
-<p>Five stages connected:</p>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Backend Engineering on Jay Fu's Tech Blog</title><link>https://jiejiefu.github.io/blog/en/tags/backend-engineering/</link><description>Recent content in Backend Engineering on Jay Fu's Tech Blog</description><generator>Hugo -- 0.168.0</generator><language>en</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/en/tags/backend-engineering/index.xml" rel="self" type="application/rss+xml"/><item><title>Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions</title><link>https://jiejiefu.github.io/blog/en/posts/edge_ai_platform_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/en/posts/edge_ai_platform_ppt169/</guid><description>An end-to-end look at a semiconductor equipment Edge AI and PHM platform, covering sensor processing, machine learning, Flask services, AI agents, edge deployment, failure handling, and system evolution.</description><content:encoded><![CDATA[<p>Building an Edge AI platform is not just about deploying a machine-learning model close to a machine. In a semiconductor manufacturing environment, the platform must connect sensor data, feature engineering, model inference, health monitoring, user workflows, and maintenance decisions into a system that can be operated and maintained reliably.</p>
+<p>This article introduces an Edge AI / Prognostics and Health Management (PHM) platform from a system-design perspective. It covers the architecture, data flow, analytical methods, backend implementation, AI-agent integration, deployment, failure handling, and the trade-offs behind the design.</p>
+<p>The emphasis is on how the components work together — not simply on listing technologies.</p>
+<h2 id="1-project-overview">1. Project Overview</h2>
+<p><img alt="Project overview: Semiconductor Equipment Edge AI Platform" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/01_project_overview.png"></p>
+<p>The platform is designed to turn equipment signals into information that engineers can use to investigate equipment health and plan maintenance. Its main workflow can be summarized as:</p>
+<pre class="mermaid">flowchart LR
+    A[Sensor Data] --&gt; B[Feature Engineering]
+    B --&gt; C[ML Analysis]
+    C --&gt; D[Edge Inference]
+    D --&gt; E[Health Monitoring]
+    E --&gt; F[AI Agent]
+    F --&gt; G[Engineering Decision]</pre><p>At a high level, the platform provides four capabilities:</p>
 <table>
 	<thead>
 			<tr>
-					<th>Stage</th>
-					<th>Name</th>
-					<th>Summary</th>
+					<th>Capability</th>
+					<th>Purpose</th>
 			</tr>
 	</thead>
 	<tbody>
 			<tr>
-					<td>1</td>
-					<td>Sensor Data</td>
-					<td>Sensor data collection · 2kHz vibration / temperature</td>
+					<td>Sensor-data processing</td>
+					<td>Collect, organize, and transform equipment signals into usable data</td>
 			</tr>
 			<tr>
-					<td>2</td>
-					<td>Feature &amp; ML</td>
-					<td>Feature engineering and models · FFT / One-Class SVM</td>
+					<td>Feature engineering and ML</td>
+					<td>Extract signal characteristics, identify unusual patterns, and support health assessment</td>
 			</tr>
 			<tr>
-					<td>3</td>
-					<td>Edge Inference</td>
-					<td>Device-side real-time inference · Low latency &lt; 5ms</td>
+					<td>Health monitoring</td>
+					<td>Track health scores, historical changes, and potential abnormal conditions</td>
 			</tr>
 			<tr>
-					<td>4</td>
-					<td>Monitoring</td>
-					<td>Real-time health monitoring · Health Score &amp; Alert</td>
-			</tr>
-			<tr>
-					<td>5</td>
-					<td>AI Agent</td>
-					<td>Intelligent agent decision · LLM Root Cause Analysis</td>
+					<td>AI-assisted workflows</td>
+					<td>Retrieve relevant data, summarize findings, and help engineers investigate the next step</td>
 			</tr>
 	</tbody>
 </table>
-<h3 id="core-engineering-capabilities">Core Engineering Capabilities</h3>
-<p>Four core modules:</p>
-<ol>
-<li><strong>IoT Data Ingestion</strong>: deque in-memory peak-shaving buffer · 500 entries / 5s batch flush · SQLite dual-database rolling isolation and backup</li>
-<li><strong>ML &amp; PHM Engine</strong>: One-Class SVM anomaly detection · PCA dimensionality reduction, feature extraction and drift analysis · unsupervised degradation trend metric quantification · Mahalanobis distance / outlier detection</li>
-<li><strong>Edge Deployment</strong>: PyInstaller standalone binary packaging · zero-dependency, ready-to-use in offline environments · version release and update check mechanism</li>
-<li><strong>GenAI &amp; RAG Agent</strong>: LLM-generated repair work orders · RAG retrieval over the historical maintenance knowledge base · closed-loop fault root cause diagnosis and dispatch</li>
-</ol>
-<h3 id="system-tech-stack">System Tech Stack</h3>
-<ul>
-<li>Frontend: React UI</li>
-<li>Backend: Flask / SSE</li>
-<li>Database: SQLite (dual DB)</li>
-<li>ML: scikit-learn / PCA</li>
-<li>Infra: Docker Compose</li>
-<li>GenAI: LLM Agent / RAG</li>
-</ul>
-<hr>
-<h2 id="02-why-edge-ai-platform-before--after-comparison">02. Why Edge AI Platform? (Before / After Comparison)</h2>
-<p><img alt="Why Edge AI Platform" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/02_why.png"></p>
-<h3 id="before-6-fragmented-tools-and-data-silos">Before: 6 Fragmented Tools and Data Silos</h3>
-<ol>
-<li>CSV Files: Sensor original data records, manual Export</li>
-<li>Python Scripts: Ad-hoc / one-time data cleaning scripts, lack version control</li>
-<li>ML Notebooks: Offline model experimentation and training, no real-time inference</li>
-<li>Config Files: Static JSON/YAML configuration, fixed thresholds</li>
-<li>Edge C++ Runtime: Device-side monolithic executable, difficult to update in isolation</li>
-<li>Web Dashboard: Independent frontend monitoring interface, status cannot sync</li>
-</ol>
-<h3 id="critical-system-pain-points">Critical System Pain Points</h3>
-<ul>
-<li><strong>High Friction Glue Code</strong>: Steps heavily dependent on manual conversion and custom scripts, prone to crash due to format mismatch</li>
-<li><strong>Broken Data Lineage</strong>: Inference results cannot be traced back to original sensor parameter versions and training datasets</li>
-<li><strong>High Time-to-Market Latency</strong>: Model updates require weeks of manual re-implementation and verification</li>
-</ul>
-<blockquote>
-<p><strong>Core cost</strong>: engineers shift from manual hand-off to system maintenance and exception handling.</p>
-</blockquote>
-<h3 id="after-1-executable-engineering-loop">After: 1 Executable Engineering Loop</h3>
-<ol>
-<li>Sensor Data Ingestion: Automatic data streaming</li>
-<li>Feature &amp; ML Pipeline: Feature standardization + PHM</li>
-<li>Edge AI Inference Engine: One-click device deployment</li>
-<li>Continuous Health Monitor: Real-time health monitoring alerts</li>
-<li>AI Agent Diagnostics: Intelligent root cause diagnosis</li>
-<li>Closed-Loop Feedback: Data model closed-loop continuous tuning</li>
-</ol>
-<h3 id="engineering-impact">Engineering Impact</h3>
+<p>The AI agent is an assistance layer, not an autonomous replacement for engineering judgment. Decisions that can affect production equipment should remain subject to appropriate validation and human oversight.</p>
+<h2 id="2-why-edge-ai">2. Why Edge AI?</h2>
+<p><img alt="Why an Edge AI Platform" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/02_why.png"></p>
+<p>A model is only one part of a production system. The surrounding data path, deployment process, integration points, and operational controls often determine whether an AI solution is useful in practice.</p>
+<h3 id="21-common-engineering-challenges">2.1 Common engineering challenges</h3>
+<p><strong>Integration complexity.</strong> Data acquisition, preprocessing, model execution, APIs, dashboards, and alerts may be implemented by different components. Without clear interfaces, even a small change can require updates across multiple modules.</p>
+<p><strong>Data lineage.</strong> Engineers need to understand where a feature or score came from, which source data was used, and which model or configuration produced the result. Without traceability, it is difficult to reproduce an analysis or compare results over time.</p>
+<p><strong>Deployment latency.</strong> A solution that works in a development environment can still be difficult to package, configure, install, and update consistently at an equipment site.</p>
+<h3 id="22-the-intended-improvement">2.2 The intended improvement</h3>
+<p>The platform aims to standardize the path from data ingestion to operational use.</p>
 <table>
 	<thead>
 			<tr>
-					<th>Metric</th>
-					<th>Before</th>
-					<th>After</th>
-					<th>Benefit</th>
+					<th>Engineering area</th>
+					<th>Intended outcome</th>
 			</tr>
 	</thead>
 	<tbody>
 			<tr>
-					<td>Model Deployment Cycle</td>
-					<td>28 days (manual)</td>
-					<td>1 day (automated pipeline)</td>
-					<td>→ 96% reduction</td>
+					<td>Deployment</td>
+					<td>Reduce the effort required to package and release a platform update</td>
 			</tr>
 			<tr>
-					<td>Glue Code Reduction</td>
-					<td>—</td>
-					<td>-85%</td>
-					<td>Significant reduction in repetitive development</td>
+					<td>Integration</td>
+					<td>Reuse common interfaces instead of repeatedly writing project-specific integration code</td>
 			</tr>
 			<tr>
-					<td>Data Lineage Integrity</td>
-					<td>—</td>
-					<td>100% Sync</td>
-					<td>End-to-end automatic alignment</td>
+					<td>Data lineage</td>
+					<td>Make analysis inputs, outputs, and model versions easier to trace</td>
+			</tr>
+			<tr>
+					<td>Maintenance workflow</td>
+					<td>Present data and analysis in a form that supports investigation and follow-up</td>
 			</tr>
 	</tbody>
 </table>
-<hr>
-<h2 id="03-system-architecture-5-layer-integrated-architecture">03. System Architecture (5-Layer Integrated Architecture)</h2>
-<p><img alt="System Architecture" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/03_system_architecture.png"></p>
-<h3 id="five-layer-system-tech-stack">Five-Layer System Tech Stack</h3>
-<table>
-	<thead>
-			<tr>
-					<th>Layer</th>
-					<th>Name</th>
-					<th>Technical Details</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>1</td>
-					<td>User &amp; Frontend</td>
-					<td>React 18 · MUI · React Flow · 31 routes · monitoring dashboard UI</td>
-			</tr>
-			<tr>
-					<td>2</td>
-					<td>Backend Core / REST &amp; SSE Hub</td>
-					<td>Flask · 15 Blueprints · JWT authentication · Agent Tool collaborative dispatch</td>
-			</tr>
-			<tr>
-					<td>3</td>
-					<td>ML &amp; Analytics</td>
-					<td>scikit-learn · feature extraction · One-Class SVM anomaly detection · batch inference</td>
-			</tr>
-			<tr>
-					<td>4</td>
-					<td>Edge Execution</td>
-					<td>Sensor data ingestion → Edge.exe engine → real-time health score (Health Score)</td>
-			</tr>
-			<tr>
-					<td>5</td>
-					<td>Data &amp; Persistence</td>
-					<td>SQLite (dual database), model file and feature file management (Model Registry)</td>
-			</tr>
-	</tbody>
-</table>
-<h3 id="ai-agent-collaborative-architecture">AI Agent Collaborative Architecture</h3>
-<p><strong>Controllable Tool-Calling Architecture</strong>:</p>
-<ul>
-<li>Strict Boundary Control: Agent does not bypass backend logic; only executes via validated Tool APIs</li>
-<li>Real-time SSE Context Ingestion: Device real-time Alert signals streamed into LLM reasoning context</li>
-<li>Actionable Insights: Root cause analysis and maintenance suggestions automatically returned to frontend UI</li>
-</ul>
-<h3 id="performance-metrics">Performance Metrics</h3>
-<table>
-	<thead>
-			<tr>
-					<th>Metric</th>
-					<th>Value</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>Module Count</td>
-					<td>15 modules (Flask Blueprints)</td>
-			</tr>
-			<tr>
-					<td>Edge Data Ingestion</td>
-					<td>8 ms</td>
-			</tr>
-			<tr>
-					<td>Backend Tool Execution</td>
-					<td>35 ms</td>
-			</tr>
-			<tr>
-					<td>SSE Broadcast</td>
-					<td>15 ms</td>
-			</tr>
-			<tr>
-					<td>Agent Reasoning Decision</td>
-					<td>120 ms</td>
-			</tr>
-	</tbody>
-</table>
-<p>Core architecture value: the AI Agent acts only as an intelligent coordinator through Tool Calling, preserving the determinism and security of the backend system.</p>
-<hr>
-<h2 id="04-end-to-end-data-flow">04. End-to-End Data Flow</h2>
-<p><img alt="End-to-End Data Flow" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/04_end_to_end_data_flow.png"></p>
-<h3 id="stage-1-data-ingestion-and-streaming">Stage 1: Data Ingestion and Streaming</h3>
-<ul>
-<li>Thread-safe queue (deque maxlen=5000)</li>
-<li>Batch write every 5 seconds (max 500 entries)</li>
-<li>Database capacity limit: 10,000 records</li>
-<li>Prevent I/O blocking under high-frequency signal bursts</li>
-</ul>
-<p><strong>Buffering &amp; Batch Write Mechanism</strong>:</p>
-<ul>
-<li>Bounded Queue: collections.deque(maxlen=5000), effectively absorbs high-frequency sensor burst signals, avoiding blocking system main thread</li>
-<li>Asynchronous SQLite Flush: 500 entries / 5 seconds, hard database cap of 10,000 records, ensuring queries stay extremely low latency</li>
-</ul>
-<h3 id="stage-2-preprocessing-and-ml-scoring">Stage 2: Preprocessing and ML Scoring</h3>
-<ul>
-<li>Time-domain and frequency-domain feature extraction</li>
-<li>One-Class SVM batch inference engine</li>
-<li>Real-time health score normalization</li>
-<li>Converts original vibration data into quantified metrics</li>
-</ul>
-<h3 id="stage-3-monitoring-alert-and-ai-response">Stage 3: Monitoring Alert and AI Response</h3>
-<ul>
-<li>Frontend 10-second polling mechanism</li>
-<li>GET /api/vibration/latest endpoint</li>
-<li>SSE event stream drives AI Agent inference</li>
-<li>Automated root cause diagnosis and maintenance recommendations</li>
-</ul>
-<p><strong>Buffering Queue &amp; DB Write Simulation</strong>:</p>
-<ul>
-<li>Sensor anomaly signal (2,500 pts/s)</li>
-<li>DB asynchronous write (500 pts / 5s)</li>
-<li>I/O load control &lt; 5%</li>
-</ul>
-<p>Core architecture value: Asynchronous buffering isolates high-frequency signal burst impact on the database, ensuring stable system operation during abnormal bursts.</p>
-<hr>
-<h2 id="05-ml--phm-pipeline">05. ML &amp; PHM Pipeline</h2>
+<p>The project materials include illustrative figures such as a deployment cycle reduced from 28 days to 1 day, an 85% reduction in integration code, and 100% synchronization of data lineage within the measured scope. These numbers should be published as verified results only if their definitions, measurement periods, and comparison baselines can be documented. Otherwise, label them as internal estimates or targets.</p>
+<h2 id="3-system-architecture">3. System Architecture</h2>
+<p><img alt="System assembly and architecture design" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/03_system_architecture.png"></p>
+<p>The platform can be understood as five cooperating layers: presentation, API services, analytics, edge execution, and persistence.</p>
+<pre class="mermaid">flowchart TB
+    subgraph UI[&#34;Presentation Layer&#34;]
+        A[&#34;React + MUI&#34;]
+        B[&#34;Workflow UI / React Flow&#34;]
+    end
+    subgraph API[&#34;API and Application Layer&#34;]
+        C[&#34;Flask REST APIs&#34;]
+        D[&#34;Authentication and Job Coordination&#34;]
+    end
+    subgraph ML[&#34;Analytics Layer&#34;]
+        E[&#34;Feature Engineering&#34;]
+        F[&#34;ML / PHM Algorithms&#34;]
+        G[&#34;Health Score and Drift Analysis&#34;]
+    end
+    subgraph EDGE[&#34;Edge Execution Layer&#34;]
+        H[&#34;Sensor / File Inputs&#34;]
+        I[&#34;Edge Runtime and Inference&#34;]
+    end
+    subgraph DATA[&#34;Persistence Layer&#34;]
+        J[&#34;edge_ai.db&#34;]
+        K[&#34;vibration.db&#34;]
+        L[&#34;Model and Analysis Artifacts&#34;]
+    end
+    A --&gt; C
+    B --&gt; C
+    C --&gt; D
+    D --&gt; E
+    E --&gt; F
+    F --&gt; G
+    H --&gt; I
+    I --&gt; E
+    D --&gt; J
+    E --&gt; K
+    F --&gt; L</pre><h3 id="31-presentation-layer">3.1 Presentation layer</h3>
+<p>The web interface uses React and Material UI (MUI) to present equipment information, analysis results, and operational workflows. React Flow can be used to represent workflows or agent execution paths visually.</p>
+<p>The frontend should focus on user interaction and presentation. It should not become the source of truth for model execution, access control, or data integrity.</p>
+<h3 id="32-api-and-application-layer">3.2 API and application layer</h3>
+<p>The Flask backend exposes REST APIs and coordinates application-level operations, such as authentication, analysis requests, data retrieval, and report generation.</p>
+<p>Keeping these responsibilities behind a stable API allows the frontend, analysis modules, and edge processes to evolve without requiring every component to know the implementation details of the others.</p>
+<h3 id="33-analytics-layer">3.3 Analytics layer</h3>
+<p>This layer contains signal processing, feature extraction, anomaly detection, health scoring, and data-drift analysis. It should expose well-defined inputs and outputs so that algorithms can be tested independently from the web application.</p>
+<h3 id="34-edge-execution-layer">3.4 Edge execution layer</h3>
+<p>The edge runtime handles local execution and interaction with the available sensor-data sources. Local processing can reduce dependence on continuous network connectivity and avoid sending every high-frequency raw sample to a central service.</p>
+<p>The exact division between local and centralized processing depends on latency, compute resources, network reliability, data volume, and deployment constraints.</p>
+<h3 id="35-persistence-layer">3.5 Persistence layer</h3>
+<p>The current design uses SQLite databases for application and vibration-related data, along with files for model or analysis artifacts. This is a pragmatic starting point for a local or single-node deployment, but it introduces concurrency and lifecycle considerations as workload grows.</p>
+<h2 id="4-end-to-end-data-flow">4. End-to-End Data Flow</h2>
+<p><img alt="End-to-end data flow" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/04_end_to_end_data_flow.png"></p>
+<p>A typical processing path consists of ingestion, buffering, persistence, feature extraction, model analysis, health assessment, and follow-up action.</p>
+<pre class="mermaid">flowchart TD
+    A[&#34;Sensor / File Input&#34;] --&gt; B[&#34;In-Memory Buffer&#34;]
+    B --&gt; C{&#34;Batch Trigger&#34;}
+    C --&gt;|&#34;Time or size threshold&#34;| D[&#34;Persist / Prepare Batch&#34;]
+    D --&gt; E[&#34;Feature Extraction&#34;]
+    E --&gt; F[&#34;ML / PHM Analysis&#34;]
+    F --&gt; G[&#34;Health Score and Anomaly Results&#34;]
+    G --&gt; H[&#34;Dashboard / Report / Alert&#34;]
+    H --&gt; I[&#34;Engineer Review and Action&#34;]</pre><h3 id="41-buffering-and-batching">4.1 Buffering and batching</h3>
+<p>A bounded Python <code>deque</code>, for example <code>deque(maxlen=5000)</code>, can be used to hold recent samples before processing. A batch may be triggered by a time interval (for example, approximately five seconds) or a record-count threshold (for example, 500 records), depending on the implementation.</p>
+<p>A bounded deque automatically discards the oldest entries when it reaches capacity. It is therefore a useful short-term buffer, but it is <strong>not</strong> a durable message queue. If samples must survive process crashes or temporary downstream failures, the system needs an explicit persistence and replay strategy.</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;Sensor Stream&#34;] --&gt; B[&#34;Bounded In-Memory Queue&#34;]
+    B --&gt; C[&#34;Batch Flush Worker&#34;]
+    C --&gt; D[&#34;SQLite Persistence&#34;]</pre><h3 id="42-feature-extraction-and-analysis">4.2 Feature extraction and analysis</h3>
+<p>The batch is transformed into signal features and passed to the relevant analytical methods. The output may include feature values, anomaly indicators, a health score, and supporting metadata.</p>
+<h3 id="43-results-and-action">4.3 Results and action</h3>
+<p>The platform presents results through dashboards, reports, or alerts. The purpose is not merely to generate a score; it is to give engineers enough context to inspect the evidence, understand the potential issue, and decide what to do next.</p>
+<h2 id="5-machine-learning-and-phm-methods">5. Machine Learning and PHM Methods</h2>
 <p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/05_ml_phm_pipeline.png"></p>
-<h3 id="preprocessing-and-feature-processing-pipeline">Preprocessing and Feature Processing Pipeline</h3>
-<ol>
-<li>Signal Ingestion: High-frequency vibration acceleration signal x(t), continuous sensor streaming</li>
-<li>Time Slicing: Time-domain sliding window slicing, overlapping windows, fixed-length signal frames</li>
-<li>Feature Matrix Extraction: accRMS · peak · kurtosis, time-domain and frequency-domain feature metrics, input to downstream ML model</li>
-</ol>
-<h3 id="anomaly-detection">Anomaly Detection</h3>
-<p><strong>One-Class SVM</strong>: Applicable to production lines lacking fault labels, learns normal behavior boundary → marks anomaly deviation</p>
-<h3 id="feature-alignment">Feature Alignment</h3>
-<p><strong>DTW Sequence Alignment</strong>: overcomes rotational speed fluctuation and time axis phase misalignment via non-linear time-series dynamic alignment</p>
-<h3 id="trend-and-drift">Trend and Drift</h3>
-<p><strong>PCA and Feature Drift</strong>: Current operation data vs historical Baseline comparison, quantifies long-term equipment wear and degradation</p>
-<h3 id="algorithm-selection-criteria">Algorithm Selection Criteria</h3>
-<p>Selected based on physical signal characteristics — lacking fault labels → <strong>OCSVM</strong> → rotational phase misalignment → <strong>DTW</strong> → long-term wear degradation → <strong>PCA feature drift</strong></p>
-<hr>
-<h2 id="06-backend-engineering">06. Backend Engineering</h2>
-<p><img alt="Backend Engineering" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/06_backend_engineering.png"></p>
-<h3 id="flask-core-architecture">Flask Core Architecture</h3>
+<p>PHM systems combine domain knowledge, signal processing, statistical analysis, and machine learning. No single algorithm can reliably answer every equipment-health question.</p>
+<h3 id="51-signal-features">5.1 Signal features</h3>
+<p>Common time-domain features include:</p>
+<ul>
+<li><strong>RMS (root mean square):</strong> summarizes signal magnitude and is often used to monitor vibration energy.</li>
+<li><strong>Peak:</strong> captures the largest absolute amplitude in a window.</li>
+<li><strong>Kurtosis:</strong> describes aspects of a distribution&rsquo;s tail behavior and can help identify impulsive signals. Its interpretation depends on the data distribution and implementation.</li>
+<li><strong>FFT (Fast Fourier Transform):</strong> transforms a time-domain signal into frequency-domain components, helping reveal dominant frequencies and changes in spectral structure.</li>
+</ul>
+<p>For a signal \(x = [x_1, x_2, \ldots, x_N]\), RMS is defined as:</p>
+$$
+\mathrm{RMS} = \sqrt{\frac{1}{N}\sum_{i=1}^{N} x_i^2}
+$$<p>Feature definitions, window sizes, sampling rates, units, and preprocessing should be consistent. Otherwise, apparent changes may come from the pipeline rather than the equipment.</p>
+<h3 id="52-one-class-svm-for-anomaly-detection">5.2 One-Class SVM for anomaly detection</h3>
+<p>One-Class Support Vector Machine (One-Class SVM) can learn the boundary of data considered normal and flag observations that fall outside that boundary. It is useful when labeled fault examples are limited.</p>
+<p>Important considerations include:</p>
+<ul>
+<li>Fit the model on a representative baseline of normal operation.</li>
+<li>Scale features consistently.</li>
+<li>Tune parameters such as <code>nu</code> and <code>gamma</code> using validation data and operational feedback.</li>
+<li>Monitor false positives and false negatives; an anomaly score is not automatically a diagnosis.</li>
+<li>Revisit the baseline when operating conditions or equipment configurations change.</li>
+</ul>
+<pre class="mermaid">flowchart LR
+    A[&#34;Historical Normal Data&#34;] --&gt; B[&#34;Feature Scaling&#34;]
+    B --&gt; C[&#34;Train One-Class SVM&#34;]
+    C --&gt; D[&#34;Learn Decision Boundary&#34;]
+    D --&gt; E[&#34;New Feature Vector: Normal or Anomaly&#34;]</pre><h3 id="53-dynamic-time-warping-dtw">5.3 Dynamic Time Warping (DTW)</h3>
+<p>Dynamic Time Warping measures similarity between sequences that may differ in timing or duration. It can be useful when comparing signal patterns whose important events do not occur at exactly the same time.</p>
+<p>A DTW implementation uses a cumulative-cost matrix. A typical recurrence is:</p>
+$$
+D(i,j) = d(x_i,y_j) + \min\left\{ D(i-1,j),\; D(i,j-1),\; D(i-1,j-1) \right\}
+$$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints such as a warping window can reduce computation and prevent implausible alignments. DTW is not a universal anomaly detector; its usefulness depends on the selected reference sequences, distance function, normalization, and domain.</p>
+<h3 id="54-pca-for-data-drift-monitoring">5.4 PCA for data-drift monitoring</h3>
+<p>Principal Component Analysis (PCA) projects correlated features into a lower-dimensional space. Comparing current data with a reference baseline can help identify distribution changes.</p>
+<p>A drift signal does not necessarily mean equipment failure. It may also reflect a changed recipe, sensor replacement, a different operating regime, or a preprocessing change. Drift should trigger investigation and contextual checks rather than an automatic conclusion.</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;Historical Baseline Features&#34;] --&gt; B[&#34;Fit PCA Model&#34;]
+    B --&gt; C[&#34;Reference Feature Space&#34;]
+    C --&gt; D[&#34;New Features: Projection and Drift Analysis&#34;]</pre><h3 id="55-choosing-the-method">5.5 Choosing the method</h3>
 <table>
 	<thead>
 			<tr>
-					<th>Module</th>
-					<th>Content</th>
+					<th>Method</th>
+					<th>Primary purpose</th>
+					<th>Key limitation</th>
 			</tr>
 	</thead>
 	<tbody>
 			<tr>
-					<td>Authentication</td>
-					<td>LDAP / AD enterprise authentication integration · JWT Token mechanism</td>
+					<td>RMS / Peak / Kurtosis</td>
+					<td>Summarize time-domain signal characteristics</td>
+					<td>Can be sensitive to windowing, noise, and operating conditions</td>
 			</tr>
 			<tr>
-					<td>RESTful API</td>
-					<td>15 Domain Blueprints · Sensor / ML / Edge routes</td>
-			</tr>
-			<tr>
-					<td>Data Layer</td>
-					<td>SQLAlchemy ORM · Dual SQLite (vibration.db)</td>
-			</tr>
-			<tr>
-					<td>Background Jobs</td>
-					<td>APScheduler + Queue asynchronous Task Pipeline</td>
-			</tr>
-			<tr>
-					<td>AI Agent Collaborative Hub</td>
-					<td>LLM workflow orchestration · Tool Calling processor</td>
-			</tr>
-			<tr>
-					<td>Model Lifecycle</td>
-					<td>ModelBuildingHistory · automatic training state &amp; metrics tracking</td>
-			</tr>
-	</tbody>
-</table>
-<h3 id="data-and-stream-io">Data and Stream I/O</h3>
-<p><strong>Dual DB cross-database query and asynchronous buffering write mechanism</strong>:</p>
-<ul>
-<li>edge_ai.db (configuration and model history) + vibration.db (high-frequency time-domain database)</li>
-<li>SQLite ATTACH → high-efficiency single SQL join query</li>
-<li>API reads are decoupled from high-frequency writes, so queries are never blocked by write spikes</li>
-<li>High-frequency signal → deque queue maxlen=5000 → batch DB write (5s / 500 entries)</li>
-</ul>
-<h3 id="model-lifecycle">Model Lifecycle</h3>
-<p><strong>ModelBuildingHistory</strong>: Model state machine and history tracking</p>
-<ul>
-<li>building ↔ completed / failed</li>
-<li>Persisted metrics storage: Accuracy &amp; Coverage, Anomaly Score threshold and anomaly log records</li>
-</ul>
-<h3 id="15-domain-blueprints">15 Domain Blueprints</h3>
-<p>Split by business domain for independent maintenance (Sensor / ML / Edge), avoiding monolithic Route files, improving modular extensibility.</p>
-<p><strong>Authentication Flow</strong>: LDAP / AD ↔ JWT Access ↔ Refresh (1-hour short token / 30-day refresh renewal)</p>
-<h3 id="key-metrics">Key Metrics</h3>
-<table>
-	<thead>
-			<tr>
-					<th>Metric</th>
-					<th>Value</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>Blueprints</td>
-					<td>15 (modular architecture)</td>
-			</tr>
-			<tr>
-					<td>Databases</td>
-					<td>2 (attached dual DB architecture)</td>
-			</tr>
-			<tr>
-					<td>Batch Interval</td>
-					<td>5s (queue traffic control mechanism)</td>
-			</tr>
-			<tr>
-					<td>Model States</td>
-					<td>3 (complete lifecycle tracking)</td>
-			</tr>
-	</tbody>
-</table>
-<hr>
-<h2 id="07-ai-agent-architecture">07. AI Agent Architecture</h2>
-<p><img alt="AI Agent Architecture" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/07_ai_agent_architecture.png"></p>
-<h3 id="agent-execution-flow">Agent Execution Flow</h3>
-<ol>
-<li>Client Layer: User input → React Agent UI conversation interface</li>
-<li>Backend Gateway: POST /agent/chat/stream · SSE real-time streaming</li>
-<li>Agent Orchestrator: OpenAI Agents SDK · automatic tool selection · ReAct reasoning chain</li>
-<li>Platform Tools: controlled sandbox functions invoked directly by the Flask controller
-<ul>
-<li>get_health_score</li>
-<li>get_vibration_data</li>
-<li>run_sql_query_safe</li>
-<li>anomaly_detection</li>
-<li>read_file</li>
-<li>export_report</li>
-</ul>
-</li>
-</ol>
-<p>Sandboxed execution with Read-only API permissions only.</p>
-<h3 id="reasoning-engine">Reasoning Engine</h3>
-<ul>
-<li>Core framework: OpenAI Agents SDK (with 20+ built-in Function Tools); fallback: LangGraph ReAct; real-time feedback via SSE Streaming</li>
-<li>LLM focuses on understanding user intent, decomposing the problem into steps, and selecting the appropriate Tool</li>
-<li>Prevents hallucinations: the model never fabricates data, and all actual data is queried through Tools</li>
-</ul>
-<h3 id="deterministic-tool-execution">Deterministic Tool Execution</h3>
-<ul>
-<li>Python encapsulated tools responsible for actual SQLite query execution, file reading, and algorithm computation</li>
-<li>High-precision execution results formatted and returned to LLM for comprehensive analysis and summarization</li>
-</ul>
-<h3 id="backend-protection-and-security-governance">Backend Protection and Security Governance</h3>
-<ul>
-<li>Backend strictly controls API access and permission authentication; Unrestricted Shell strictly prohibited</li>
-<li>SQL query limited to Read-only mode with parameterized passing, preventing injection attacks</li>
-<li>Combined with JWT Token authentication, ensuring secure access to sensitive sensor data and project configuration</li>
-</ul>
-<h3 id="agent-execution-latency-display">Agent Execution Latency Display</h3>
-<table>
-	<thead>
-			<tr>
-					<th>Task</th>
-					<th>Latency</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>LLM reasoning</td>
-					<td>~320 ms</td>
-			</tr>
-			<tr>
-					<td>Tool execution</td>
-					<td>~35 ms</td>
-			</tr>
-			<tr>
-					<td>SSE stream transmission</td>
-					<td>~85 ms</td>
-			</tr>
-	</tbody>
-</table>
-<p>100% deterministic data, 0% direct DB risk (all data is accessed through controlled Tools).</p>
-<hr>
-<h2 id="08-deployment--monitoring">08. Deployment &amp; Monitoring</h2>
-<p><img alt="Deployment &amp; Monitoring" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/08_deployment_monitoring.png"></p>
-<h3 id="docker-compose-containerized-environment">Docker Compose Containerized Environment</h3>
-<table>
-	<thead>
-			<tr>
-					<th>Service</th>
-					<th>Configuration</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>Frontend (:3000)</td>
-					<td>edgeai-frontend:latest, React UI + Nginx server</td>
-			</tr>
-			<tr>
-					<td>Backend API (:5000)</td>
-					<td>edgeai-backend:latest, Flask WSGI + APScheduler scheduling</td>
-			</tr>
-			<tr>
-					<td>Persistent Data Volume (Docker Volume)</td>
-					<td>SQLite dual database · ML model files (.pkl) · sensor logs, Volume mount, reducing data loss risk</td>
-			</tr>
-	</tbody>
-</table>
-<p>Zero-rebuild dynamic injection: entrypoint.sh → env.js → window.ENV → backend endpoint, same Image across environments (Deploy Once · Configure at Runtime)</p>
-<h3 id="apscheduler-proactive-health-detection-and-cached-inference">APScheduler: Proactive Health Detection and Cached Inference</h3>
-<table>
-	<thead>
-			<tr>
-					<th>Background Engine Task</th>
-					<th>Frequency</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>Health Detection</td>
-					<td>Every 5 minutes</td>
-			</tr>
-			<tr>
-					<td>Model Anomaly Inference</td>
-					<td>Every 5 minutes</td>
-			</tr>
-			<tr>
-					<td>Email Alert Notification</td>
-					<td>Event-triggered</td>
-			</tr>
-	</tbody>
-</table>
-<p><strong>State Buffer &amp; Cache</strong>: MonitorSnapshot state pool, RAM two-tier cache (API reads in just 0.2ms), disk file fallback persistence</p>
-<h3 id="automated-schedule-timeline">Automated Schedule Timeline</h3>
-<ul>
-<li>Daily database backup: 03:00 Daily</li>
-<li>Health detection: Every 5 minutes</li>
-<li>Model anomaly inference: Every 5 minutes</li>
-<li>Email alert delivery: Immediate event trigger</li>
-<li>High-frequency data writes: 5s / 500 entries batch</li>
-</ul>
-<h3 id="frontend-visualization-panel">Frontend Visualization Panel</h3>
-<ul>
-<li>Real-time health Gauge dashboard</li>
-<li>SSE proactive alert event push</li>
-</ul>
-<hr>
-<h2 id="09-failure-handling--scalability">09. Failure Handling &amp; Scalability</h2>
-<p><img alt="Failure Handling &amp; Scalability" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/09_failure_scaling.png"></p>
-<h3 id="current-single-machine-experience-flow">Current Single-Machine Experience Flow</h3>
-<p>Sensor data → deque queue → batch write → SQLite DB</p>
-<p><strong>System concurrency bottleneck</strong>: SQLite single-file write lock under high-frequency burst traffic</p>
-<p><strong>Burst traffic peak shaving simulation</strong>:</p>
-<ul>
-<li>Burst traffic peak: 2.5k</li>
-<li>5s (burst start) → 15s (peak) → 25s (backlog fully absorbed)</li>
-<li>Smoothed write throughput 100 req/s (Batch Flush, i.e. 500 entries every 5 s)</li>
-</ul>
-<p><strong>Bounded queue buffer</strong>: deque(maxlen=5000) memory isolation
-<strong>Batch write strategy</strong>: Every 5 seconds / 500 entries batch flush
-<strong>FIFO capacity retention limit</strong>: Database record limit 10,000 entries
-<strong>Dual DB rolling backup mechanism</strong>: Daily 03:00 automatic backup (retains 7 copies)</p>
-<h3 id="future-scale-out-blueprint">Future Scale-Out Blueprint</h3>
-<p>MQTT Broker ↔ Message Queue ↔ Worker Cluster (N instances each)</p>
-<p><strong>Persistence &amp; Service Layer</strong>:</p>
-<table>
-	<thead>
-			<tr>
-					<th>Component</th>
-					<th>Description</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>PostgreSQL</td>
-					<td>High availability HA mechanism, Write Sharding</td>
-			</tr>
-			<tr>
-					<td>Redis Cache</td>
-					<td>Memory-level cache, Real-time Snapshot</td>
-			</tr>
-			<tr>
-					<td>Flask API</td>
-					<td>Stateless elastic expansion, Load Balancer</td>
-			</tr>
-	</tbody>
-</table>
-<p><strong>Three expansion principles</strong>:</p>
-<ol>
-<li><strong>Complete decoupling of writes from compute</strong>: the Message Queue (Kafka / RabbitMQ) fully absorbs ten-thousand-scale burst traffic, eliminating single-point locks</li>
-<li><strong>Elastic horizontal scaling of Workers</strong>: stateless Worker nodes can be auto-scaled based on queue backlog</li>
-<li><strong>Enterprise-grade read/write separation</strong>: PostgreSQL handles persistence while Redis serves high-speed API reads, fully separating read and write pressure</li>
-</ol>
-<blockquote>
-<p>Current SQLite is an engineering choice for current Edge Deployment scale; as scale grows, it will evolve into Scale-Out distributed architecture.</p>
-</blockquote>
-<hr>
-<h2 id="10-engineering-trade-offs">10. Engineering Trade-offs</h2>
-<p><img alt="Engineering Trade-offs" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/10_engineering_tradeoffs.png"></p>
-<h3 id="current-solution-vs-bottleneck-vs-future-evolution-per-component">Current Solution vs. Bottleneck vs. Future Evolution per Component</h3>
-<table>
-	<thead>
-			<tr>
-					<th>Component</th>
-					<th>Current Solution (TODAY)</th>
-					<th>Bottleneck &amp; Limit</th>
-					<th>Future Evolution (NEXT)</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>Flask</td>
-					<td>Simple REST · ML integration easy</td>
-					<td>Few architectural constraints; hard to split services</td>
-					<td>FastAPI (Service Split)</td>
-			</tr>
-			<tr>
-					<td>SQLite</td>
-					<td>Deployment simple, low maintenance burden</td>
-					<td>Single-file write concurrency lock</td>
-					<td>PostgreSQL HA Cluster</td>
-			</tr>
-			<tr>
-					<td>APScheduler</td>
-					<td>Background work built-in integrated</td>
-					<td>Single process limit</td>
-					<td>Worker Queue (Celery / RQ)</td>
-			</tr>
-			<tr>
-					<td>Local ML files</td>
-					<td>Edge direct load</td>
-					<td>Model version tracking weak</td>
-					<td>Model Registry (MLflow)</td>
-			</tr>
-			<tr>
-					<td>SSE</td>
-					<td>Unidirectional HTTP stream simple</td>
-					<td>No bidirectional communication</td>
-					<td>WebSocket (bidirectional demand)</td>
+					<td>FFT</td>
+					<td>Identify spectral components and frequency changes</td>
+					<td>Requires appropriate sampling and interpretation</td>
 			</tr>
 			<tr>
 					<td>One-Class SVM</td>
-					<td>Applicable when fault labels are unavailable</td>
-					<td>Over-parameterized boundary sensitive</td>
-					<td>Advanced PHM Model</td>
+					<td>Detect deviations from a learned normal-data boundary</td>
+					<td>Depends on baseline quality and parameter selection</td>
 			</tr>
 			<tr>
-					<td>React Context</td>
-					<td>Lightweight component state sharing</td>
-					<td>Excessive re-renders at scale</td>
-					<td>Zustand / Redux</td>
+					<td>DTW</td>
+					<td>Compare sequences with temporal misalignment</td>
+					<td>Can be computationally expensive and reference-dependent</td>
 			</tr>
 			<tr>
-					<td>Queue</td>
-					<td>In-memory peak-shaving buffer (deque)</td>
-					<td>Capacity limited by memory</td>
-					<td>Durable MQ (Kafka)</td>
-			</tr>
-			<tr>
-					<td>Docker Compose</td>
-					<td>Single-machine containerized deployment simple</td>
-					<td>Container orchestration capability limited</td>
-					<td>Kubernetes (K8s)</td>
+					<td>PCA</td>
+					<td>Monitor multivariate structure and potential drift</td>
+					<td>Drift is not equivalent to failure</td>
 			</tr>
 	</tbody>
 </table>
-<h3 id="system-trade-off-radar-chart-edge-optimal-vs-scale-out">System Trade-off Radar Chart (Edge-Optimal vs. Scale-Out)</h3>
+<p>A robust PHM workflow combines these methods with engineering context, historical evidence, and validation.</p>
+<h2 id="6-backend-design">6. Backend Design</h2>
+<p><img alt="Backend engineering" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/06_backend_engineering.png"></p>
+<h3 id="61-flask-application-structure">6.1 Flask application structure</h3>
+<p>Flask Blueprints can separate API areas by responsibility — for example, authentication, equipment data, analysis, reports, and agent operations. This makes the application easier to test and maintain than a single large route module.</p>
+<p>The backend should validate request parameters, enforce authorization, handle errors consistently, and return predictable response formats. Long-running analysis should be treated differently from short synchronous API requests.</p>
+<h3 id="62-authentication-and-authorization">6.2 Authentication and authorization</h3>
+<p>The platform uses LDAP / Active Directory integration for organizational identity and JWTs for authenticated requests, according to the implementation design.</p>
+<p>These mechanisms serve different purposes: directory authentication verifies a user&rsquo;s identity, while a token can carry authenticated-session claims to subsequent API calls. Authorization still needs to be checked for each protected operation. Tokens should have appropriate expiry and signing configuration, and secrets must not be hard-coded into source code or container images.</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;User Login&#34;] --&gt; B[&#34;LDAP / AD Authentication&#34;]
+    B --&gt; C[&#34;Issue JWT Access Token&#34;]
+    C --&gt; D[&#34;Authorized API Requests&#34;]
+    D --&gt; E[&#34;Backend Permission Checks&#34;]</pre><h3 id="63-sqlite-and-data-separation">6.3 SQLite and data separation</h3>
+<p>The design separates application data and vibration data into two SQLite databases, such as:</p>
 <ul>
-<li><strong>Deployment Speed</strong>: Fast for the current design; Scale-Out slows down once K8s is introduced</li>
-<li><strong>Low Ops Cost</strong>: Lower for the current design; distributed architectures add significant ops complexity</li>
-<li><strong>Scalability</strong>: Limited on a single machine; Scale-Out scales out substantially</li>
-<li><strong>Fault Tolerance</strong>: High single-point risk today; the distributed design is highly fault tolerant</li>
-<li><strong>Throughput</strong>: Limited on a single machine; Message Queue + Worker Cluster raise it substantially</li>
+<li><code>edge_ai.db</code> — application records, configuration, and workflow-related information.</li>
+<li><code>vibration.db</code> — vibration-related data and analysis inputs.</li>
 </ul>
-<p>Overall stance: design for today&rsquo;s edge constraints while leaving a clear evolution path for future scale-out.</p>
-<h3 id="architecture-evolution-blueprint">Architecture Evolution Blueprint</h3>
+<p>SQLAlchemy can manage database interactions, and SQLite&rsquo;s <code>ATTACH DATABASE</code> feature can support selected cross-database queries. However, separate database files do not remove all consistency or concurrency concerns. Cross-database operations, transaction boundaries, backups, schema migrations, and recovery procedures need explicit testing.</p>
+<p>SQLite is suitable for many local deployments. If concurrent writes or multi-node access become substantial, a client-server database such as PostgreSQL may be a more appropriate next step.</p>
+<h3 id="64-scheduled-tasks-and-model-history">6.4 Scheduled tasks and model history</h3>
+<p>APScheduler can run periodic jobs such as drift checks, report generation, or maintenance summaries. The job should be designed to tolerate retries, failures, and partial completion.</p>
+<p>One important deployment detail: starting the scheduler in multiple web-worker processes can cause the same job to run more than once unless scheduling is coordinated. For multi-process deployments, consider a dedicated scheduler process or another mechanism that ensures a single active job owner.</p>
+<p>Model-build history should record enough metadata to reproduce an analysis, such as model version, training-data reference, configuration, creation time, and evaluation results. The exact fields depend on the platform&rsquo;s traceability requirements.</p>
+<p>A build also needs explicit states, so that a failed run is distinguishable from one that never started:</p>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; building
+    building --&gt; completed
+    building --&gt; failed</pre><h2 id="7-ai-agent-from-data-retrieval-to-assisted-investigation">7. AI Agent: From Data Retrieval to Assisted Investigation</h2>
+<p><img alt="AI Agent architecture" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/07_ai_agent_architecture.png"></p>
+<p>An AI agent can help users navigate the platform by translating a natural-language request into a controlled sequence of data retrieval and analysis operations. The LLM should not be the only component responsible for correctness or security.</p>
+<pre class="mermaid">flowchart TD
+    A[&#34;User Request&#34;] --&gt; B[&#34;LLM Planner / Orchestrator&#34;]
+    B --&gt; C[&#34;Select an Approved Tool&#34;]
+    C --&gt; D[&#34;Backend Validation and Authorization&#34;]
+    D --&gt; E[&#34;Execute Tool&#34;]
+    E --&gt; F[&#34;Structured Result&#34;]
+    F --&gt; G{&#34;More Evidence Needed?&#34;}
+    G --&gt;|&#34;Yes&#34;| B
+    G --&gt;|&#34;No&#34;| H[&#34;LLM Summary&#34;]
+    H --&gt; I[&#34;Response / Report for Human Review&#34;]</pre><h3 id="71-example-tools">7.1 Example tools</h3>
+<p>Depending on the actual deployment, the agent may expose tools such as:</p>
 <table>
 	<thead>
 			<tr>
-					<th>Phase</th>
-					<th>Architecture Mode</th>
-					<th>Technology Stack</th>
+					<th>Tool</th>
+					<th>Responsibility</th>
 			</tr>
 	</thead>
 	<tbody>
 			<tr>
-					<td>Phase 1</td>
-					<td>Edge Monolith (current edge monolith)</td>
-					<td>SQLite · Flask · single process</td>
+					<td><code>get_health_score</code></td>
+					<td>Retrieve a health score and its relevant context</td>
 			</tr>
 			<tr>
-					<td>Phase 2</td>
-					<td>Decoupled Pipeline</td>
-					<td>Worker Queue · SSE Stream</td>
+					<td><code>get_vibration_data</code></td>
+					<td>Fetch authorized vibration data for a specified asset or time range</td>
 			</tr>
 			<tr>
-					<td>Phase 3</td>
-					<td>Cloud Scale-Out (cloud horizontal expansion)</td>
-					<td>K8s · PostgreSQL · Model Reg</td>
+					<td><code>run_sql_query_safe</code></td>
+					<td>Execute a constrained, read-only query against approved data</td>
+			</tr>
+			<tr>
+					<td><code>anomaly_detection</code></td>
+					<td>Run a defined anomaly-analysis workflow</td>
+			</tr>
+			<tr>
+					<td><code>read_file</code></td>
+					<td>Read permitted files from an allowlisted location</td>
+			</tr>
+			<tr>
+					<td><code>export_report</code></td>
+					<td>Generate a report using validated inputs</td>
 			</tr>
 	</tbody>
 </table>
-<hr>
-<h2 id="conclusion">Conclusion</h2>
-<p>Looking back, the most valuable part of this project wasn&rsquo;t any particular model — it was collapsing &ldquo;fragmented tools + data silos&rdquo; into one engineering loop that actually runs and can be handed off:</p>
+<p>Tool names are illustrative; document only tools that are implemented and available in the deployed version.</p>
+<h3 id="72-tool-governance-and-safety">7.2 Tool governance and safety</h3>
+<p>The model should propose an action, but the backend should enforce the rules. At minimum:</p>
 <ul>
-<li>Model deployment cycle compressed from 28 days to 1 day (shortened 96%)</li>
-<li>Glue code reduced by 85%, data lineage integrity 100% synchronized</li>
-<li>Real-time inference latency &lt; 5 ms; supports offline autonomous operation</li>
-<li>15 Domain Blueprints modular architecture, supporting future scale-out migration to Kubernetes</li>
+<li>Validate arguments against a schema.</li>
+<li>Authenticate the user and authorize access to the requested asset and data.</li>
+<li>Use allowlists for files, tools, and queryable resources.</li>
+<li>Restrict database operations; do not allow arbitrary destructive SQL.</li>
+<li>Apply timeouts, output-size limits, and audit logging.</li>
+<li>Return structured errors that the agent can handle without exposing secrets.</li>
+<li>Require explicit confirmation for consequential actions where appropriate.</li>
 </ul>
-<p>Not reaching for a heavier stack was deliberate: edge equipment has to keep running when the network drops, so the orchestrated architecture sits in Phase 3. Migrating later means you&rsquo;ll see exactly where the ceiling is, instead of guessing now.</p>
+<p>A prompt instruction alone is not a security boundary. Enforcement belongs in the application and tool implementation.</p>
+<h3 id="73-separate-planning-from-execution">7.3 Separate planning from execution</h3>
+<p>One possible design uses a larger model for high-level planning and a smaller model for tool-oriented execution. For example, a planner model can break a request into subtasks, while an executor selects from approved tools and handles structured results.</p>
+<p>This split can help separate reasoning from action execution, but it also adds orchestration complexity, latency, and more failure points. It should be evaluated against a simpler single-model or deterministic workflow rather than assumed to be better by default.</p>
+<h3 id="74-server-sent-events-sse">7.4 Server-Sent Events (SSE)</h3>
+<p>Server-Sent Events can stream progress or partial results from the backend to the frontend over an HTTP connection. This is useful when an agent performs multiple steps and the user should see that work is progressing.</p>
+<p>The implementation should define event types, error behavior, connection timeouts, and client reconnection semantics. Streaming text to the interface does not replace backend logging or durable job state.</p>
+<h2 id="8-deployment-and-observability">8. Deployment and Observability</h2>
+<p><img alt="Deployment and monitoring" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/08_deployment_monitoring.png"></p>
+<h3 id="81-docker-compose">8.1 Docker Compose</h3>
+<p>Docker Compose can package the web application and its supporting services for repeatable deployment on a single host. It helps standardize runtime dependencies, ports, environment variables, volumes, and startup relationships.</p>
+<p>A container being healthy does not guarantee that the whole application is functioning correctly. Readiness checks should verify the dependencies that matter, and persistent data should be stored in appropriate volumes rather than only in a container&rsquo;s writable layer.</p>
+<h3 id="82-runtime-frontend-configuration">8.2 Runtime frontend configuration</h3>
+<p>If the frontend needs to be deployed as a static bundle whose backend URL can change by environment, a runtime configuration file such as <code>env.js</code> can expose a value through <code>window.ENV</code>. This avoids rebuilding the frontend bundle for every deployment environment.</p>
+<p>The runtime configuration must be loaded before application code reads it, validated at startup, and treated as public configuration. Do not put passwords, API secrets, or other credentials in browser-visible variables.</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;Docker Image&#34;] --&gt; B[&#34;Container Entrypoint&#34;]
+    B --&gt; C[&#34;Runtime Environment Variables&#34;]
+    C --&gt; D[&#34;env.js&#34;]
+    D --&gt; E[&#34;window.ENV&#34;]
+    E --&gt; F[&#34;Frontend API Endpoint&#34;]</pre><h3 id="83-monitoring">8.3 Monitoring</h3>
+<p>Useful operational signals include:</p>
+<ul>
+<li>API request rate, latency, and error rate.</li>
+<li>Data-ingestion delay, batch size, and dropped-sample counts.</li>
+<li>Model execution duration and analysis failures.</li>
+<li>Scheduler job start time, duration, and outcome.</li>
+<li>Agent tool-call success rate, timeouts, and token or inference cost where available.</li>
+<li>Disk usage, database growth, and artifact-storage health.</li>
+</ul>
+<p>Observability should help answer three questions: what failed, where it failed, and whether the system can safely recover.</p>
+<h2 id="9-failure-handling-and-scaling">9. Failure Handling and Scaling</h2>
+<p><img alt="Failure handling and scalability" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/09_failure_scaling.png"></p>
+<p>Failure handling should be designed into the data path, rather than added only after an incident.</p>
+<table>
+	<thead>
+			<tr>
+					<th>Failure scenario</th>
+					<th>Risk</th>
+					<th>Possible mitigation</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Buffer reaches capacity</td>
+					<td>Old samples may be discarded</td>
+					<td>Track overflow/drop counts; use durable buffering if loss is unacceptable</td>
+			</tr>
+			<tr>
+					<td>Sensor or source becomes unavailable</td>
+					<td>Incomplete or stale analysis</td>
+					<td>Track freshness, surface missing-data status, and avoid treating stale values as current</td>
+			</tr>
+			<tr>
+					<td>Model execution fails</td>
+					<td>Missing or invalid result</td>
+					<td>Record failure context, apply bounded retries, and preserve the previous valid result with a clear timestamp</td>
+			</tr>
+			<tr>
+					<td>SQLite write contention</td>
+					<td>Delayed or failed writes</td>
+					<td>Reduce competing writers, batch writes, tune transactions, or migrate to a server database</td>
+			</tr>
+			<tr>
+					<td>Scheduled task runs twice</td>
+					<td>Duplicate reports or work</td>
+					<td>Use a single scheduler owner, idempotent jobs, or a distributed coordination mechanism</td>
+			</tr>
+			<tr>
+					<td>LLM or tool call times out</td>
+					<td>Incomplete agent workflow</td>
+					<td>Apply timeouts, bounded retries, structured error handling, and a user-visible partial/failure state</td>
+			</tr>
+			<tr>
+					<td>Network connectivity is interrupted</td>
+					<td>Remote service unavailable</td>
+					<td>Keep appropriate local capabilities, queue recoverable work, and define synchronization behavior</td>
+			</tr>
+	</tbody>
+</table>
+<h3 id="91-evolve-in-stages">9.1 Evolve in stages</h3>
+<p>Scaling should respond to measured constraints, not to technology fashion.</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;Stage 1: Edge Monolith&#34;] --&gt; B[&#34;Stage 2: Decoupled Pipeline&#34;]
+    B --&gt; C[&#34;Stage 3: Cloud / Multi-Node Scale-Out&#34;]</pre><p><strong>Stage 1 — Edge monolith.</strong> A compact Flask application, local persistence, and local inference can be effective for a single-node deployment with modest workload.</p>
+<p><strong>Stage 2 — Decoupled pipeline.</strong> When ingestion and analysis interfere with API responsiveness, introduce durable queues and separate workers. This makes retries and backpressure easier to control.</p>
+<p><strong>Stage 3 — Cloud or multi-node scale-out.</strong> When workload, availability, or concurrent access demands it, consider a client-server database, shared job coordination, centralized observability, and horizontally scalable services. The edge component can remain responsible for latency-sensitive local functions.</p>
+<p>Potential technologies such as MQTT, durable message brokers, Redis, PostgreSQL, and load balancers are options for future evolution — not proof that the current deployment already uses them.</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;Sensors / Edge Devices&#34;] --&gt; B[&#34;MQTT Broker&#34;]
+    B --&gt; C[&#34;Durable Message Queue&#34;]
+    C --&gt; D[&#34;Worker Cluster&#34;]
+    D --&gt; E[&#34;ML Inference&#34;]
+    D --&gt; F[&#34;PostgreSQL&#34;]
+    D --&gt; G[&#34;Redis Cache&#34;]
+    E --&gt; H[&#34;Flask API&#34;]
+    F --&gt; H
+    G --&gt; H
+    H --&gt; I[&#34;Frontend&#34;]</pre><h2 id="10-engineering-trade-offs">10. Engineering Trade-offs</h2>
+<p><img alt="Engineering trade-offs" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/10_engineering_tradeoffs.png"></p>
+<p>Every architecture reflects constraints. The objective is not to select the most sophisticated technology in every layer, but to make the current system reliable while preserving a practical path forward.</p>
+<table>
+	<thead>
+			<tr>
+					<th>Area</th>
+					<th>Current approach</th>
+					<th>Benefit</th>
+					<th>Trade-off / next consideration</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Web backend</td>
+					<td>Flask</td>
+					<td>Lightweight and straightforward to organize</td>
+					<td>Long-running tasks may need separate workers</td>
+			</tr>
+			<tr>
+					<td>Persistence</td>
+					<td>SQLite</td>
+					<td>Simple local deployment and low operational overhead</td>
+					<td>Concurrent writes and multi-node access are limited</td>
+			</tr>
+			<tr>
+					<td>Scheduling</td>
+					<td>APScheduler</td>
+					<td>Convenient for periodic jobs</td>
+					<td>Multi-process execution needs coordination</td>
+			</tr>
+			<tr>
+					<td>Data buffering</td>
+					<td>Bounded <code>deque</code></td>
+					<td>Fast and simple in-memory buffering</td>
+					<td>Not durable; old entries are discarded at capacity</td>
+			</tr>
+			<tr>
+					<td>Frontend updates</td>
+					<td>REST APIs and SSE</td>
+					<td>Familiar request-response model with optional streaming</td>
+					<td>Reconnection and job state must be designed</td>
+			</tr>
+			<tr>
+					<td>ML / PHM</td>
+					<td>Feature engineering plus multiple analytical methods</td>
+					<td>Combines interpretable signal features with statistical and ML methods</td>
+					<td>Requires baseline validation and domain-specific interpretation</td>
+			</tr>
+			<tr>
+					<td>Deployment</td>
+					<td>Docker Compose</td>
+					<td>Repeatable single-host deployment</td>
+					<td>Not a complete orchestration solution for large clusters</td>
+			</tr>
+	</tbody>
+</table>
+<p>A useful engineering principle is to separate <strong>what exists today</strong> from <strong>what may be introduced later</strong>. This distinction makes the design easier to review and prevents a roadmap from being mistaken for a production capability.</p>
+<h2 id="11-conclusion">11. Conclusion</h2>
+<p>An Edge AI platform is an end-to-end engineering system. Its value comes from connecting sensor data, signal processing, model execution, backend services, deployment, monitoring, and human workflows into a coherent operational path.</p>
+<p>The main lessons are:</p>
+<ol>
+<li><strong>Design the complete data path.</strong> A model is useful only when its inputs, outputs, errors, and operational context are handled reliably.</li>
+<li><strong>Make data and results traceable.</strong> Versioning and lineage are essential for debugging and comparing analyses.</li>
+<li><strong>Treat AI agents as controlled application clients.</strong> The backend — not the LLM prompt — must enforce permissions, validation, and tool safety.</li>
+<li><strong>Make failure behavior explicit.</strong> Buffers, schedulers, databases, network dependencies, and model calls all need defined failure semantics.</li>
+<li><strong>Scale based on evidence.</strong> Begin with a design that matches the deployment constraints, then decouple or replace components when measurements justify the change.</li>
+</ol>
+<p>The most valuable work is often not a single algorithm or framework. It is the engineering judgment required to make the components work together safely, predictably, and maintainably.</p>
 <hr>
 <blockquote>
-<p><strong>Copyright and Terms of Use</strong>: All images in this article are copyrighted by the blog author. Reproduction requires attribution. The image content has been de-identified and virtualized for logical and visual reference purposes only and does not constitute any trade secret disclosure.</p>
+<p><strong>Terms of use:</strong> This article is written for technical exchange and system-design discussion. Identifying information about companies, customers and internal projects has been removed, and the data and scenarios have been de-identified or virtualized. The architectures described as future evolution are possible directions, not claims that all of them have been implemented or deployed. The use and redistribution of the text and diagrams follows the licensing terms published by the author.</p>
 </blockquote>
 ]]></content:encoded></item></channel></rss>
