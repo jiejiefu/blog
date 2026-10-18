@@ -10,11 +10,12 @@ cover:
 ---
 ## Introduction
 
-This is the written version of an interview deck. The 11 slides follow the same order I designed the system in: starting from raw sensor streams and ending at an autonomous decision agent, with each layer's trade-offs written out alongside it.
+This article captures the core engineering flow from my 11-slide interview presentation. It mirrors the exact architecture design sequence—starting from edge-level raw sensor streaming and building up to an autonomous decision-making agent. Key architectural choices and technical trade-offs at each layer are broken down in detail.
 
-Company names in the slides are replaced with the placeholder "company name," and the numbers are illustrative — read them for the architecture, not as benchmarks. Attribution required when reposting.
+Feel free to share or repost this content, provided that proper attribution/credit is clearly given. Slide company names have been replaced with generic placeholders, and all operational metrics are illustrative—please focus on the system design patterns rather than absolute figures.
 
-> ⚠️ **Intellectual Property Notice**: All images in this article are copyrighted by the blog author. Unauthorized download, reproduction, or modification is prohibited. This article is for personal technical demonstration and interview reference only. All images have been de-identified and virtualized and do not contain any undisclosed trade secrets, real customer names, specific process nodes, or internal project codenames.
+> ⚠️ **Intellectual Property & Legal Disclaimer**
+All visual assets in this post are copyrighted by the blog author and intended strictly for personal technical showcase and interview demonstration. Content has been fully de-identified and randomized; it does not disclose any confidential trade secrets, real client identities, specific fab process nodes, or internal project codenames. Unauthorized commercial downloading, derivative works, or uncredited reproduction are prohibited.
 
 ---
 
@@ -177,12 +178,14 @@ The end state is an Edge Agent Swarm — an array of autonomous micro-agents acr
 
 ---
 
-## 11. Thank You
+## 11. Conclusion & Next Steps
 
 ![Thank You](images/11_thanks.png)
 
-That's the system as it stands today. If your team is building in this direction, I'd be glad to talk.
+That wraps up the full picture of this edge AI system. From edge sensor streaming and mid-layer model loops to the top-tier autonomous decision agent, every architectural trade-off was made to strike the right balance between real-time responsiveness, stability, and operational overhead.
+
+If your team is tackling similar industrial edge challenges or wants to exchange notes on this design philosophy, feel free to reach out.
 
 ---
 
-> **Copyright and Terms of Use**: All images in this article are copyrighted by the blog author. Reproduction requires attribution. The image content has been de-identified and virtualized for logical and visual reference purposes only and does not constitute any trade secret disclosure.
+> **Intellectual Property & Legal Disclaimer**: All visual assets in this post are copyrighted by the blog author. Reproduction is permitted with proper attribution. Content has been fully de-identified and virtualized for architectural demonstration purposes only and contains no undisclosed trade secrets.
