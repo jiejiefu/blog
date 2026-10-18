@@ -6,3 +6,41 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
 {{- end }}
+
+{{- /* Mermaid 流程圖（約 183 KB gzip）。只在頁面真的用到 mermaid 時才載入，
+       全站大多是純文字文章，不該為不相干的頁面付這筆流量。
+
+       ⚠️⚠️ 這段必須放在 extend_head.html，絕對不能放 extend_footer.html。
+       baseof.html:16 呼叫 head.html 用的是 {{ partial }}（逐頁求值），
+       但 baseof.html:28 呼叫 footer.html 用的是
+       {{ partialCached "footer.html" . .Layout .Kind ... }}
+       —— 快取鍵是 .Layout 與 .Kind，**不是頁面**。也就是說所有 Layout/Kind
+       相同的頁面共用同一份 footer.html 輸出。放在 footer 裡做「這個頁面要不要
+       載入 mermaid」這種逐頁判斷，結果會是「第一個被算到的頁面決定全站」，
+       而且不會報錯、沒有警告，只是靜靜地不對。
+       （KaTeX 的 math: true 判斷之所以正確，正是因為它在 head 裡。）
+
+       偵測順序：front matter mermaid: true → .RawContent 含 "mermaid"。
+       同時命中 ```mermaid、``` mermaid 與 {{< mermaid >}} 三種寫法。
+       唯一漏網的是「圖來自 partial / page bundle include」，那時在 front matter
+       手動加 mermaid: true 即可。
+
+       為什麼用 .RawContent 掃字串而不是 .Store 旗標：.Store 會讓 render hook
+       與這個 partial 之間產生渲染順序耦合，一個無聲的失效模式。掃字串沒有
+       順序依賴，代價只是正文提到 "mermaid" 這個字時會多載一次。
+
+       importmap 與 module script 放在 <head> 沒問題：importmap 排在 module
+       script 之前即符合規格，而 type="module" 預設就是 deferred。
+
+       ⚠️ importmap 的 JSON 經 hugo --minify 後是安全的（實測：minifier 只會把
+       type="importmap" 的引號去掉，JSON 內容原樣保留）。千萬不要改成 inline
+       dynamic import——那樣 CDN 網址會散進 JS 資產，也就沒有單一更新點了。 */ -}}
+{{- $mermaidRaw := "" }}
+{{- with .RawContent }}{{ $mermaidRaw = lower . }}{{ end }}
+{{- if or .Params.mermaid (strings.Contains $mermaidRaw "mermaid") }}
+<script type="importmap">{{ dict "imports" (dict "mermaid" "https://cdn.jsdelivr.net/npm/mermaid@12.2.0/dist/mermaid.esm.min.mjs") | jsonify }}</script>
+{{- with resources.Get "js/mermaid-init.js" }}
+{{- $js := . | minify | fingerprint }}
+<script type="module" src="{{ $js.RelPermalink }}"></script>
+{{- end }}
+{{- end }}

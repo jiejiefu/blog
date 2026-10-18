@@ -119,3 +119,26 @@
     font-size: 0.8rem;
     color: var(--secondary);
 }
+
+/* Mermaid 流程圖
+ * ------------------------------------------------------------------
+ * mermaid 只用淺色 theme 渲染一次，深色模式靠 CSS filter 反相。
+ * 選這條路而不是「監聽 data-theme 變化重跑 mermaid.run()」的理由：
+ *   1. 零 JS、零重繪，主題切換時是 GPU 圖層濾鏡，瞬間完成不會閃爍。
+ *      重跑 mermaid 要先清 data-processed 再還原原始文字，中間必然有空白幀。
+ *   2. 本站的深色模式是純黑（--theme: rgb(0,0,0)），mermaid 預設是白底黑線，
+ *      invert(1) 之後正好變成黑底白線，對比與整站一致。
+ * hue-rotate(180deg) 補回色相，避免彩色 subgraph 變成互補色。
+ * 代價：彩色語意（如綠=Pass、紅=Fail）會偏色。目前站上沒有這種圖，
+ * 日後若真的有語意色需求，再改成重繪路線。
+ */
+.mermaid {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+}
+
+:root[data-theme="dark"] .mermaid svg {
+    filter: invert(1) hue-rotate(180deg);
+}

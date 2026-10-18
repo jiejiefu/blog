@@ -1,0 +1,17 @@
+{{- /*
+  Mermaid 流程圖 shortcode。與 render-codeblock-mermaid.html 共用同一套轉義邏輯，
+  差別只在輸出的容器標籤：render hook 用 <pre>（沿用 mermaid 官方的寫法），
+  shortcode 用 <div>。
+
+  ⚠️ 必須用單大括號呼叫：{{< mermaid >}}...{{< /mermaid >}}
+     用雙大括號 {{% mermaid %}}...{{% /mermaid %}} 會先把 inner 當成
+     Markdown 渲染（markdownify），mermaid 語法會在送進 mermaid 之前就被破壞。
+
+  存在這個 shortcode 的主要理由：AGENTS.md 記載過 drafts 裡的
+  {{< mermaid >}} 因為找不到 template 而讓整個 hugo build 直接失敗，
+  搬回 content/ 就會炸。有了它，未來要把草稿搬進文章不再是地雷。
+*/ -}}
+{{- $diagram := trim (.Inner | default "") "\n\r\t " -}}
+{{- if $diagram -}}
+<div class="mermaid">{{ $diagram | htmlEscape | safeHTML }}</div>
+{{- end -}}

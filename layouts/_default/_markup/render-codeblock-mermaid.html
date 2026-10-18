@@ -1,0 +1,19 @@
+{{- /*
+  Mermaid 流程圖 render hook。
+
+  匹配 ```mermaid —— Goldmark 會 trim 掉語言名稱前的空白，
+  所以 ``` mermaid（帶一個空格，drafts/ 裡的寫法）同樣會命中這個 hook。
+  其他語言的 code block 不受影響，仍走 PaperMod + Chroma。
+
+  ⚠️ .Inner 必須 htmlEscape：mermaid v10+ 的 mermaid.run() 讀的是
+  element.textContent，不是 innerHTML。escape 之後瀏覽器解回 textContent
+  剛好是原文字元，所以 --> " < > # & 都不會破壞 HTML，也不會被 mermaid 誤讀。
+  千萬不要圖省事只寫 {{ .Inner }} —— 那會讓節點標籤裡的 < > 直接變成真實標籤。
+
+  ⚠️ 為什麼要 trim：fenced block 的 .Inner 開頭結尾各帶一個換行，
+  mermaid 對前導空行敏感（%%{init}%% 指示詞必須在第一行）。
+*/ -}}
+{{- $diagram := trim (.Inner | default "") "\n\r\t " -}}
+{{- if $diagram -}}
+<pre class="mermaid">{{ $diagram | htmlEscape | safeHTML }}</pre>
+{{- end -}}
