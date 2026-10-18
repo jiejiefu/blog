@@ -30,26 +30,14 @@ The emphasis is on how the components work together — not simply on listing te
 
 The platform is designed to turn equipment signals into information that engineers can use to investigate equipment health and plan maintenance. Its main workflow can be summarized as:
 
-```text
-Sensor Data
-     |
-     v
-Feature Engineering
-     |
-     v
-ML Analysis
-     |
-     v
-Edge Inference
-     |
-     v
-Health Monitoring
-     |
-     v
-AI Agent
-     |
-     v
-Engineering Decision
+```mermaid
+flowchart LR
+    A[Sensor Data] --> B[Feature Engineering]
+    B --> C[ML Analysis]
+    C --> D[Edge Inference]
+    D --> E[Health Monitoring]
+    E --> F[AI Agent]
+    F --> G[Engineering Decision]
 ```
 
 At a high level, the platform provides four capabilities:
@@ -96,42 +84,41 @@ The project materials include illustrative figures such as a deployment cycle re
 
 The platform can be understood as five cooperating layers: presentation, API services, analytics, edge execution, and persistence.
 
-```text
-  +---------------------------------------------+
-  | Presentation Layer                          |
-  |   React + MUI                               |
-  |   Workflow UI / React Flow                  |
-  +---------------------------------------------+
-                       |
-                       v
-  +---------------------------------------------+
-  | API and Application Layer                   |
-  |   Flask REST APIs                           |
-  |   Authentication and Job Coordination       |
-  +---------------------------------------------+
-                       |
-                       v
-  +-------------------------------------+       |
-  | Analytics Layer                     |       |
-  |   Feature Engineering               |       |
-  |   ML / PHM Algorithms               |       |
-  |   Health Score and Drift Analysis   |       |
-  +-------------------------------------+       |
-          ^                                           |
-          |                                           |
-  +-------------------------------------+             |
-  | Edge Execution Layer                |             |
-  |   Sensor / File Inputs              |------------'
-  |   Edge Runtime and Inference        |             |
-  +-------------------------------------+             |
-          |                                           |
-          v                                           v
-  +---------------------------------------------+
-  | Persistence Layer                           |
-  |   edge_ai.db                                |
-  |   vibration.db                              |
-  |   Model and Analysis Artifacts              |
-  +---------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph UI["Presentation Layer"]
+        A["React + MUI"]
+        B["Workflow UI / React Flow"]
+    end
+    subgraph API["API and Application Layer"]
+        C["Flask REST APIs"]
+        D["Authentication and Job Coordination"]
+    end
+    subgraph ML["Analytics Layer"]
+        E["Feature Engineering"]
+        F["ML / PHM Algorithms"]
+        G["Health Score and Drift Analysis"]
+    end
+    subgraph EDGE["Edge Execution Layer"]
+        H["Sensor / File Inputs"]
+        I["Edge Runtime and Inference"]
+    end
+    subgraph DATA["Persistence Layer"]
+        J["edge_ai.db"]
+        K["vibration.db"]
+        L["Model and Analysis Artifacts"]
+    end
+    A --> C
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    H --> I
+    I --> E
+    D --> J
+    E --> K
+    F --> L
 ```
 
 ### 3.1 Presentation layer
@@ -166,32 +153,16 @@ The current design uses SQLite databases for application and vibration-related d
 
 A typical processing path consists of ingestion, buffering, persistence, feature extraction, model analysis, health assessment, and follow-up action.
 
-```text
-  Sensor / File Input
-          |
-          v
-  In-Memory Buffer
-          |
-          v
-     Batch Trigger      <-- time or size threshold
-          |
-          v
-  Persist / Prepare Batch
-          |
-          v
-  Feature Extraction
-          |
-          v
-  ML / PHM Analysis
-          |
-          v
-  Health Score and Anomaly Results
-          |
-          v
-  Dashboard / Report / Alert
-          |
-          v
-  Engineer Review and Action
+```mermaid
+flowchart TD
+    A["Sensor / File Input"] --> B["In-Memory Buffer"]
+    B --> C{"Batch Trigger"}
+    C -->|"Time or size threshold"| D["Persist / Prepare Batch"]
+    D --> E["Feature Extraction"]
+    E --> F["ML / PHM Analysis"]
+    F --> G["Health Score and Anomaly Results"]
+    G --> H["Dashboard / Report / Alert"]
+    H --> I["Engineer Review and Action"]
 ```
 
 ### 4.1 Buffering and batching
@@ -314,36 +285,17 @@ Model-build history should record enough metadata to reproduce an analysis, such
 
 An AI agent can help users navigate the platform by translating a natural-language request into a controlled sequence of data retrieval and analysis operations. The LLM should not be the only component responsible for correctness or security.
 
-```text
-  User Request
-          |
-          v
-  LLM Planner / Orchestrator
-          |
-          v
-  Select an Approved Tool
-          |
-          v
-  Backend Validation and Authorization
-          |
-          v
-  Execute Tool
-          |
-          v
-  Structured Result
-          |
-          v
-  More Evidence Needed?
-      |            |
-    Yes            No
-      |            |
-      +----> back to LLM Planner
-                   |
-                   v
-            LLM Summary
-                   |
-                   v
-  Response / Report for Human Review
+```mermaid
+flowchart TD
+    A["User Request"] --> B["LLM Planner / Orchestrator"]
+    B --> C["Select an Approved Tool"]
+    C --> D["Backend Validation and Authorization"]
+    D --> E["Execute Tool"]
+    E --> F["Structured Result"]
+    F --> G{"More Evidence Needed?"}
+    G -->|"Yes"| B
+    G -->|"No"| H["LLM Summary"]
+    H --> I["Response / Report for Human Review"]
 ```
 
 ### 7.1 Example tools
@@ -436,14 +388,10 @@ Failure handling should be designed into the data path, rather than added only a
 
 Scaling should respond to measured constraints, not to technology fashion.
 
-```text
-  Stage 1: Edge Monolith
-          |
-          v
-  Stage 2: Decoupled Pipeline
-          |
-          v
-  Stage 3: Cloud / Multi-Node Scale-Out
+```mermaid
+flowchart LR
+    A["Stage 1: Edge Monolith"] --> B["Stage 2: Decoupled Pipeline"]
+    B --> C["Stage 3: Cloud / Multi-Node Scale-Out"]
 ```
 
 **Stage 1 — Edge monolith.** A compact Flask application, local persistence, and local inference can be effective for a single-node deployment with modest workload.

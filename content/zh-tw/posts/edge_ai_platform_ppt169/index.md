@@ -52,6 +52,16 @@ cover:
 
 **Sensor Data → Feature Engineering & ML → Edge Inference → Health Monitoring → AI Agent**
 
+```mermaid
+flowchart LR
+    A[感測器資料] --> B[特徵工程]
+    B --> C[模型分析]
+    C --> D[設備端推論]
+    D --> E[健康度監控]
+    E --> F[AI Agent]
+    F --> G[工程決策]
+```
+
 1. **Sensor Data：** 收集設備振動、溫度等感測器資料。
 2. **Feature Engineering & ML：** 將原始訊號轉換為具有分析價值的時域與頻域特徵，並進行模型訓練與異常偵測。
 3. **Edge Inference：** 在設備端執行資料處理與模型推論，降低對遠端服務的即時依賴。
@@ -146,6 +156,43 @@ Edge AI 系統不一定需要一開始就採用微服務、訊息佇列叢集與
 
 平台採用分層設計，將使用者操作、後端服務、機器學習、設備端執行與資料持久化分開管理。
 
+```mermaid
+flowchart TB
+    subgraph L1["L1 User & Frontend"]
+        A["React 介面與監控儀表板"]
+        B["Workflow UI / React Flow"]
+    end
+    subgraph L2["L2 Backend Core"]
+        C["Flask REST API"]
+        D["身分驗證與任務協調"]
+    end
+    subgraph L3["L3 ML & Analytics"]
+        E["特徵工程"]
+        F["ML / PHM 演算法"]
+        G["健康度分數與資料漂移分析"]
+    end
+    subgraph L4["L4 Edge Execution"]
+        H["感測器與檔案輸入"]
+        I["設備端執行與推論"]
+    end
+    subgraph L5["L5 Data & Persistence"]
+        J["edge_ai.db"]
+        K["vibration.db"]
+        L["模型與分析產物"]
+    end
+    A --> C
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    H --> I
+    I --> E
+    D --> J
+    E --> K
+    F --> L
+```
+
 ### 3.1 五層架構
 
 | 層級 | 架構模組               | 主要職責                          |
@@ -205,6 +252,18 @@ AI Agent 的優勢是理解自然語言、拆解任務與選擇工具，但 LLM 
 ![端到端資料流](images/04_end_to_end_data_flow.png)
 
 在系統設計中，資料流不只是把資料從 A 傳到 B，更需要定義資料如何進入系統、如何被處理，以及系統在流量突然增加時如何維持穩定。
+
+```mermaid
+flowchart TD
+    A["感測器 / 檔案輸入"] --> B["記憶體緩衝區"]
+    B --> C{"批次觸發條件"}
+    C -->|"時間或筆數門檻"| D["持久化並準備批次"]
+    D --> E["特徵擷取"]
+    E --> F["ML / PHM 分析"]
+    F --> G["健康度分數與異常結果"]
+    G --> H["儀表板 / 報告 / 告警"]
+    H --> I["工程師檢視與處置"]
+```
 
 ### 4.1 Stage 1：資料接入與緩衝（Ingestion）
 
@@ -526,29 +585,17 @@ building
 
 ### 7.2 Agent 的執行流程
 
-```
-User Question
-      |
-      v
-Agent Orchestrator
-      |
-      v
-Understand Intent & Select Tools
-      |
-      v
-Backend Validation
-      |
-      v
-Python Tool Execution
-      |
-      v
-Structured Results
-      |
-      v
-LLM Summary & Explanation
-      |
-      v
-Frontend SSE Stream
+```mermaid
+flowchart TD
+    A["使用者提問"] --> B["Agent 協調器"]
+    B --> C["理解意圖並選取工具"]
+    C --> D["後端身分驗證與權限檢查"]
+    D --> E["Python 工具執行"]
+    E --> F["結構化結果"]
+    F --> G{"是否需要更多證據？"}
+    G -->|"是"| B
+    G -->|"否"| H["LLM 摘要與說明"]
+    H --> I["前端 SSE 串流"]
 ```
 
 這個流程將語言理解與資料執行分開。
@@ -793,6 +840,12 @@ Sensors / Edge Devices
 ### 10.2 三階段架構演進
 
 可以將未來的架構演進整理成三個階段：
+
+```mermaid
+flowchart LR
+    A["Phase 1：Edge Monolith 單機系統"] --> B["Phase 2：Decoupled Pipeline 解耦管線"]
+    B --> C["Phase 3：Cloud Scale-Out 雲端橫向擴充"]
+```
 
 **Phase 1 — Edge Monolith**
 
