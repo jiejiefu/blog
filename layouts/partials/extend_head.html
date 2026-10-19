@@ -44,3 +44,18 @@
 <script type="module" src="{{ $js.RelPermalink }}"></script>
 {{- end }}
 {{- end }}
+
+{{- /* Plotly 互動圖表。這裡只載入 init（約 2 KB），Plotly 本體（Basic 398 KB /
+       Full 1.48 MB gzip）由 init 依 data-plotly-bundle 動態注入。
+
+       ⚠️ 一樣因為 footer 是 partialCached（key 是 .Layout/.Kind），逐頁判斷只能放 head。
+
+       偵測用 .HasShortcode "plotly"，比 strings.Contains .RawContent "plotly" 精準 ——
+       正文提到 plotly、或程式碼範例裡出現這個字，都不會誤載。
+       唯一漏網：圖表由 include / partial 帶進來時，在 front matter 加 plotly: true。 */ -}}
+{{- if or .Params.plotly (.HasShortcode "plotly") }}
+{{- with resources.Get "js/plotly-init.js" }}
+{{- $js := . | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}"></script>
+{{- end }}
+{{- end }}

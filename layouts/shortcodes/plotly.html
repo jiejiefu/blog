@@ -1,0 +1,51 @@
+{{- /*
+  Plotly 互動圖表 shortcode。
+
+  用法（body 是一段合法 JSON，含 data / layout / config 任一或多個鍵）：
+
+    {{< plotly height="420" caption="季度增長" >}}
+    {
+      "data": [{ "x": [1,2,3], "y": [10,20,15], "type": "scatter", "mode": "lines+markers" }],
+      "layout": { "title": "季度增長" }
+    }
+    {{< /plotly >}}
+
+  需要 3D / heatmap / geo 等 Basic bundle 沒有的圖表時，加 bundle="full"：
+
+    {{< plotly bundle="full" height="500" >}} { ... } {{< /plotly >}}
+
+  設計重點：
+  - body 先經 transform.Unmarshal 驗證，JSON 壞掉在 hugo build 就報錯，
+    不會等到瀏覽器端才留下空白圖表。
+  - 重新用 jsonify 輸出。Go 的 encoding/json 會把 < 轉成 \u003c，
+    所以字串裡即使出現 </script> 也無法提前關閉標籤。
+  - id 用 .Ordinal，同一頁多張圖保證唯一且每次建置可重現
+    （Hugo 沒有 rand 這個函式，別照抄網路上的 div (mul rand ...) 寫法）。
+  - 容器本身不带 JavaScript；實際渲染由 assets/js/plotly-init.js 負責，
+    它會依 data-plotly-bundle 決定動態載入 Basic（約 398 KB gzip）
+    還是 Full（約 1.48 MB gzip）。非圖表頁面完全不載入 Plotly。
+*/ -}}
+{{- $raw := trim (printf "%s" (.Inner | default "")) "\n\r\t " -}}
+{{- if not $raw -}}
+  {{- errorf "plotly shortcode on %q: empty body, expected a JSON object with data/layout/config" .Page.File.Path -}}
+{{- end -}}
+{{- $spec := $raw | transform.Unmarshal -}}
+{{- if not (reflect.IsMap $spec) -}}
+  {{- errorf "plotly shortcode on %q: body must be a JSON object, got %T" .Page.File.Path $spec -}}
+{{- end -}}
+{{- $bundle := .Get "bundle" | default "basic" -}}
+{{- if not (in (slice "basic" "full") $bundle) -}}
+  {{- errorf "plotly shortcode on %q: bundle must be \"basic\" or \"full\", got %q" .Page.File.Path $bundle -}}
+{{- end -}}
+{{- $height := printf "%v" (.Get "height" | default "420") -}}
+{{- if not (strings.Contains $height "px") -}}
+  {{- $height = printf "%spx" $height -}}
+{{- end -}}
+{{- $caption := .Get "caption" | default "" -}}
+<figure class="plotly-figure">
+  <div class="plotly-chart" id="plotly-{{ .Ordinal }}" data-plotly-bundle="{{ $bundle }}" style="height: {{ $height }}"{{ with $caption }} role="img" aria-label="{{ . }}"{{ end }}></div>
+  <script type="application/json" class="plotly-chart__spec">{{ $spec | jsonify }}</script>
+  {{- with $caption }}
+  <figcaption>{{ . }}</figcaption>
+  {{- end }}
+</figure>

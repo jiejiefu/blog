@@ -487,3 +487,43 @@
 .tldr > p:last-child {
     margin-bottom: 0;
 }
+
+/* ---------- Plotly 互動圖表 ----------
+   由 layouts/shortcodes/plotly.html 產生，渲染交給 assets/js/plotly-init.js。
+   圖表背景由 JS 設成透明，所以會直接落在頁面底色上；
+   深色模式是 Plotly.relayout 即時換色，不是 CSS filter。 */
+.plotly-figure {
+    margin: 1.75rem 0;
+}
+
+.plotly-chart {
+    width: 100%;
+    min-height: 240px;
+}
+
+/* JSON 只給 JS 讀，不該出現在畫面上。 */
+.plotly-chart__spec {
+    display: none;
+}
+
+.plotly-figure figcaption {
+    margin-top: 0.6rem;
+    font-size: 0.85rem;
+    color: var(--secondary);
+    text-align: center;
+}
+
+/* Plotly 載入失敗（CDN 被擋）或 JSON 壞掉時的替代訊息。 */
+.plotly-chart__error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 160px;
+    padding: 1rem;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    color: var(--secondary);
+    font-size: 0.9rem;
+    text-align: center;
+}
