@@ -1,0 +1,449 @@
+/* ==========================================================================
+   Engineering Console — genact 風格終端機區塊
+   ==========================================================================
+   由 PaperMod 自動載入（assets/css/extended/*.css 一律會進）。
+   獨立的檔案而不是併進 custom.css：這是一個自成系統的元件（HTML + CSS + JS
+   三件一組），跟首頁其他區塊沒有共用樣式，日後要整組換掉不會牽動 custom.css。
+
+   ⚠️ 配色刻意固定為深色，**不跟隨 light/dark 主題**。這是 genact 的視覺語言，
+      終端機本來就該是黑的；淺色模式下一塊深色區塊反而更像「監看畫面」而不是
+      跟版面打架。要改的話動的是 --t-* 這組變數，不是 data-theme。
+
+   ⚠️ 配色沒有套用 custom.css 的 --accent。終端機有自己的 --t-green / --t-cyan /
+      --t-amber / --t-red 語意色（綠=正常、琥珀=警告、紅=錯誤），這是 log 等級的
+      慣例；套 --accent 反而會讓 warn 跟 ok 分不出來。
+*/
+
+.lab-term {
+    --t-bg: #0d1117;
+    --t-bar: #161b22;
+    --t-line: #30363d;
+    --t-fg: #c9d1d9;
+    --t-dim: #6e7681;
+    --t-green: #3fb950;
+    --t-cyan: #58a6ff;
+    --t-amber: #d29922;
+    --t-red: #f85149;
+
+    position: relative;
+    /* 上方留白交給 .lab-hero 的 margin-bottom（console 現在緊接在 hero 後面），
+       這裡只給下方的，下一區才不會黏住。寫 margin: 2.5rem 0 會疊成 5rem。 */
+    margin: 0 0 clamp(2rem, 4vw, 3rem);
+    background: var(--t-bg);
+    color: var(--t-fg);
+    border: 1px solid var(--t-line);
+    border-radius: 10px;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* CRT 掃描線：極淡，純裝飾。pointer-events:none 所以不擋任何互動，
+   而且 .lab-term 有 overflow:hidden，掃描線不會溢出到版面外。 */
+.lab-term::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px);
+}
+
+/* ---- title bar ---- */
+.lab-term__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.9rem;
+    background: var(--t-bar);
+    border-bottom: 1px solid var(--t-line);
+}
+
+.lab-term__dots {
+    display: inline-flex;
+    gap: 6px;
+}
+
+.lab-term__dots i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--t-line);
+}
+
+.lab-term__dots i:nth-child(1) {
+    background: #ff5f56;
+}
+
+.lab-term__dots i:nth-child(2) {
+    background: #ffbd2e;
+}
+
+.lab-term__dots i:nth-child(3) {
+    background: #27c93f;
+}
+
+.lab-term__title {
+    flex: 1;
+    color: var(--t-fg);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lab-term__host {
+    color: var(--t-dim);
+    font-weight: 400;
+}
+
+.lab-term__live {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--t-green);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+}
+
+.lab-term__live time {
+    color: var(--t-dim);
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.lab-term__pulse {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--t-green);
+    animation: lab-pulse 1.6s ease-in-out infinite;
+}
+
+/* ---- 真實統計（Hugo build 時算出來的值） ---- */
+.lab-term__stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin: 0;
+    border-bottom: 1px solid var(--t-line);
+}
+
+.lab-term__stats div {
+    padding: 0.6rem 0.9rem;
+    border-right: 1px solid var(--t-line);
+    min-width: 0;
+}
+
+.lab-term__stats div:last-child {
+    border-right: 0;
+}
+
+.lab-term__stats dt {
+    color: var(--t-dim);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.lab-term__stats dd {
+    margin: 0;
+    color: var(--t-cyan);
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- 假即時指標 ---- */
+.lab-term__metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-bottom: 1px solid var(--t-line);
+}
+
+.lab-metric {
+    padding: 0.6rem 0.9rem;
+    border-right: 1px solid var(--t-line);
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.lab-metric:last-child {
+    border-right: 0;
+}
+
+.lab-metric__label {
+    color: var(--t-dim);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.lab-metric__read b {
+    color: var(--t-green);
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.lab-metric__read small {
+    color: var(--t-dim);
+    margin-left: 0.3rem;
+}
+
+.lab-metric__bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 26px;
+    margin-top: 0.2rem;
+}
+
+.lab-metric__bars i {
+    flex: 1;
+    height: 40%;
+    background: var(--t-green);
+    opacity: 0.75;
+    border-radius: 1px;
+    transition: height 0.5s ease;
+}
+
+/* 最右邊那根 = 最新一筆。拉滿不透明，給「資料從右邊進來、往左推」一個方向暗示。 */
+.lab-metric__bars i:last-child {
+    opacity: 1;
+}
+
+/* 三色分級（只有帶 levels 的 metric 會被 JS 掛上 class）：
+   長條值 ≥ p88 轉黃、≥ p94 轉紅，門檻由 series 現算（見 lab-console.js）。
+   沿用終端機既有的 --t-amber / --t-red 語意色，不另開新色。
+   specificity 高於上面的 .lab-metric__bars i，蓋得過；opacity 規則不受影響。 */
+.lab-metric__bars i.is-warn {
+    background: var(--t-amber);
+}
+
+.lab-metric__bars i.is-err {
+    background: var(--t-red);
+}
+
+.lab-metric__read b.is-warn {
+    color: var(--t-amber);
+}
+
+.lab-metric__read b.is-err {
+    color: var(--t-red);
+}
+
+/* 沒有 JS 時的靜態輪廓：nth-child 的 pseudo-class 讓長條看起來有起伏，
+   而不是 24 根一樣高的死板條。JS 啟動後會用 inline style 蓋掉。 */
+.lab-metric__bars i:nth-child(3n) {
+    height: 62%;
+}
+
+.lab-metric__bars i:nth-child(5n) {
+    height: 30%;
+}
+
+.lab-metric__bars i:nth-child(7n) {
+    height: 80%;
+}
+
+/* ---- 日誌 ---- */
+.lab-term__log {
+    /* 固定高度：不寫的話每加一行整個 console 就長高一格，
+       頁面會一直往下跳，下方的「最新文章」永遠在被推走。 */
+    height: 15.5em;
+    padding: 0.6rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    /* 新行永遠貼底，舊行往上被裁掉。這裡不能用 justify-content:center ——
+       內容溢出時左右兩側都捲不到，log 會從中間斷開。 */
+    justify-content: flex-end;
+    overflow: hidden;
+    border-bottom: 1px solid var(--t-line);
+    /* 上緣淡出，讓「被裁掉」看起來是刻意的而不是被切斷 */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 28%);
+}
+
+.lab-log {
+    display: flex;
+    gap: 0.6rem;
+    margin: 0;
+    white-space: nowrap;
+    animation: lab-in 0.18s ease-out;
+}
+
+.lab-log__t {
+    color: var(--t-dim);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+}
+
+.lab-log__lv {
+    flex: none;
+    width: 3.2em;
+    font-weight: 700;
+    color: var(--t-cyan);
+}
+
+.lab-log__msg {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.lab-log--ok .lab-log__lv {
+    color: var(--t-green);
+}
+
+.lab-log--warn .lab-log__lv {
+    color: var(--t-amber);
+}
+
+.lab-log--warn .lab-log__msg {
+    color: var(--t-amber);
+}
+
+.lab-log--err .lab-log__lv {
+    color: var(--t-red);
+}
+
+/* 錯誤訊息本身也轉紅（不只 LV 標籤），否則紅字只出現在左邊 3.2em 的小格子裡，
+   一眼掃過去根本不會注意到。紅底極淡，是提示而不是警示燈。
+   #f85149 on #0d1117 = 5.64:1（AA 一般文字門檻 4.5:1 ✓） */
+.lab-log--err .lab-log__msg {
+    color: var(--t-red);
+}
+
+.lab-log--err {
+    background: rgba(248, 81, 73, 0.06);
+}
+
+.lab-log--dbg .lab-log__lv,
+.lab-log--dbg .lab-log__msg {
+    color: var(--t-dim);
+}
+
+/* ---- footer：status / focus / wisdom ---- */
+.lab-term__foot {
+    padding: 0.7rem 0.9rem 0.8rem;
+}
+
+.lab-term__line {
+    margin: 0;
+}
+
+.lab-term__key {
+    color: var(--t-dim);
+    margin-right: 0.8rem;
+}
+
+.lab-term__key::after {
+    content: ":";
+}
+
+.lab-term__val {
+    color: var(--t-green);
+}
+
+.lab-term__line--wisdom {
+    margin-top: 0.5rem;
+    color: var(--t-fg);
+}
+
+.lab-term__prompt {
+    color: var(--t-cyan);
+    margin-right: 0.5rem;
+}
+
+.lab-term__caret {
+    display: inline-block;
+    width: 0.55em;
+    height: 1.05em;
+    margin-left: 0.2em;
+    vertical-align: text-bottom;
+    background: var(--t-green);
+    animation: lab-blink 1.1s steps(1) infinite;
+}
+
+@keyframes lab-blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+@keyframes lab-pulse {
+    50% {
+        opacity: 0.25;
+        transform: scale(0.8);
+    }
+}
+
+@keyframes lab-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ---- 窄螢幕 ---- */
+@media (max-width: 640px) {
+    .lab-term {
+        font-size: 0.74rem;
+    }
+
+    .lab-term__stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* 2×2 網格：右側邊線要拿掉，第二列要補下邊線，
+       否則四格會有一條多餘的直線跟一條缺失的橫線 */
+    .lab-term__stats div:nth-child(2) {
+        border-right: 0;
+    }
+
+    .lab-term__stats div:nth-child(-n+2) {
+        border-bottom: 1px solid var(--t-line);
+    }
+
+    .lab-term__metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .lab-metric {
+        border-right: 0;
+        border-bottom: 1px solid var(--t-line);
+    }
+
+    .lab-metric:last-child {
+        border-bottom: 0;
+    }
+
+    /* 手機上省掉時間戳，把寬度讓給訊息本體 */
+    .lab-log__t {
+        display: none;
+    }
+
+    .lab-term__host {
+        display: none;
+    }
+}
+
+/* ---- prefers-reduced-motion ----
+   用 * + !important 而不是逐一列舉：console 裡所有會動的元素都是 JS 動態
+   插進來的，模板端根本不知道有哪些。 */
+@media (prefers-reduced-motion: reduce) {
+
+    .lab-term *,
+    .lab-term *::before,
+    .lab-term *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}

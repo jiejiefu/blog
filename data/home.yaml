@@ -12,6 +12,151 @@
 # 會被當成 map 走訪，語言代碼含連字號（zh-tw）時解析行為不可靠。
 # 一律用 `index` 取值，不要用點號取含連字號的 key。
 
+# ------------------------------------------------------------------
+# shared：兩種語言共用（Console 的假日誌 / 指標 / 進度條任務）
+# 模板端用 (index hugo.Data "home" "shared" "console") 取出。
+# 這些是「技術氛圍」文案，刻意用英文技術術語，不需要翻譯，所以只放一份。
+#
+# ⚠️ 這整段是**裝飾用的假資料**，不是本站的系統狀態。
+#    吞吐量、延遲、異常分數都是寫死的序列輪播，不要拿來宣稱任何效能數字。
+#    真正真實的是 console.stats 那四格（文章數 / 標籤數 / 累積字數 / 最後建置）。
+#
+# 可用的 {placeholder}（由 assets/js/lab-console.js 每次隨機產生）：
+#   {ms} {pct} {f2} {f3} {hex} {n} {h} {node} {temp} {khz} {ver}
+#   {score} 0.72–0.99（異常分數，用來描述「超過 0.85 門檻」）
+#   {psi}   0.12–0.41（PSI 漂移指標；{pct} 會產生 0.99，不像 PSI）
+#   {buf}   1200–4980（deque 緩衝量，配合 /5000 上限）
+#   {code}  1 / 2 / 125 / 126 / 127 / 134 / 137 / 139 / 143（行程結束碼）
+# lv 只能是：info / ok / warn / err / dbg
+# ------------------------------------------------------------------
+shared:
+  console:
+    max: 14 # 日誌最多保留幾行（DOM 上限）
+
+    # 日誌等級的抽樣權重。tick() 是「先抽等級、再從該等級的桶子裡抽一則」，
+    # 所以新增 err 訊息不會把錯誤率拉高（直接均勻抽會變成 ~19%，console 像壞掉）。
+    # 實際錯誤率 ≈ err × 0.78（tick 有 22% 走進度條分支）≈ 3.9%，約每 9 秒一行。
+    # 要調紅色 ERROR 的密度就改這裡的 err，不用動 JS。
+    weights: { info: 0.40, ok: 0.28, warn: 0.16, dbg: 0.11, err: 0.05 }
+
+    # 三個假即時指標。digits = 小數位數，id 要和下面各語言 metrics 的 key 一致。
+    #
+    # ⚠️ 刻意不是隨機數（base + jitter），而是寫死的 series 輪播：
+    #    隨機數的相鄰兩點互不相關，24 根長條同時亂跳只會像雜訊；
+    #    有連貫性的序列才會讓波形「往左流動」。
+    #    - series 長度 48、每 900ms 一格 → 43.2 秒一輪，首尾刻意接得起來，
+    #      循環不會出現斷崖（首尾差 ≤ 14 msg/s / 2ms / 0.004）。
+    #    - 三條序列同索引聯動：k=9（輕微）、k=25–26（嚴重）、k=38–40（輕微復發）。
+    #      異常分數尖峰的同時，延遲升高、吞吐量下探。
+    #    - domain 是**固定尺標**，不是自動 min/max。自動縮放會讓平穩時段被拉滿格，
+    #      看起來永遠很忙；固定尺標才看得出「安靜」與「尖峰」的差別。
+    #    - 沒有 series 時 JS 會退回舊的 base + jitter 行為（見 lab-console.js）。
+    metrics:
+      - id: throughput
+        unit: "msg/s"
+        digits: 0
+        domain: [1100, 1420]
+        series: [1270, 1267, 1268, 1277, 1282, 1284, 1298, 1298,
+                 1299, 1245, 1240, 1257, 1298, 1302, 1296, 1308,
+                 1299, 1293, 1289, 1294, 1281, 1277, 1270, 1276,
+                 1264, 1166, 1163, 1249, 1250, 1249, 1236, 1247,
+                 1234, 1242, 1244, 1234, 1236, 1232, 1228, 1203,
+                 1242, 1233, 1246, 1255, 1250, 1249, 1256, 1256]
+      - id: latency
+        unit: "ms"
+        digits: 0
+        domain: [10, 45]
+        series: [18, 18, 17, 18, 17, 18, 18, 18,
+                 20, 28, 33, 28, 18, 19, 18, 19,
+                 19, 19, 19, 19, 19, 19, 18, 18,
+                 18, 38, 39, 18, 16, 16, 16, 17,
+                 17, 17, 15, 15, 15, 16, 15, 23,
+                 17, 17, 16, 16, 16, 17, 18, 16]
+      - id: anomaly
+        unit: "score"
+        digits: 3
+        domain: [0, 0.25]
+        # 染色門檻：長條值 ≥ p88 轉黃、≥ p94 轉紅（百分位由 series 現算，
+        # 改 series 顏色會自動跟著調）。沒有 levels 的 metric 維持單色。
+        # ⚠️ 不用 75/90：事件只佔 6/48 = 12.5%，p75 會被拉進正常雜訊（0.043），
+        #    正常運轉時就有 13 根變黃。p88/p94 = 0.064/0.120，正好落在
+        #    正常段（≤0.046）與事件段（≥0.095）之間的空隙裡。
+        levels: { warn: 88, err: 94 }
+        series: [0.040, 0.037, 0.040, 0.038, 0.041, 0.041, 0.042, 0.044,
+                 0.042, 0.112, 0.144, 0.115, 0.045, 0.042, 0.043, 0.042,
+                 0.046, 0.041, 0.043, 0.044, 0.043, 0.040, 0.038, 0.037,
+                 0.036, 0.197, 0.197, 0.034, 0.036, 0.032, 0.030, 0.034,
+                 0.029, 0.032, 0.030, 0.030, 0.031, 0.027, 0.033, 0.095,
+                 0.032, 0.032, 0.032, 0.035, 0.033, 0.035, 0.036, 0.036]
+    tasks: # 會以進度條形式跑完的長任務
+      - "compiling tflite delegate"
+      - "syncing model registry"
+      - "retraining isolation-forest"
+      - "flashing firmware {ver} → {node}"
+      - "calibrating accelerometer array"
+      - "compacting time-series shards"
+      - "quantizing model fp32 → int8"
+      - "warming up onnxruntime session"
+    stream:
+      # --- 串流 / 特徵 / 推論 ---
+      - { lv: info, t: "{node} ingest vibration stream @ {khz}kHz · buffer={n} samples" }
+      - { lv: info, t: "fft window=1024 hop=512 bins=513 · {ms}ms" }
+      - { lv: ok, t: "feature_extract rms/kurtosis/crest_factor · {ms}ms" }
+      - { lv: ok, t: "onnx.infer model=anomaly-{ver} score={f3} · {ms}ms" }
+      - { lv: info, t: "mqtt publish factory/line-{n}/{node}/telemetry qos=1" }
+      - { lv: info, t: "kafka commit offset={n} lag=0" }
+      - { lv: info, t: "phm.health_index={f2} state=normal" }
+      - { lv: info, t: "rul_estimate={h}h confidence={f2}" }
+      - { lv: ok, t: "ota.canary rollout 5% → 25% health=green" }
+      - { lv: ok, t: "sha256:{hex} artifact verified" }
+      - { lv: ok, t: "watchdog heartbeat {node} uptime ok" }
+      - { lv: warn, t: "{node} thermal {temp}°C throttle=off" }
+      - { lv: warn, t: "alert dedup: suppressed {n} duplicate events" }
+      - { lv: dbg, t: "agent.plan → tool_call(search_logs) → observe → reflect" }
+      - { lv: dbg, t: "gc pause {ms}ms heap=0x{hex}" }
+      - { lv: dbg, t: "hugo --minify · {ms}ms → gh-pages" }
+
+      # --- 異常偵測 (Anomaly Detection) ---
+      - { lv: err, t: "{node} anomaly detected: isolation_forest score={score} exceeds threshold 0.85" }
+      - { lv: warn, t: "autoencoder reconstruction error mse={f3} anomaly spike on {node}" }
+      - { lv: ok, t: "tier-1 fast screen clear: feature tensor [1x64] normal · {ms}ms" }
+      - { lv: err, t: "critical vibration anomaly on {node}: peak velocity exceeds 12mm/s RMS" }
+
+      # --- 資料漂移 (Data Drift) ---
+      - { lv: warn, t: "{node} feature distribution drift detected psi={psi} · schedule retrain" }
+      - { lv: info, t: "rolling baseline updated: 7-day window recalibrated for {node}" }
+      - { lv: warn, t: "sensor calibration offset drift > 2.5% · requiring re-zeroing" }
+      - { lv: ok, t: "data drift adapter applied: dynamic thresholding compensated" }
+
+      # --- 邊緣運算 (Edge Computing) ---
+      - { lv: info, t: "edge.runtime onnx.infer session active model=phm-{ver} · {ms}ms" }
+      - { lv: ok, t: "tflite delegate hardware acceleration active on {node}" }
+      - { lv: dbg, t: "model tiering router: switched to lightweight INT8 quantized model" }
+      - { lv: warn, t: "{node} thermal throttle active: temp={temp}°C freq-scaling=50%" }
+
+      # --- 通知警告與停機 (Notifications, Warnings & Shutdown) ---
+      - { lv: err, t: "{node} emergency shutdown initiated: health_index={f3} < critical limit" }
+      - { lv: warn, t: "safety_guardrail: OHT collision proximity alert triggered on {node}" }
+      - { lv: err, t: "MES/EAP interlock activated: line halted due to safety violation" }
+
+      # --- 系統狀態 (System Status) ---
+      - { lv: info, t: "system.metrics cpu={pct}% memory={pct}% disk_io=normal" }
+      - { lv: ok, t: "dual_db attach active: edge_ai.db + vibration.db online" }
+      - { lv: info, t: "async queue status: deque buffer size={buf}/5000 awaiting batch write" }
+      - { lv: dbg, t: "flask blueprint registered: 15 domain modules loaded successfully" }
+
+      # --- 連線狀態 (Connection Status) ---
+      - { lv: ok, t: "secsgem.link established with EAP host · state=COMM_ENABLED" }
+      - { lv: err, t: "mqtt.broker connection lost on {node}, entering offline safe mode" }
+      - { lv: info, t: "kafka producer heartbeat ack received · lag=0 partition={n}" }
+      - { lv: ok, t: "network reconnection successful: resuming 2kHz vibration stream" }
+
+      # --- 部署成功與失敗 (Deployment) ---
+      - { lv: ok, t: "deploy.ota canary rollout 25% → 100% version {ver} success" }
+      - { lv: err, t: "deploy.artifact verify sha256:{hex} failed: checksum mismatch" }
+      - { lv: info, t: "model_registry sync: downloading artifact phm-model-{ver}.onnx" }
+      - { lv: err, t: "docker container edge-daemon crash-loop detected: exit code={code}" }
+
 zh-tw:
   hero:
     eyebrow: "JAY FU · ENGINEERING LAB"
@@ -43,12 +188,30 @@ zh-tw:
   # ⚠️ zh-tw 的 wisdom 是使用者指定的原文，**逐字保留，不要改寫、不要潤稿**。
   #    「小貓」在 AGENTS.md 的「兩邊刻意不同」清單裡沒有出現過，
   #    這是刻意為之的彩蛋措辭，日後統一用詞時請略過這個欄位。
+  #    ⚠️ label / host / status / focus 刻意用英文：這是終端機的識別列，
+  #       跟日誌一樣是「技術氛圍」，翻成中文反而不像在跑系統。
   console:
     label: "Engineering Console"
+    host: "edge-node-01"
     status: "learning"
     focus: "edge_ai"
     wisdom: >-
       模型會過擬合，程式會有 Bug，但「一句 AI 否定了小貓的所有努力」最好不要。
+    stats: # 這四格是 Hugo build 時算出的真實數字（已排除草稿）
+      posts: "文章"
+      topics: "標籤"
+      words: "累積字數"
+      built: "最後建置"
+    metrics: # 鍵必須對應 shared.console.metrics 的 id
+      throughput: "吞吐量"
+      latency: "延遲"
+      anomaly: "異常分數"
+    boot: # 伺服器端先渲染的開機訊息（沒有 JS 也看得到）
+      - { lv: ok, t: "engineering-lab kernel loaded" }
+      - { lv: ok, t: "mounting /posts · /tags · /notes" }
+      - { lv: info, t: "sensor bus online · 12 virtual nodes" }
+      - { lv: info, t: "model registry synced · anomaly-v2.3.1" }
+      - { lv: ok, t: "all systems nominal · 持續學習中" }
 
   # 區塊標題（Featured / Latest 兩個清單由 front matter featured: true 自動帶出）
   sections:
@@ -86,10 +249,26 @@ en:
 
   console:
     label: "Engineering Console"
+    host: "edge-node-01"
     status: "learning"
     focus: "edge_ai"
     wisdom: >-
       Models overfit. Code breaks. Curiosity should never run out of memory.
+    stats:
+      posts: "Posts"
+      topics: "Tags"
+      words: "Words"
+      built: "Last build"
+    metrics:
+      throughput: "Throughput"
+      latency: "Latency"
+      anomaly: "Anomaly score"
+    boot:
+      - { lv: ok, t: "engineering-lab kernel loaded" }
+      - { lv: ok, t: "mounting /posts · /tags · /notes" }
+      - { lv: info, t: "sensor bus online · 12 virtual nodes" }
+      - { lv: info, t: "model registry synced · anomaly-v2.3.1" }
+      - { lv: ok, t: "all systems nominal · still learning" }
 
   sections:
     featured: "Featured Write-ups"

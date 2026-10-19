@@ -1,0 +1,108 @@
+{{- /*
+  Engineering Console（genact 風格的動態終端機）
+  ===========================================================================
+  呼叫方式（layouts/index.html）：
+    {{ partial "lab_console.html" (dict
+         "c"      $home.console
+         "shared" (index hugo.Data "home" "shared" "console")
+         "posts"  <int>
+         "tags"   <int>
+         "words"  <int>
+         "built"  <time>) }}
+
+  設計重點：
+    1. 漸進增強 —— 沒有 JS 時，伺服器端已渲染開機訊息 + 靜態指標 + 四格統計，
+       版面完整不空白。assets/js/lab-console.js 載入後才開始串流假日誌、
+       更新指標與時鐘。任何一步壞掉，讀者看到的都還是一塊可讀的區塊。
+    2. 真實資料 + 假活動混搭：文章數 / 標籤數 / 累積字數 / 最後建置是 Hugo
+       算出來的真值；日誌與三個指標是 genact 式的擬真噪音（文案在
+       data/home.yaml 的 shared.console，是「假的」，不要當成系統狀態解讀）。
+    3. 尊重 prefers-reduced-motion、分頁隱藏、捲出視窗 —— 三種情況 JS 都
+       會把計時器清掉，不會在背景空轉。
+
+  ⚠️ 這個 partial 只從 layouts/index.html 呼叫。
+     絕對不要搬到 extend_footer.html：footer 是 partialCached，快取鍵是
+     .Layout/.Kind 不是頁面（見 AGENTS.md 的 mermaid 坑），data-cfg 會變成
+     「第一個被算到的頁面決定全站」。
+*/ -}}
+{{- $c := .c }}
+{{- $s := .shared }}
+<section class="lab-term" data-console aria-label="{{ $c.label }}">
+
+    <div class="lab-term__bar">
+        <span class="lab-term__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="lab-term__title">{{ $c.label }} <span class="lab-term__host">@ {{ $c.host }}</span></span>
+        <span class="lab-term__live" aria-hidden="true">
+            <span class="lab-term__pulse"></span>LIVE <time data-clock>{{ now.Format "15:04:05" }}</time>
+        </span>
+    </div>
+
+    {{- /* 真實統計：Hugo build 時算出來的值（已排除草稿，見 layouts/index.html） */}}
+    <dl class="lab-term__stats">
+        <div>
+            <dt>{{ $c.stats.posts }}</dt>
+            <dd>{{ .posts }}</dd>
+        </div>
+        <div>
+            <dt>{{ $c.stats.topics }}</dt>
+            <dd>{{ .tags }}</dd>
+        </div>
+        <div>
+            <dt>{{ $c.stats.words }}</dt>
+            <dd>{{ lang.FormatNumber 0 .words }}</dd>
+        </div>
+        <div>
+            <dt>{{ $c.stats.built }}</dt>
+            <dd>{{ .built.Format "2006-01-02" }}</dd>
+        </div>
+    </dl>
+
+    {{- /* 假即時指標：數值與長條由 JS 更新；沒有 JS 時顯示 series 的第一格
+           （JS 也是從 series[0] 起跑，所以有無 JS 的畫面一致）。
+           i18n 的 key 對應 shared.console.metrics[].id，兩邊不一致會渲染成空白。 */}}
+    <div class="lab-term__metrics">
+        {{- range $s.metrics }}
+        {{- $init := .base }}
+        {{- with .series }}{{ $init = index . 0 }}{{ end }}
+        <div class="lab-metric" data-metric="{{ .id }}">
+            <span class="lab-metric__label">{{ index $c.metrics .id }}</span>
+            <span class="lab-metric__read"><b data-val>{{ printf "%.*f" .digits (float $init) }}</b><small>{{ .unit }}</small></span>
+            <span class="lab-metric__bars" aria-hidden="true">{{ range seq 24 }}<i></i>{{ end }}</span>
+        </div>
+        {{- end }}
+    </div>
+
+    {{- /* 日誌串流：開機訊息由伺服器渲染（沒有 JS 也看得到），
+           之後 JS 往下追加、從上面裁掉。
+           aria-hidden 是刻意的 —— 這是每 0.15 秒就跳動一次的裝飾區塊，
+           螢幕閱讀器唸出來只會是噪音。下面的 status / focus / wisdom 才是真內容。 */}}
+    <div class="lab-term__log" data-log aria-hidden="true">
+        {{- range $c.boot }}
+        <p class="lab-log lab-log--{{ .lv }}">
+            <span class="lab-log__t">{{ now.Format "15:04:05" }}</span><span class="lab-log__lv">{{ upper .lv }}</span><span class="lab-log__msg">{{ .t }}</span>
+        </p>
+        {{- end }}
+    </div>
+
+    <div class="lab-term__foot">
+        <p class="lab-term__line"><span class="lab-term__key">status</span><span class="lab-term__val">{{ $c.status }}</span></p>
+        <p class="lab-term__line"><span class="lab-term__key">focus</span><span class="lab-term__val">{{ $c.focus }}</span></p>
+        <p class="lab-term__line lab-term__line--wisdom"><span class="lab-term__prompt" aria-hidden="true">#</span>{{ $c.wisdom }}<span class="lab-term__caret" aria-hidden="true"></span></p>
+    </div>
+
+    {{- /* 設定值以 JSON 交給 JS。data/home.yaml 的 shared.console 是站台自有的
+           靜態文案、不含任何使用者輸入，所以 | safeJS 直接輸出原始 JSON。
+           ⚠️ 日後若要把任何「使用者可輸入的內容」灌進這裡，必須先移除 safeJS
+              並改用 htmlEscape —— 否則一句 </script> 就能把整頁拆掉。 */}}
+    <script type="application/json" data-cfg>{{ $s | jsonify | safeJS }}</script>
+</section>
+
+{{- /* ⚠️ 必須走 assets pipeline，不能用 {{ "js/lab-console.js" | absURL }}。
+       放 static/ 會沒有指紋，瀏覽器與 CDN 都會拿舊的快取。
+       這裡是取加工後的資源指標再印 RelPermalink —— 直接把 pipeline 結果插進
+       src="{{ }}" 會印出「來源路徑 /js/lab-console.js」（檔案根本不存在），
+       這是 AGENTS.md 記錄過的坑，寫法與 extend_footer.html 的 share-link.js 相同。 */}}
+{{- with resources.Get "js/lab-console.js" }}
+{{- $js := . | minify | fingerprint }}
+<script src="{{ $js.RelPermalink }}" defer></script>
+{{- end }}

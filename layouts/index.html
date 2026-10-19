@@ -15,6 +15,9 @@
   資料來源：
     - 文案、卡片、console → data/home.yaml，語言用 site.Language.Lang 分組
     - Featured 清單 → front matter featured: true（自動帶出，發新文只需加一行）
+    - Console 的四格統計 → 本檔案用 $published / $words / $tagSet 現算（見下方註解）
+
+  版面順序：Hero → Console → 技術領域 → 精選文章 → 最新文章
 */ -}}
 
 {{- $home := index hugo.Data "home" site.Language.Lang }}
@@ -23,6 +26,27 @@
 {{- /* featured 不設上限：文章加一篇，這裡就多一張卡（使用者需求）。
        依日期新到舊排序，所以新增的文章一定排在最前面。 */ -}}
 {{- $featured := (where $allPosts "Params.featured" true).ByDate.Reverse }}
+
+{{- /* ---------- Console 的三個真實統計 ----------
+       ⚠️ 必須先 where "Draft" false 再算，否則數字會灌水。
+       站上目前只有 2 篇 draft: false，其餘 TECH_TRENDS 系列 / mermaid_smoke_test
+       / hello-world 全是草稿。Hugo 的 site.RegularPages 與 site.Taxonomies
+       都把草稿算進去，直接用會顯示「文章 10」，但實際上線只有 2 篇 ——
+       而且 `hugo server -D`（看草稿）與正式 build 會是兩個不同的數字。
+
+       標籤數刻意**不**用 len site.Taxonomies.tags：那是全站分類詞彙表，
+       含草稿、且跨語言時的合併行為我不想賭。改成從已發布文章的
+       .Params.tags 收集後 uniq 去重，語意明確且跟前三格同一個資料源。
+
+       ⚠️ $allPosts 本身**不能**動：它同時餵給下面的精選卡與 home_posts_list.html，
+       那兩處刻意保留草稿（本地 hugo server 要看得到草稿）。只有統計這裡過濾。 */ -}}
+{{- $published := where $allPosts "Draft" false }}
+{{- $words := 0 }}
+{{- $tagSet := slice }}
+{{- range $published }}
+    {{- $words = add $words .WordCount }}
+    {{- with .Params.tags }}{{ $tagSet = $tagSet | append . }}{{ end }}
+{{- end }}
 
 {{- /* ---------- 1. Hero ---------- */ -}}
 <header class="lab-hero">
@@ -44,7 +68,24 @@
   </p>
 </header>
 
-{{- /* ---------- 2. 技術領域卡 ----------
+{{- /* ---------- 2. Engineering Console ----------
+       genact 風格的動態終端機，緊接在 hero 後面：這是整頁 Edge AI 氛圍最強的
+       一塊，放第一屏就能建立印象。
+
+       「最後建置」用 now 而不是 site.Lastmod —— 後者是站上最新頁面的修改時間，
+       會永遠停在最後一次寫文章的日期，跟「建置」是兩件事。代價是輸出不可重現，
+       但一天只變一次。
+
+       JS 走 assets pipeline（見 lab_console.html 內的說明），不在這裡。 */ -}}
+{{ partial "lab_console.html" (dict
+    "c" $home.console
+    "shared" (index hugo.Data "home" "shared" "console")
+    "posts" (len $published)
+    "tags" (len ($tagSet | uniq))
+    "words" $words
+    "built" now) }}
+
+{{- /* ---------- 3. 技術領域卡 ----------
      tag 對不到實際頁面就整張卡跳過（不渲染），不會產生死鏈。
      這是刻意的：與其輸出一個 404 的入口，不如先不給這張卡。
      data/home.yaml 註解有提醒，新增 tag 前先確認 /tags/<slug>/ 存在。 */ -}}
@@ -74,7 +115,7 @@
 </section>
 {{- end }}
 
-{{- /* ---------- 3. 精選文章（front matter featured: true） ---------- */ -}}
+{{- /* ---------- 4. 精選文章（front matter featured: true） ---------- */ -}}
 {{- with $featured }}
 <section class="lab-section" aria-labelledby="lab-featured-title">
   <h2 class="lab-section__title" id="lab-featured-title">{{ $home.sections.featured }}</h2>
@@ -100,15 +141,6 @@
   </ul>
 </section>
 {{- end }}
-
-{{- /* ---------- 4. Engineering Console（純 CSS，零 JS） ---------- */ -}}
-<section class="lab-console" aria-label="{{ $home.console.label }}">
-  <p class="lab-console__line"><span class="lab-console__key">status</span><span class="lab-console__val">{{ $home.console.status }}</span></p>
-  <p class="lab-console__line"><span class="lab-console__key">focus</span><span class="lab-console__val">{{ $home.console.focus }}</span></p>
-  <p class="lab-console__line lab-console__line--wisdom">
-    <span class="lab-console__prompt" aria-hidden="true">#</span>{{ $home.console.wisdom }}<span class="lab-console__caret" aria-hidden="true"></span>
-  </p>
-</section>
 
 {{- /* ---------- 5. 最新文章（沿用 PaperMod 原生卡片） ---------- */ -}}
 <section class="lab-section" aria-labelledby="lab-latest-title">
