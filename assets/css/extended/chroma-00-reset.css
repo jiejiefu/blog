@@ -1,0 +1,24 @@
+/* Chroma reset layer — 必須排在 chroma-tokyonight-*.css 之前（檔名排序 00 < tokyonight）
+ *
+ * 為什麼需要這層：
+ * PaperMod 內建的 themes/.../includes/chroma-styles.css 是 Catppuccin Macchiato，
+ * 它跟我們的 Tokyo Night 是**疊在一起**的（core.css 先、extended.css 後）。
+ * 只要是 Tokyo Night 沒定義的 token class，就會直接漏出 Catppuccin 的顏色。
+ * 實例：`.chroma .nv`（NameVariable）→ Catppuccin 的 #f4dbd6 淡粉，
+ * 在淺色的 tokyonight-day 灰底（#e1e2e7）上幾乎看不見
+ * （受害字串：`export REA_ANALYSIS_PROVIDER=ghidra` 的 REA_ANALYSIS_PROVIDER）。
+ *
+ * 做法：
+ * 用一個低特異度（0,0,2,0）的規則先把所有 token 樣式歸零。
+ *   - 對 Catppuccin（同為 0,0,2,0）→ 靠原始碼順序勝出
+ *   - 對 chroma-tokyonight-*.css（0,0,4,0）→ 讓它們把要的顏色蓋回來
+ * 所以 Tokyo Night 未定義的 token 會 inherit 到 .chroma 的前景色，不會漏色。
+ */
+:root .chroma *,
+:root .bg {
+    color: inherit;
+    background-color: transparent;
+    font-style: inherit;
+    font-weight: inherit;
+    text-decoration: inherit;
+}

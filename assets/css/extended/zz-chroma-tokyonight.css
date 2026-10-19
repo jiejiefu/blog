@@ -1,0 +1,52 @@
+/* Tokyo Night — 程式碼高亮配色（淺色 tokyonight-day / 深色 tokyonight-night）
+ *
+ * 相關檔案：
+ *   assets/css/extended/chroma-tokyonight-day.css    （.chroma token 色，scoped 淺色）
+ *   assets/css/extended/chroma-tokyonight-night.css  （.chroma token 色，scoped 深色）
+ *   config.yaml → markup.highlight.noClasses: false  （改成 class-based，才會吃到上面兩檔）
+ *
+ * ⚠️ 檔名刻意以 `zz-` 開頭：PaperMod 用 resources.Match "css/extended/*.css"
+ * 依**檔名排序**串接，custom.css 排在前面。這裡要覆蓋 custom.css 對
+ * --code-block-bg 的舊值，所以必須排到最後。
+ */
+
+/* --code-block-bg 只被兩個地方使用：
+ *   - .post-content .highlight:not(table)  （程式碼區塊外框）
+ *   - .post-content pre code               （程式碼區塊本體）
+ * 兩者同色，才不會出現「外框與內層不一致」的圓角落差。
+ *
+ * ⚠️ 刻意「不」改 --code-bg：它同時餵給 TOC／post-tags／paginav／share-box，
+ * 改下去會連帶動到那些 UI 表面。行內 code 另外用 scoped 選擇器處理（見檔尾）。
+ */
+
+/* 淺色：tokyonight-day (#3760bf on #e1e2e7) */
+:root {
+    --code-block-bg: #e1e2e7;
+}
+
+/* 深色：tokyonight-night (#c0caf5 on #1a1b26) */
+:root[data-theme="dark"] {
+    --code-block-bg: #1a1b26;
+}
+
+/* 內層 <pre> 是直角、外框是 8px 圓角；不裁切就會露出四個直角。 */
+.post-content .highlight:not(table) {
+    overflow: hidden;
+}
+
+/* PaperMod 把 pre code 的文字色寫死成 rgb(213,213,214)，
+ * 在淺色的 tokyonight-day 底上等於看不見。
+ * 改成 inherit，讓它跟著 .chroma 的 #3760bf / #c0caf5。 */
+.post-content pre code {
+    color: inherit;
+}
+
+/* 行內 code：只作用在內文（:not(pre) 排除程式碼區塊），
+ * 不去動 --code-bg 這個共用變數。 */
+.post-content :not(pre) > code {
+    background: #e1e2e7;
+}
+
+:root[data-theme="dark"] .post-content :not(pre) > code {
+    background: #1a1b26;
+}

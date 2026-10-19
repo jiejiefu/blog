@@ -103,6 +103,8 @@ menu:
 
 
 markup:
+  highlight:
+    noClasses: false # 改用 class-based 高亮，配色由 assets/css/extended/chroma-*.css 提供（Tokyo Night，淺/深分流）
   goldmark:
     extensions:
       passthrough:
