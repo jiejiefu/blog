@@ -1,4 +1,17 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Edge AI on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/edge-ai/</link><description>Recent content in Edge AI on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/edge-ai/index.xml" rel="self" type="application/rss+xml"/><item><title>半導體設備 Edge AI 平台：從感測器資料到智慧決策的端到端系統設計</title><link>https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/</guid><description>介紹半導體設備 Edge AI／PHM 平台的端到端架構，涵蓋感測器資料處理、機器學習、Flask 後端、AI Agent、邊緣部署、故障處理與系統擴充。</description><content:encoded><![CDATA[<h2 id="前言">前言</h2>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Edge AI on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/edge-ai/</link><description>Recent content in Edge AI on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/edge-ai/index.xml" rel="self" type="application/rss+xml"/><item><title>半導體設備 Edge AI 平台：從感測器資料到智慧決策的端到端系統設計</title><link>https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/</guid><description>介紹半導體設備 Edge AI／PHM 平台的端到端架構，涵蓋感測器資料處理、機器學習、Flask 後端、AI Agent、邊緣部署、故障處理與系統擴充。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+  <p class="tldr__label">TL;DR</p>
+  <ul>
+<li>Edge AI 平台是一套端到端工程系統：資料接入、特徵工程、推論、監控與人員工作流程，必須環環相扣。</li>
+<li>設計採用五層架構：React／MUI 呈現、Flask API、分析、邊緣執行，以及 SQLite／檔案持久化。</li>
+<li>有界 deque 會先批次緩衝近期樣本（例如 500 筆或約 5 秒）再進行特徵萃取；它是緩衝區，不是持久化佇列。</li>
+<li>PHM 結合訊號特徵（RMS、FFT）、One-Class SVM、DTW 與 PCA 漂移監控，判讀仍交由工程師負責。</li>
+<li>AI Agent 是受控的應用程式用戶端：工具白名單、授權、驗證與稽核紀錄由後端強制執行，而非依賴 LLM 提示詞。</li>
+<li>部署從 Docker Compose 的邊緣單體開始，待量測結果證明有必要時，才擴展為解耦的 Worker。</li>
+</ul>
+<p><strong>總結：</strong> 可靠性來自可追溯的資料、明確的故障行為與受治理的 Agent，而非單一模型或框架。</p>
+</aside>
+
+<h2 id="前言">前言</h2>
 <p>在半導體製造環境中，設備會持續產生振動、溫度與其他感測器資料。如何將這些資料轉化為可用的健康度指標、異常警報與維護建議，並進一步整合到實際的工程工作流程，是設備智慧化的重要課題。</p>
 <p>這篇文章介紹我參與開發的 <strong>Edge AI／PHM（Prognostics and Health Management，故障預測與健康管理）平台</strong>。平台整合感測器資料處理、機器學習、設備端推論、健康度監控、後端服務與生成式 AI Agent，目標是將原本分散的資料分析與模型應用流程，整合成一套可操作、可追蹤且能持續演進的工程系統。</p>
 <p>本文不會只列出使用了哪些技術，而是沿著實際的系統設計脈絡，回答幾個更重要的問題：</p>
@@ -754,7 +767,20 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <blockquote>
 <p><strong>版權與使用條款：</strong> 本文所有圖表版權歸作者所有，轉載請註明出處與原作者。內容已全面進行去識別化與虛擬化處理，僅供技術交流與架構展示使用，不構成任何營業秘密洩露。文中所列未來架構屬於可能的演進方向，不代表已全部實作或部署。</p>
 </blockquote>
-]]></content:encoded></item><item><title>智慧工廠邊緣 AI：從預測性維護到自主決策 Agent 的系統架構設計</title><link>https://jiejiefu.github.io/blog/posts/fab_predictive_maintenance_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/fab_predictive_maintenance_ppt169/</guid><description>從感測器串流、異常偵測、剩餘壽命預測，到邊緣部署與工業知識檢索，說明一套智慧工廠邊緣 AI 系統的分層架構與設計取捨。</description><content:encoded><![CDATA[<h2 id="前言">前言</h2>
+]]></content:encoded></item><item><title>智慧工廠邊緣 AI：從預測性維護到自主決策 Agent 的系統架構設計</title><link>https://jiejiefu.github.io/blog/posts/fab_predictive_maintenance_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/fab_predictive_maintenance_ppt169/</guid><description>從感測器串流、異常偵測、剩餘壽命預測，到邊緣部署與工業知識檢索，說明一套智慧工廠邊緣 AI 系統的分層架構與設計取捨。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+  <p class="tldr__label">TL;DR</p>
+  <ul>
+<li>架構涵蓋六個層級，從感測器與串流，一路到 PHM、Edge Agent 與 MES／EAP 安全整合。</li>
+<li>以 20 台設備、3 個通道、2 kHz 取樣為例，每日約產生 41.5 GB 原始資料；納管設備規模與高頻串流規模是兩個不同指標。</li>
+<li>偵測採用兩階段流程：先以 Isolation Forest 篩選，再由 Autoencoder 評估，並透過告警整併降低噪音。</li>
+<li>RUL 預測（Weibull、LSTM／Transformer、領域特徵）支援 30 天與 7 天維護規劃；文中數字屬專案情境，並非通用基準。</li>
+<li>模型歷經標準化封裝、影子部署、金絲雀分批發佈（5% → 20% → 100%）、監控與回退。</li>
+<li>Edge Agent、工業 RAG 與 MLOps 串接證據與工作流程，但安全關鍵控制仍留在 LLM 之外。</li>
+</ul>
+<p><strong>總結：</strong> 在擴大自主決策之前，先讓每一層都可觀測、可驗證、可回退。</p>
+</aside>
+
+<h2 id="前言">前言</h2>
 <p>這篇文章整理了我在面試簡報中提出的智慧工廠邊緣 AI 系統架構，將原本的 11 張簡報內容延伸成一份較完整的技術筆記。</p>
 <p>文章從設備感測資料開始，依序討論即時資料處理、異常偵測、設備剩餘壽命預測（RUL）、邊緣部署、工業知識檢索，以及 AI Agent 的決策與控制邊界。除了技術元件，也會說明各層的設計考量，以及在延遲、運算資源、可靠性與維運成本之間需要做出的取捨。</p>
 <p>這套架構關注的核心問題，不只是將 AI 模型部署到工廠，而是如何讓模型在受限的運算環境中持續運作，並與既有設備控制、維護流程及工廠資訊系統整合。</p>
