@@ -1,0 +1,5 @@
+{{- $label := .Get "label" | default "TL;DR" -}}
+<aside class="tldr" role="note" aria-label="{{ $label }}">
+  <p class="tldr__label">{{ $label }}</p>
+  {{ .Inner | markdownify }}
+</aside>
