@@ -12,6 +12,17 @@ cover:
 # The unhinged world of tech in 2026...
 
 ---
+{{< tldr >}}
+- The article argues that AI enters 2026 with a valuation and performance plateau, as public markets test private hype.
+- Nvidia, ARM, and TSMC form a compute oligopoly, while state intervention treats fabs as national infrastructure.
+- Humanoid robots move into industrial pilots but still depend heavily on teleoperation; consumer wearables remain a graveyard.
+- Energy becomes the real scaling ceiling, driving interest in small modular reactors and quantum computing.
+- A $100,000 H-1B fee and the rise of the "code janitor" reshape the tech labor market.
+- Digital ID and CBDC programs expand state-linked identity and payment infrastructure, eroding consumer privacy.
+
+**Bottom line:** Power shifts from software narratives to physical infrastructure — electricity, silicon, and digital sovereignty.
+{{< /tldr >}}
+
 {{< youtube id="EKOU3JWDNLI">}}
 
 <iframe 

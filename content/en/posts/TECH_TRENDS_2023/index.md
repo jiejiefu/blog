@@ -12,6 +12,17 @@ cover:
 # Things are gonna get weird in 2023
 
 ---
+{{< tldr >}}
+- High interest rates end the "easy money" era and push tech toward consolidation and fiscal discipline.
+- Big Tech layoffs signal a softer market, not a collapse; engineering talent remains scarce outside tech.
+- Return-to-office mandates function as a soft layoff mechanism, with retention and culture risk.
+- LLMs such as ChatGPT move into the development lifecycle for boilerplate, debugging, and rapid iteration.
+- Frontend work diversifies toward Svelte, Solid, Qwik, and Vite; SPAs give way to SSR and meta-frameworks.
+- Rust wins systems-programming mindshare as memory safety becomes a strategic requirement.
+
+**Bottom line:** Standardize AI tooling, migrate new projects to SSR, and invest in Rust and lean operations.
+{{< /tldr >}}
+
 <!-- {{< youtube id="1v_TEnpqHXE">}} -->
 
 <iframe 

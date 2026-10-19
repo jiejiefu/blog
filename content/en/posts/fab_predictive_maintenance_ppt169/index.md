@@ -17,6 +17,17 @@ cover:
   hidden: false
 ---
 
+{{< tldr >}}
+- The architecture spans six layers, from sensors and streaming through PHM, edge agents, and MES/EAP safety integration.
+- A 20-machine, 3-channel, 2 kHz example generates about 41.5 GB/day of raw data; managed fleet size and high-frequency stream scale are separate metrics.
+- Detection uses a two-stage pipeline: Isolation Forest screening followed by Autoencoder assessment, with alert consolidation to reduce noise.
+- RUL prediction (Weibull, LSTM/Transformer, domain features) feeds 30-day and 7-day maintenance planning; the reported figures are project-specific, not universal benchmarks.
+- Models move through standardized packaging, shadow deployment, canary rollout (5% → 20% → 100%), monitoring, and rollback.
+- Edge Agents, Industrial RAG, and MLOps connect evidence and workflows, but safety-critical control stays outside the LLM.
+
+**Bottom line:** Make each layer observable, verifiable, and recoverable before expanding autonomous decision-making.
+{{< /tldr >}}
+
 ## Introduction
 
 This article documents the Smart Fab Edge AI system architecture I presented in an interview presentation, expanding the original 11-slide deck into a more comprehensive technical reference.

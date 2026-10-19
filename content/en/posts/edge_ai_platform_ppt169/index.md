@@ -19,6 +19,17 @@ cover:
   hidden: false
 ---
 
+{{< tldr >}}
+- An Edge AI platform is an end-to-end engineering system: data ingestion, feature engineering, inference, monitoring, and human workflows must all hold together.
+- The design uses five layers: React/MUI presentation, Flask APIs, analytics, edge execution, and SQLite/file persistence.
+- A bounded deque batches recent samples (for example, 500 records or about five seconds) before feature extraction; it is a buffer, not a durable queue.
+- PHM combines signal features (RMS, FFT), One-Class SVM, DTW, and PCA drift monitoring, with interpretation left to engineers.
+- AI agents are controlled application clients: the backend enforces tool allowlists, authorization, validation, and audit logging, not the LLM prompt.
+- Deployment starts as a Docker Compose edge monolith and should scale to decoupled workers only when measurements justify it.
+
+**Bottom line:** Reliability comes from traceable data, explicit failure behavior, and governed agents — not from a single model or framework.
+{{< /tldr >}}
+
 Building an Edge AI platform is not just about deploying a machine-learning model close to a machine. In a semiconductor manufacturing environment, the platform must connect sensor data, feature engineering, model inference, health monitoring, user workflows, and maintenance decisions into a system that can be operated and maintained reliably.
 
 This article introduces an Edge AI / Prognostics and Health Management (PHM) platform from a system-design perspective. It covers the architecture, data flow, analytical methods, backend implementation, AI-agent integration, deployment, failure handling, and the trade-offs behind the design.

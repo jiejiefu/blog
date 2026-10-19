@@ -12,6 +12,17 @@ cover:
 # The amazing, but unsettling future of technology...
 
 ---
+{{< tldr >}}
+- Reasoning models such as o3 are a strategic shift, but their compute cost and logical failures keep them in proof-of-concept territory.
+- AI agents that can access environments and execute actions are the more important enterprise trend.
+- C/C++ migration to Rust accelerates around memory safety, regulation, and long-term infrastructure security.
+- Framework selection increasingly depends on how well AI tools can generate and maintain code in that ecosystem.
+- The "anti-cloud" movement pushes non-essential workloads back to VPS or on-premise infrastructure.
+- Robotics, brain-computer interfaces, quantum computing, and post-quantum security enter the strategic planning horizon.
+
+**Bottom line:** Architectural adaptability and human-AI orchestration are the durable advantages.
+{{< /tldr >}}
+
 <!-- {{< youtube id="v4H2fTgHGuc">}} -->
 
 <iframe 

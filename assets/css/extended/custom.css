@@ -451,3 +451,39 @@
         transform: none;
     }
 }
+
+/* ---------- TL;DR callout ----------
+   由 layouts/shortcodes/tldr.html 產生。標籤刻意用 <p> 而非 heading，
+   避免自動出現在 PaperMod 的 TOC。顏色全部沿用既有變數，
+   light / dark 模式不需要另外覆寫。 */
+.tldr {
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    background-color: var(--code-bg);
+}
+
+.tldr__label {
+    margin: 0 0 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.tldr > ul {
+    margin: 0.4rem 0 0;
+    padding-left: 1.25rem;
+}
+
+.tldr > ul > li {
+    margin: 0.3rem 0;
+}
+
+.tldr > p:last-child {
+    margin-bottom: 0;
+}

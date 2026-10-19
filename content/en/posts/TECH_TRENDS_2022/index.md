@@ -12,6 +12,17 @@ cover:
 # 2021 Tech Trends & Predictions for Developers
 
 ---
+{{< tldr >}}
+- The 2022 developer landscape mixes stable "boring" technology with chaotic new frontiers.
+- Web3 shifts identity, data ownership, and control from platforms toward wallets and smart contracts.
+- The metaverse opportunity may be tooling and platforms ("selling shovels") rather than consumer VR itself.
+- AI APIs let small teams scale business models that previously required one-to-one human effort.
+- SQL and serverless databases are back, with modern tools reducing operational overhead.
+- JavaScript returns to SSR and meta-frameworks, while Vite and zero-JS approaches gain ground.
+
+**Bottom line:** Timing and adaptability matter more than chasing every hype cycle; always bet on JavaScript.
+{{< /tldr >}}
+
 <!-- {{< youtube id="LOpFYMPXqE4">}} -->
 
 <iframe 
