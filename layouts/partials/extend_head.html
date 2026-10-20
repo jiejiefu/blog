@@ -1,5 +1,9 @@
 <link href="https://cdn.jsdelivr.net/npm/aos@2.3.1/dist/aos.css" rel="stylesheet">
 
+{{- /* PWA manifest（Android／桌面「加到主畫面」）。圖示與 manifest 都在 static/，
+       PaperMod head.html 已輸出 favicon / apple-touch-icon / mask-icon 的預設檔名。 */ -}}
+<link rel="manifest" href="{{ "site.webmanifest" | absURL }}">
+
 {{- /* KaTeX 僅在 front matter 設定 math: true 的頁面載入，避免全站增加 JS/CSS 負載 */ -}}
 {{- if .Params.math }}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">

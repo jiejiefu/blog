@@ -18,6 +18,12 @@ params:
   description: Algorithm | Edge Computing | Software Engineer
   author: Jay Fu
 
+  # 網站圖示（static/favicon*、apple-touch-icon.png、android-chrome-*.png）。
+  # 路徑沿用 PaperMod head.html 的預設檔名，不需要另外指定。
+  assets:
+    theme_color: "#0B1220"
+    msapplication_TileColor: "#0B1220"
+
   ShowReadingTime: true
   ShowShareButtons: true
   ShowPostNavLinks: true

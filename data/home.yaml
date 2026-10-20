@@ -167,7 +167,8 @@ zh-tw:
       以及理論與生產環境之間，那道沒人寫在文件裡的縫隙。
     primaryCta:
       text: "讀技術文章"
-      url: "/posts/"
+      # 不能寫 "/posts/"：absLangURL 遇到開頭斜線會丟掉 baseURL 的 /blog/ 前綴
+      url: "posts/"
 
   # 技術領域卡：icon 對應 layouts/index.html 內的 SVG symbol
   # ⚠️ tag 必須是站上**實際存在**的分類，否則整張卡不會渲染（模板會跳過不存在的 tag 頁）
@@ -231,7 +232,7 @@ en:
       writes down.
     primaryCta:
       text: "Read Technical Notes"
-      url: "/posts/"
+      url: "posts/"
 
   topics:
     - tag: "Edge AI"
