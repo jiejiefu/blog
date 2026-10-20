@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<title>黑鏡 Black Mirror — 自製封面</title>
+<desc>An original abstract cover: a black glass slab with a cyan scan line and pixel fragments.</desc>
+<defs>
+
+    <linearGradient id="bmglass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A1A1F"/>
+      <stop offset=".52" stop-color="#08080A"/>
+      <stop offset="1" stop-color="#121216"/>
+    </linearGradient>
+    <linearGradient id="bmsheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7DD3FC" stop-opacity=".18"/>
+      <stop offset=".48" stop-color="#7DD3FC" stop-opacity="0"/>
+    </linearGradient>
+
+</defs>
+<rect width="1200" height="630" fill="#050506"/>
+<pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#FFFFFF" opacity="0.055"/></pattern><rect width="1200" height="630" fill="url(#dots)"/>
+<rect x="690" y="112" width="402" height="422" rx="10" fill="url(#bmglass)" stroke="#2E2E34" stroke-width="1.4"/><rect x="690" y="112" width="402" height="422" rx="10" fill="url(#bmsheen)"/><path d="M700 116 L1080 116 L790 522 L700 522 Z" fill="#FFFFFF" opacity=".025"/><rect x="690" y="300" width="402" height="26" fill="#7DD3FC" opacity=".05"/><rect x="690" y="306" width="402" height="10" fill="#7DD3FC" opacity=".13"/><rect x="690" y="309" width="402" height="2.5" fill="#7DD3FC" opacity=".95"/><rect x="859" y="328" width="14" height="14" fill="#7DD3FC" opacity="0.41"/><rect x="992" y="284" width="10" height="10" fill="#7DD3FC" opacity="0.60"/><rect x="867" y="328" width="10" height="10" fill="#7DD3FC" opacity="0.23"/><rect x="810" y="284" width="18" height="18" fill="#7DD3FC" opacity="0.60"/><rect x="939" y="284" width="18" height="18" fill="#7DD3FC" opacity="0.69"/><rect x="1028" y="328" width="18" height="18" fill="#7DD3FC" opacity="0.50"/><rect x="762" y="284" width="18" height="18" fill="#7DD3FC" opacity="0.21"/><rect x="722" y="284" width="18" height="18" fill="#7DD3FC" opacity="0.20"/><rect x="863" y="316" width="18" height="18" fill="#7DD3FC" opacity="0.62"/><path d="M812 534 L832 470 L828 430" fill="none" stroke="#6B6B75" stroke-width="1.2" opacity=".55"/><path d="M832 470 L868 452" fill="none" stroke="#6B6B75" stroke-width="1" opacity=".45"/><path d="M1016 534 L996 486 L1004 452" fill="none" stroke="#6B6B75" stroke-width="1.2" opacity=".5"/><text x="1064" y="512" text-anchor="end" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="10" letter-spacing="2.4" fill="#6B6B75">SIGNAL // LOST</text>
+<rect x="40" y="40" width="1120" height="550" fill="none" stroke="#F2F2F4" stroke-width="1" opacity=".28"/>
+<text x="88" y="86" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12" letter-spacing="3.4" fill="#7DD3FC">NO. 10</text>
+<text x="1112" y="86" text-anchor="end" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="10" letter-spacing="3.2" fill="#9A9AA4">TEN LIFELONG CLASSICS</text>
+<line x1="40" y1="108" x2="1160" y2="108" stroke="#F2F2F4" stroke-width="1" opacity=".22"/>
+<text x="88" y="150" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="11.5" letter-spacing="3.6" fill="#9A9AA4">TELEVISION · 2011–</text>
+<text x="86" y="236.0" font-family="'Avenir Next','Helvetica Neue','Arial',sans-serif" font-size="58" font-weight="700" letter-spacing="0.5" fill="#F2F2F4">BLACK MIRROR</text>
+<text x="88" y="294.0" font-family="'Songti TC','Noto Serif TC','Songti SC',serif" font-size="50" font-weight="700" letter-spacing="2" fill="#F2F2F4">黑鏡</text>
+<line x1="88" y1="328.0" x2="188" y2="328.0" stroke="#7DD3FC" stroke-width="3"/>
+<text x="88" y="372.0" font-family="'PingFang TC','Noto Sans TC','Heiti TC',sans-serif" font-size="20.5" letter-spacing="0.6" fill="#9A9AA4">我們自願走進的動物園，</text>
+<text x="88" y="403.0" font-family="'PingFang TC','Noto Sans TC','Heiti TC',sans-serif" font-size="20.5" letter-spacing="0.6" fill="#9A9AA4">卻忘了欄杆是自己焊的。</text>
+<text x="88" y="538" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="10.5" letter-spacing="2.4" fill="#9A9AA4" opacity=".85">ANTHOLOGY · CHARLIE BROOKER</text>
+<text x="88" y="566" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="9.5" letter-spacing="2.2" fill="#9A9AA4" opacity=".55">ORIGINAL ARTWORK · 2026</text>
+<text x="1112" y="566" text-anchor="end" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="10.5" letter-spacing="2.4" fill="#7DD3FC" opacity=".9">PAIR 05 · 10/10</text>
+</svg>

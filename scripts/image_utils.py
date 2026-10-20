@@ -63,6 +63,76 @@ def png_to_webp(src, dest, quality=QUALITY):
     return dest
 
 
+def _rsvg_convert():
+    exe = shutil.which("rsvg-convert")
+    if not exe:
+        raise RuntimeError(
+            "rsvg-convert not found. Install it with: brew install librsvg"
+        )
+    return exe
+
+
+def svg_to_png(src, dest, width=None, height=None, background=None):
+    """Rasterise an SVG with rsvg-convert."""
+    src = Path(src)
+    dest = Path(dest)
+    if not src.is_file():
+        raise FileNotFoundError(src)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [_rsvg_convert(), "-o", str(dest)]
+    if width:
+        cmd += ["-w", str(width)]
+    if height:
+        cmd += ["-h", str(height)]
+    if background:
+        cmd += ["-b", background]
+    cmd.append(str(src))
+    subprocess.run(cmd, check=True)
+
+    if not dest.is_file() or dest.stat().st_size == 0:
+        raise RuntimeError(f"rsvg-convert produced no output for {src}")
+    return dest
+
+
+def svg_to_webp(src, dest, width=1376, quality=QUALITY):
+    """Render an SVG to WebP at the given pixel width."""
+    src = Path(src)
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix="svg-webp-") as tmp:
+        png_path = Path(tmp) / "cover.png"
+        svg_to_png(src, png_path, width=width)
+        png_to_webp(png_path, dest, quality=quality)
+    return dest
+
+
+def svg_to_jpeg(src, dest, width=1200, quality=85):
+    """Render an SVG to an opaque, metadata-stripped JPEG."""
+    src = Path(src)
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix="svg-jpeg-") as tmp:
+        png_path = Path(tmp) / "cover.png"
+        rgb_path = Path(tmp) / "cover-rgb.png"
+        svg_to_png(src, png_path, width=width)
+        with Image.open(png_path) as img:
+            img.convert("RGB").save(rgb_path, "PNG")
+        with Image.open(rgb_path) as img:
+            img.save(
+                dest,
+                "JPEG",
+                quality=quality,
+                optimize=True,
+                progressive=True,
+            )
+    if not dest.is_file() or dest.stat().st_size == 0:
+        raise RuntimeError(f"JPEG encode produced no output for {dest}")
+    return dest
+
+
 def save_figure_webp(fig, out_path, dpi=None, facecolor="white", quality=QUALITY):
     """Save an opaque matplotlib figure as WebP inside a page bundle."""
     out_path = Path(out_path)

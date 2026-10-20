@@ -1,0 +1,9 @@
+<details class="memory">
+<summary class="memory__label">
+<span class="memory__label-text">{{ .Get "label" | default "觀影記憶" }}</span>
+<span class="memory__toggle" aria-hidden="true"></span>
+</summary>
+<div class="memory__body">
+{{ .Inner | markdownify }}
+</div>
+</details>
