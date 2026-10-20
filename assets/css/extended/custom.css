@@ -527,3 +527,137 @@
     font-size: 0.9rem;
     text-align: center;
 }
+
+/* ---------- 觀眾留言（文章尾端） ----------
+   由 layouts/partials/viewer_comment.html 產生。
+   內容是假的觀眾留言（Rick 台詞），免責聲明寫在區塊內。
+   顏色全部沿用既有變數，不新增色票，深色模式自動跟隨。 */
+.viewer-comment {
+    margin: 24px 0 8px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background-color: var(--code-bg);
+}
+
+.viewer-comment__kicker {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--secondary);
+}
+
+.viewer-comment__card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.viewer-comment__avatar {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    object-fit: contain;
+}
+
+.viewer-comment__body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.viewer-comment__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+}
+
+.viewer-comment__handle {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--content);
+}
+
+.viewer-comment__origin {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--secondary);
+}
+
+.viewer-comment__quote {
+    margin: 6px 0 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 1.02rem;
+    font-style: normal;
+    line-height: 1.6;
+    color: var(--content);
+}
+
+.viewer-comment__credit {
+    margin: 6px 0 0;
+    font-size: 0.78rem;
+    color: var(--secondary);
+}
+
+.viewer-comment__foot {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.viewer-comment__reroll {
+    padding: 4px 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--secondary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.viewer-comment__reroll:hover {
+    color: var(--content);
+}
+
+.viewer-comment__reroll:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+.viewer-comment__note {
+    margin: 12px 0 0;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    color: var(--secondary);
+}
+
+@media (max-width: 480px) {
+    .viewer-comment {
+        padding: 14px;
+    }
+
+    .viewer-comment__card {
+        gap: 10px;
+    }
+
+    .viewer-comment__avatar {
+        width: 38px;
+        height: 38px;
+    }
+}

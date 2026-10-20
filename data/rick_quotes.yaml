@@ -1,0 +1,59 @@
+# 文章尾端「觀眾留言」用的 Rick 台詞。
+#
+# 規則：
+#   1. 只收錄可考證的原作台詞（不確定集數就留空，不要硬猜）。
+#   2. 不收 F-word 與粉絲仿寫；引用一律保留 attribution。
+#   3. handle 是用來假裝成觀眾帳號的裝飾，不需要對應真實帳號。
+#
+# 欄位：
+#   text    台詞本體（英文）
+#   who     說話角色（目前都是 Rick Sanchez）
+#   episode 集數（可省略）
+#   handle  留言者帳號（不含 @）
+
+- text: "Your boos mean nothing! I've seen what makes you cheer!"
+  who: Rick Sanchez
+  episode: "S4E3 · One Crew Over the Crewcoo's Morty"
+  handle: boos_mean_nothing
+
+- text: "Every breath I take without your permission raises my self-esteem!"
+  who: Rick Sanchez
+  episode: "S4E3 · One Crew Over the Crewcoo's Morty"
+  handle: self_esteem_c137
+
+- text: "You're not an artist, you're Postmates."
+  who: Rick Sanchez
+  episode: "S4E3 · One Crew Over the Crewcoo's Morty"
+  handle: postmates_artist
+
+- text: "I'm sorry, but your opinion means very little to me."
+  who: Rick Sanchez
+  episode: "S2E3 · Auto Erotic Assimilation"
+  handle: opinion_irrelevant
+
+- text: "Weddings are basically funerals with cake."
+  who: Rick Sanchez
+  episode: "S2E10 · The Wedding Squanchers"
+  handle: cake_funeral
+
+- text: "I'm not a cow! I'm a pickle!"
+  who: Rick Sanchez
+  episode: "S3E3 · Pickle Rick"
+  handle: pickle_rick_c137
+
+- text: "When I don't like something about the world, I change it."
+  who: Rick Sanchez
+  episode: "S3E3 · Pickle Rick"
+  handle: change_the_world
+
+- text: "Sometimes science is more art than science, Morty."
+  who: Rick Sanchez
+  handle: science_is_art
+
+- text: "Love is just a chemical reaction that compels animals to breed."
+  who: Rick Sanchez
+  handle: love_chem_101
+
+- text: "Wubba Lubba Dub Dub!"
+  who: Rick Sanchez
+  handle: wubba_lubba_137

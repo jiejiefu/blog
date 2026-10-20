@@ -1,9 +1,12 @@
 {{- /*
   ⚠️ 本檔案是 PaperMod themes/PaperMod/layouts/_default/single.html 的副本，
-  唯一改動是在 <footer class="post-footer"> 內、tags 之後插入 share_link partial。
+  自訂改動是在 <footer class="post-footer"> 內、tags 之後插入：
+    1. share_link partial（分享連結）
+    2. viewer_comment partial（尾端觀眾留言）
   主題更新時請 diff 一次這裡，不要直接覆蓋。
 
   單篇文章不想顯示分享區塊：front matter 加 disableShareBox: true
+  單篇文章不想顯示觀眾留言：front matter 加 disableViewerComment: true
 */ -}}
 {{- define "main" }}
 
@@ -58,6 +61,9 @@
     </ul>
     {{- if not (.Param "disableShareBox") }}
     {{- partial "share_link.html" . }}
+    {{- end }}
+    {{- if not (.Param "disableViewerComment") }}
+    {{- partial "viewer_comment.html" . }}
     {{- end }}
     {{- if (.Param "ShowPostNavLinks") }}
     {{- partial "post_nav_links.html" . }}

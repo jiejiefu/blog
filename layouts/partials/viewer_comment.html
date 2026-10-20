@@ -1,0 +1,56 @@
+{{- /*
+  文章尾端的「觀眾留言」區塊。
+
+  資料來源：data/rick_quotes.yaml（可考證的 Rick 台詞，不含 F-word）。
+  伺服器端先用 shuffle 抽一則，確保沒有 JS 時也看得到內容；
+  前端 viewer-comment.js 會在載入時再抽一次，並提供 another one 按鈕。
+
+  ⚠️ 逐頁判斷不要搬到 extend_footer.html：那裡走 partialCached，
+     快取鍵是 .Layout/.Kind，不是頁面。
+*/ -}}
+
+{{- $quotes := index hugo.Data "rick_quotes" -}}
+{{- with $quotes -}}
+{{- $quote := index (shuffle .) 0 -}}
+{{- $text := index $quote "text" -}}
+{{- $who := index $quote "who" -}}
+{{- $episode := index $quote "episode" | default "" -}}
+{{- $handle := index $quote "handle" -}}
+
+<aside class="viewer-comment" data-viewer-comment aria-label="Viewer comment">
+  <p class="viewer-comment__kicker">觀眾留言 <span aria-hidden="true">/</span> VIEWER COMMENT</p>
+
+  <div class="viewer-comment__card">
+    {{- with resources.Get "images/rick-avatar.png" }}
+    {{- $avatar := .Fit "96x96 webp q82" }}
+    <img class="viewer-comment__avatar" src="{{ $avatar.RelPermalink }}"
+         width="44" height="44" alt="" loading="lazy" decoding="async">
+    {{- end }}
+
+    <div class="viewer-comment__body">
+      <div class="viewer-comment__meta">
+        <span class="viewer-comment__handle" data-vc-handle>@{{ $handle }}</span>
+        <span class="viewer-comment__origin">Dimension C-137</span>
+      </div>
+      <blockquote class="viewer-comment__quote" data-vc-quote>“{{ $text }}”</blockquote>
+      <p class="viewer-comment__credit" data-vc-credit>— {{ $who }}{{ with $episode }} · {{ . }}{{ end }}</p>
+    </div>
+  </div>
+
+  <div class="viewer-comment__foot">
+    <button class="viewer-comment__reroll" type="button" data-vc-reroll>another one, Morty</button>
+  </div>
+
+  <p class="viewer-comment__note">
+    Unofficial quote from <cite>Rick and Morty</cite> (© Adult Swim).
+    This “viewer” is fictional.
+  </p>
+
+  <script type="application/json" data-viewer-comment-data>{{ . | jsonify | safeJS }}</script>
+</aside>
+
+{{- with resources.Get "js/viewer-comment.js" }}
+{{- $js := . | minify | fingerprint }}
+<script src="{{ $js.RelPermalink }}" defer></script>
+{{- end }}
+{{- end -}}
