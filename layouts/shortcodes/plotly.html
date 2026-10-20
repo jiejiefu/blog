@@ -44,7 +44,7 @@
 {{- $caption := .Get "caption" | default "" -}}
 <figure class="plotly-figure">
   <div class="plotly-chart" id="plotly-{{ .Ordinal }}" data-plotly-bundle="{{ $bundle }}" style="height: {{ $height }}"{{ with $caption }} role="img" aria-label="{{ . }}"{{ end }}></div>
-  <script type="application/json" class="plotly-chart__spec">{{ $spec | jsonify }}</script>
+  <script type="application/json" class="plotly-chart__spec">{{ $spec | jsonify | safeJS }}</script>
   {{- with $caption }}
   <figcaption>{{ . }}</figcaption>
   {{- end }}
