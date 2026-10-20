@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <title>REA — Reverse Engineer Anything</title>
+  <desc>Terminal-style cover for a deep dive into REA, an MCP gateway that turns binaries and apps into agent-readable evidence.</desc>
+
+  <rect width="1200" height="630" fill="#0A0A0A"/>
+  <pattern id="dotgrid" width="24" height="24" patternUnits="userSpaceOnUse">
+    <circle cx="1" cy="1" r="1" fill="#FFFFFF" opacity="0.065"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#dotgrid)"/>
+
+  <rect x="72" y="64" width="1056" height="502" rx="12" fill="#141414" stroke="#2B2B2B" stroke-width="1"/>
+  <path d="M72 76a12 12 0 0 1 12-12h1032a12 12 0 0 1 12 12v36H72z" fill="#1B1B1B"/>
+  <line x1="72" y1="112" x2="1128" y2="112" stroke="#2B2B2B"/>
+
+  <circle cx="100" cy="88" r="5" fill="#938BFF"/>
+  <circle cx="124" cy="88" r="5" fill="#5C5C5C"/>
+  <circle cx="148" cy="88" r="5" fill="#5C5C5C"/>
+  <text x="172" y="93" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="14" fill="#9A9A9A">rea — reverse engineer anything</text>
+
+  <circle cx="1044" cy="88" r="4" fill="#938BFF"/>
+  <text x="1056" y="93" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="11" letter-spacing="2" fill="#9A9A9A">LIVE</text>
+
+  <text x="112" y="166" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="18"><tspan fill="#938BFF">$</tspan><tspan fill="#F5F5F5" dx="8">npx rea-agents setup</tspan></text>
+
+  <text x="108" y="314" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="136" font-weight="700" letter-spacing="2" fill="#F5F5F5">REA</text>
+  <rect x="114" y="332" width="214" height="4" fill="#938BFF"/>
+
+  <text x="112" y="392" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="33" fill="#9A9A9A">Reverse Engineer Anything</text>
+  <text x="112" y="437" font-family="'PingFang TC','Noto Sans TC','Heiti TC',sans-serif" font-size="22" fill="#D1D5DB">把黑盒應用拆成 AI Agent 看得懂的證據</text>
+
+  <rect x="112" y="470" width="64" height="34" rx="2" fill="#1B1B1B" stroke="#938BFF"/>
+  <text x="126" y="492" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12" letter-spacing="1" fill="#938BFF">MCP</text>
+
+  <rect x="188" y="470" width="116" height="34" rx="2" fill="#1B1B1B" stroke="#2B2B2B"/>
+  <text x="202" y="492" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12" letter-spacing="1" fill="#9A9A9A">23 TARGETS</text>
+
+  <rect x="316" y="470" width="100" height="34" rx="2" fill="#1B1B1B" stroke="#2B2B2B"/>
+  <text x="330" y="492" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12" letter-spacing="1" fill="#9A9A9A">172 TOOLS</text>
+
+  <line x1="720" y1="156" x2="720" y2="512" stroke="#2B2B2B"/>
+  <text x="760" y="170" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="11" letter-spacing="3" fill="#5C5C5C">HEX DUMP</text>
+
+  <g font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="13" fill="#5C5C5C">
+    <text x="760" y="202">0x0000  7F 45 4C 46 02 01 01 00</text>
+    <text x="760" y="228">0x0008  00 00 00 00 00 00 00 00</text>
+    <text x="760" y="254">0x0010  03 00 3E 00 01 00 00 00</text>
+    <rect x="752" y="268" width="304" height="28" fill="#938BFF" opacity="0.10"/>
+    <text x="760" y="286" fill="#938BFF">0x0018  40 00 00 00 00 00 00 00</text>
+    <text x="760" y="312">0x0020  00 00 00 00 00 00 00 00</text>
+    <text x="760" y="338">0x0028  00 00 00 00 00 00 00 00</text>
+    <text x="760" y="364">0x0030  00 00 00 00 00 00 00 00</text>
+    <text x="760" y="390">0x0038  00 00 00 00 00 00 00 00</text>
+    <text x="760" y="416">0x0040  00 00 00 00 00 00 00 00</text>
+    <text x="760" y="442">0x0048  00 00 00 00 00 00 00 00</text>
+  </g>
+
+  <text x="760" y="486" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="12" fill="#9A9A9A">evidence, not guesswork.</text>
+
+  <circle cx="116" cy="537" r="4" fill="#938BFF"/>
+  <text x="130" y="542" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="13" fill="#9A9A9A">331k stars</text>
+  <text x="232" y="542" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="13" fill="#3F3F3F">/</text>
+  <text x="250" y="542" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="13" fill="#9A9A9A">MIT</text>
+  <text x="300" y="542" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="13" fill="#3F3F3F">/</text>
+  <text x="318" y="542" font-family="'SF Mono','Menlo','DejaVu Sans Mono',monospace" font-size="13" fill="#9A9A9A">github.com/morluto/rea</text>
+</svg>
