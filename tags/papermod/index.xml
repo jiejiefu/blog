@@ -1,0 +1,779 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Papermod on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/papermod/</link><description>Recent content in Papermod on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Tue, 20 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/papermod/index.xml" rel="self" type="application/rss+xml"/><item><title>這個部落格是怎麼長出來的：Hugo × PaperMod × GitHub Pages 建站日誌</title><link>https://jiejiefu.github.io/blog/posts/hugo_papermod_devlog/</link><pubDate>Tue, 20 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/hugo_papermod_devlog/</guid><description>從空資料夾到 push 就上線的雙語部落格。這篇記錄 Hugo 與 PaperMod 的選擇、GitHub Actions 部署、首頁改造、圖片管線，以及十幾個只有真的踩過才會知道的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+  <p class="tldr__label">TL;DR</p>
+  <p><strong>這個部落格不是用 WordPress 或 Medium 蓋的</strong>，而是 Hugo（Go 寫的靜態網站生成器）＋ PaperMod 主題＋ GitHub Pages。整個流程只有三步：寫 Markdown、<code>git push</code>、GitHub Actions 幫你編譯並部署。</p>
+<p><strong>它不是一次完工，而是三個月內分了七次改版才長成現在的樣子。</strong> 這篇不是「Hugo 入門 30 分鐘」，而是一份真實的建站日誌：為什麼選這套、每一個決定換來什麼、以及那些文件不會告訴你、只有真的 build 下去才會炸出來的坑。</p>
+<p>如果你也想蓋一個不用租伺服器、沒有資料庫、沒有 Node.js 的部落格，這篇可以當成地圖；如果你只是想知道這個站的首頁為什麼長這樣，<a href="#7-day-5把首頁從-papermod-預設改成實驗室">第 7 節開始是拆解</a>。</p>
+
+</aside>
+
+<h2 id="1-為什麼自己蓋一個部落格">1. 為什麼自己蓋一個部落格</h2>
+<p>2026 年可以寫東西的地方多得是：Medium、Substack、方格子（vocus）、Notion，甚至直接在 GitHub 開一個 repo 寫 Markdown 都行。</p>
+<p>先把 WordPress、痞客邦這類傳統自架或老牌平台放在一邊。若只看 2026 年台灣繁體中文圈「公開發表與流量擴散」的寫作平台，大致可以分成三個梯隊：方格子與 Medium 這類自帶流量、讀者慣性強的平台約佔一半；Substack 代表的私域電子報約四分之一；Notion 與 GitHub / Markdown 這類知識庫型寫作則約兩成。下面的圓餅圖把各區間的中點歸一化成 100%，用來看相對量級；它不是平台官方統計，也不代表唯一的寫作方式。</p>
+<figure class="plotly-figure">
+  <div class="plotly-chart" id="plotly-1" data-plotly-bundle="basic" style="height: 440px" role="img" aria-label="2026 年台灣繁體中文寫作平台的概略佔比"></div>
+  <script type="application/json" class="plotly-chart__spec">{"data":[{"direction":"clockwise","hovertemplate":"%{label}\u003cbr\u003e%{percent}\u003cbr\u003e%{hovertext}\u003cextra\u003e\u003c/extra\u003e","hovertext":["第一梯隊：大眾創作與內容發現","第一梯隊：大眾創作與內容發現","第二梯隊：私域流量與電子報訂閱","第三梯隊：極客手札與生產力延伸"],"insidetextorientation":"horizontal","labels":["方格子","Medium","Substack","Notion/GitHub"],"marker":{"colors":["#6366F1","#818CF8","#C7D2FE","#94A3B8"],"line":{"color":"rgba(255,255,255,0.55)","width":1}},"sort":false,"textfont":{"size":16},"textposition":"inside","texttemplate":"%{label}\u003cbr\u003e%{percent}","type":"pie","values":[29,24,26,21]}],"layout":{"font":{"family":"-apple-system, BlinkMacSystemFont, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif","size":13},"legend":{"font":{"size":12},"orientation":"h","x":0.5,"xanchor":"center","y":-0.12,"yanchor":"top"},"margin":{"b":92,"l":16,"r":16,"t":16}}}</script>
+  <figcaption>2026 年台灣繁體中文寫作平台的概略佔比</figcaption>
+</figure>
+
+<p>而且這幾塊通常不是互斥的：常見的組合是先用 Medium 接外部 SEO，把讀者引流到 Substack 或方格子沉澱，再用 Notion / GitHub 管理長期的知識與作品集。平台負責被看見，自己的站負責把內容留下來。</p>
+<p>自己蓋一個站，說到底只換來三件事：</p>
+<ol>
+<li><strong>內容所有權</strong>：文章是 repo 裡的 <code>.md</code> 檔，搬到任何地方都只需要複製資料夾，不用匯出 XML 再祈禱格式不會跑掉。</li>
+<li><strong>版本控制</strong>：每一次改版都有 commit。首頁改壞了、CSS 順序放錯了，<code>git diff</code> 看得到，<code>git revert</code> 退得回去。</li>
+<li><strong>可以改到爽</strong>：首頁的終端機、文章底部的分享框、程式碼配色的檔名排序，這些平台不會給你，但你可以自己寫。</li>
+</ol>
+<p>代價也很具體：沒有留言系統、沒有後台編輯器、圖片要自己壓、SEO 要自己顧，而且<strong>你會花很多時間在處理「看起來只是設定」的東西</strong>。</p>
+<p>這篇的重點不是說服你自架。它是一份紀錄：把這個站從第一個 commit 到現在的決策與失敗留下來，讓下一個人在同一個地方少卡半天。</p>
+<h2 id="2-hugo-到底幫你做了什麼">2. Hugo 到底幫你做了什麼</h2>
+<p>先把名詞拆開。<strong>靜態網站生成器（Static Site Generator, SSG）不是 CMS</strong>，它不連資料庫、不執行後端程式，而是在 build time 把「Markdown + 模板 + 資源」編譯成一堆純 HTML、CSS、JS 檔案。部署的時候，你只是把這堆檔案放到一個會回傳檔案的伺服器上。</p>
+<p>Hugo 的特別之處是它是一個<strong>編譯成單一執行檔的 Go 程式</strong>：</p>
+<ul>
+<li>不需要 Node.js、不需要 <code>npm install</code>、不需要 webpack。</li>
+<li>官網下載一個 binary 就能跑，換電腦不用重建環境。</li>
+<li>幾十篇文章的站，build 時間是百毫秒等級，不是幾十秒。</li>
+</ul>
+<p>它的心智模型可以畫成這樣：</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;content/&lt;br/&gt;Markdown + Front Matter&#34;] --&gt; B[&#34;Hugo&lt;br/&gt;模板 + 資源管線&#34;]
+    C[&#34;layouts/&lt;br/&gt;assets/&lt;br/&gt;data/&#34;] --&gt; B
+    B --&gt; D[&#34;public/&lt;br/&gt;純靜態 HTML / CSS / JS&#34;]
+    D --&gt; E[&#34;GitHub Actions&lt;br/&gt;hugo --minify&#34;]
+    E --&gt; F[&#34;gh-pages 分支&#34;]
+    F --&gt; G[&#34;GitHub Pages&lt;br/&gt;HTTPS + CDN&#34;]</pre><p>一句話：<strong>Hugo 只負責「把檔案變成檔案」</strong>。網址、HTTPS、CDN、部署，是 GitHub Pages 的事。這個分工很清楚，也是它不容易壞的原因。</p>
+<h3 id="為什麼不是-nextjsastro-或-wordpress">為什麼不是 Next.js、Astro 或 WordPress</h3>
+<p>不是那些工具不好，而是這個站不需要它們的能力：</p>
+<table>
+	<thead>
+			<tr>
+					<th>方案</th>
+					<th>它擅長的事</th>
+					<th>這個站不需要的原因</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Next.js / Astro</td>
+					<td>SSR、API route、互動元件、hydration</td>
+					<td>文章是靜態內容，讀者不需要登入、留言或即時資料</td>
+			</tr>
+			<tr>
+					<td>WordPress</td>
+					<td>後台、外掛、留言、CMS 生態</td>
+					<td>需要 PHP + 資料庫 + 主機，備份與安全更新都是額外工作</td>
+			</tr>
+			<tr>
+					<td>Hugo</td>
+					<td>大量 Markdown、極快 build、單一 binary</td>
+					<td>正好是這個站的全部需求</td>
+			</tr>
+	</tbody>
+</table>
+<p>如果你需要會員、金流、即時儀表板，Hugo 不是答案。但如果你只是想寫文章，它會讓你忘記「網站」這件事，專心在內容上。</p>
+<h2 id="3-day-1安裝第一個-site以及-extended-的真相">3. Day 1：安裝、第一個 site，以及 Extended 的真相</h2>
+<p>macOS 用 Homebrew 安裝：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">brew install hugo
+</span></span><span class="line"><span class="cl">hugo version
+</span></span><span class="line"><span class="cl"><span class="c1"># hugo v0.168.0+extended+withdeploy darwin/arm64</span>
+</span></span></code></pre></div><p>建立一個新站：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">hugo new site my-blog
+</span></span><span class="line"><span class="cl"><span class="nb">cd</span> my-blog
+</span></span><span class="line"><span class="cl">hugo server
+</span></span><span class="line"><span class="cl"><span class="c1"># Web Server is available at http://localhost:1313/</span>
+</span></span></code></pre></div><p>初始化後的目錄不用全部記，但這幾個一定要知道：</p>
+<table>
+	<thead>
+			<tr>
+					<th>目錄 / 檔案</th>
+					<th>作用</th>
+					<th>這個站怎麼用</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>content/</code></td>
+					<td>Markdown 內容</td>
+					<td><code>content/zh-tw/</code>、<code>content/en/</code> 兩套</td>
+			</tr>
+			<tr>
+					<td><code>layouts/</code></td>
+					<td>覆寫主題模板</td>
+					<td>首頁、分享框、shortcodes</td>
+			</tr>
+			<tr>
+					<td><code>assets/</code></td>
+					<td>需要 Hugo Pipes 處理的資源</td>
+					<td>Console / Mermaid / Plotly 的 JS、自訂 CSS</td>
+			</tr>
+			<tr>
+					<td><code>static/</code></td>
+					<td>原樣複製到 <code>public/</code> 的檔案</td>
+					<td>幾乎沒用，本站的 JS 都走 assets pipeline</td>
+			</tr>
+			<tr>
+					<td><code>data/</code></td>
+					<td>結構化資料</td>
+					<td>首頁文案 <code>home.yaml</code></td>
+			</tr>
+			<tr>
+					<td><code>i18n/</code></td>
+					<td>介面翻譯</td>
+					<td>「閱讀全文」、分享框文案</td>
+			</tr>
+			<tr>
+					<td><code>themes/</code></td>
+					<td>主題</td>
+					<td>PaperMod，以 git submodule 管理</td>
+			</tr>
+			<tr>
+					<td><code>config.yaml</code></td>
+					<td>全站設定</td>
+					<td><code>baseURL</code>、語言、taxonomy、highlight</td>
+			</tr>
+	</tbody>
+</table>
+<h3 id="extended-不是-papermod-的必要條件">Extended 不是 PaperMod 的必要條件</h3>
+<p>網路上很多文章會說「現代 Hugo 主題都用 Sass，所以一定要裝 Extended」。這句話對 Stack、Blowfish 之類的主題大致成立，但<strong>對 PaperMod 不成立</strong>：PaperMod 的樣式是純 CSS，透過 Hugo Pipes 串接、壓縮、fingerprint，沒有 SCSS 編譯。</p>
+<p>那為什麼這個站還是用 Extended？兩個原因：</p>
+<ol>
+<li><strong>WebP 編碼</strong>：Extended 版本包含 WebP 支援。如果你讓 Hugo 直接處理圖片、輸出 WebP，Standard 版會做不到。</li>
+<li><strong>主題生態</strong>：哪天想換主題，Extended 幾乎不會是問題；反過來則要重裝。</li>
+</ol>
+<p>本站的內文圖片其實是用 <code>cwebp</code> 預先轉好的，不依賴 Hugo 的圖片處理，所以 Standard 也能 build。但既然 CI 一行 <code>extended: true</code> 就解決，沒必要為了「證明不需要」而冒險。</p>
+<h3 id="第一個坑hugo-server-會改寫-public">第一個坑：<code>hugo server</code> 會改寫 <code>public/</code></h3>
+<p><code>hugo server</code> 不是唯讀的開發伺服器。它會把非 minify、含 draft 的版本寫進 <code>public/</code>。所以如果你剛跑完 dev server，接著去檢查 <code>public/</code>，你看到的是<strong>開發產物</strong>，不是正式產物。</p>
+<p>正確順序永遠是：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">rm -rf public <span class="o">&amp;&amp;</span> hugo --minify
+</span></span></code></pre></div><p>這也是後來我在 <code>AGENTS.md</code> 裡寫給自己的第一條規則：<strong>要對 <code>public/</code> 做任何檢查，先重建。</strong></p>
+<h2 id="4-day-2選-papermod以及為什麼不是-stack--blowfish">4. Day 2：選 PaperMod，以及為什麼不是 Stack / Blowfish</h2>
+<p>選主題的標準不是「哪個最漂亮」，而是「哪個最不需要我維護」。</p>
+<table>
+	<thead>
+			<tr>
+					<th>主題</th>
+					<th>優點</th>
+					<th>這個站不選的原因</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>PaperMod</strong></td>
+					<td>純 CSS、無 Node、內建搜尋／多語／TOC／cover／code copy</td>
+					<td>預設外觀偏樸素，首頁最後還是自己寫</td>
+			</tr>
+			<tr>
+					<td>Stack</td>
+					<td>卡片式版面、側欄、搜尋、視覺完成度高</td>
+					<td>設定與模板比這個文字為主的站需要的多</td>
+			</tr>
+			<tr>
+					<td>Blowfish</td>
+					<td>Tailwind、版型與配色選擇多</td>
+					<td>需要 Tailwind 工具鏈，維護成本較高</td>
+			</tr>
+	</tbody>
+</table>
+<p>PaperMod 最大的價值是<strong>它幾乎沒有魔法</strong>。它用 Hugo 原生的 asset pipeline、原生的 taxonomy、原生的 multilingual，沒有額外的 bundler。你看到的 CSS 就是它載入的 CSS，你要覆寫就是放一個同名檔案到 <code>layouts/</code>。對一個想長期自己維護的站來說，這比「功能很多」重要。</p>
+<h3 id="用-git-submodule-安裝">用 git submodule 安裝</h3>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">git submodule add https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
+</span></span><span class="line"><span class="cl">git submodule update --init --recursive
+</span></span></code></pre></div><p>submodule 的好處是<strong>版本可重現</strong>：<code>themes/PaperMod</code> 指到一個固定的 commit，不會因為主題作者更新而讓你的站突然變形。代價是升級要刻意做：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="nb">cd</span> themes/PaperMod
+</span></span><span class="line"><span class="cl">git fetch <span class="o">&amp;&amp;</span> git checkout &lt;new-tag&gt;
+</span></span><span class="line"><span class="cl"><span class="nb">cd</span> ../..
+</span></span><span class="line"><span class="cl">git add themes/PaperMod
+</span></span><span class="line"><span class="cl">git commit -m <span class="s2">&#34;chore: bump PaperMod&#34;</span>
+</span></span></code></pre></div><p>而且如果你的專案裡有覆寫主題模板（這個站有，<code>layouts/_default/single.html</code> 就是為了把分享框插進文章底部），升級時要 <code>diff</code> 一次，不要直接覆蓋。</p>
+<p>CI 那邊也必須記得拉 submodule，否則 build 出來會是沒有主題的空殼：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">submodules</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span></code></pre></div><h3 id="configyaml-的最小片段"><code>config.yaml</code> 的最小片段</h3>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">baseURL</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;https://jiejiefu.github.io/blog/&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;Jay Fu Blog&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">theme</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;PaperMod&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">pagination</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pagerSize</span><span class="p">:</span><span class="w"> </span><span class="m">10</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">outputs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">home</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">HTML</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">RSS</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">JSON  </span><span class="w"> </span><span class="c"># PaperMod 的搜尋頁需要</span><span class="w">
+</span></span></span></code></pre></div><p><code>baseURL</code> 是第一個真正會讓人卡住的地方。這個站是 <strong>project page</strong>，網址是 <code>https://jiejiefu.github.io/blog/</code>，不是 <code>https://jiejiefu.github.io/</code>。如果 <code>baseURL</code> 少了 <code>/blog/</code>，build 不會報錯，但線上會出現：</p>
+<ul>
+<li>CSS / JS 404，頁面變成純文字</li>
+<li>文章內的絕對連結指到錯的地方</li>
+<li><code>og:image</code> 指向不存在的路徑</li>
+</ul>
+<p>判斷規則很簡單：</p>
+<table>
+	<thead>
+			<tr>
+					<th>你的 repo</th>
+					<th><code>baseURL</code></th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>username.github.io</code></td>
+					<td><code>https://username.github.io/</code></td>
+			</tr>
+			<tr>
+					<td><code>blog</code>（一般 repo）</td>
+					<td><code>https://username.github.io/blog/</code></td>
+			</tr>
+	</tbody>
+</table>
+<p>結尾的 <code>/</code> 不要省略。Hugo 不會幫你補。</p>
+<h2 id="5-day-3中英雙語以及圖片為什麼只放一份">5. Day 3：中英雙語，以及圖片為什麼只放一份</h2>
+<p>這個站有 <code>content/zh-tw/</code> 與 <code>content/en/</code> 兩套內容，預設語言是 zh-tw。設定大概長這樣：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">defaultContentLanguage</span><span class="p">:</span><span class="w"> </span><span class="l">zh-tw</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">hasCJKLanguage</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">languages</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">zh-tw</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">label</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;繁體中文&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">contentDir</span><span class="p">:</span><span class="w"> </span><span class="l">content/zh-tw</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="m">1</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">en</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">label</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;English&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">contentDir</span><span class="p">:</span><span class="w"> </span><span class="l">content/en</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="m">2</span><span class="w">
+</span></span></span></code></pre></div><p>兩邊用<strong>相同的 slug</strong>，PaperMod 的語言切換就會自動把同一篇文章串起來：</p>
+<pre tabindex="0"><code>content/zh-tw/posts/hugo_papermod_devlog/index.md
+content/en/posts/hugo_papermod_devlog/index.md
+</code></pre><p>介面文字則由 <code>i18n/</code> 覆寫。例如想把 <code>read_more</code> 固定成「閱讀全文」，就在 <code>i18n/zh-tw.yaml</code> 補：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">read_more</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">translation</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;閱讀全文&#34;</span><span class="w">
+</span></span></span></code></pre></div><h3 id="坑-1datahomezh-twyaml-在-hugo-0168-是無效的">坑 1：<code>data/home.zh-tw.yaml</code> 在 Hugo 0.168 是無效的</h3>
+<p>我一開始很自然地想把首頁文案拆成 <code>data/home.zh-tw.yaml</code> 和 <code>data/home.en.yaml</code>，結果 <code>site.Data.home</code> 取到的是空值。Hugo 會把檔名註冊成 key <code>&quot;home.zh-tw&quot;</code>，不是「home 的 zh-tw 版本」。</p>
+<p>正確做法是<strong>單一檔案、頂層用語言代碼分組</strong>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="c"># data/home.yaml</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">zh-tw</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">hero</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;把演算法帶進真實世界&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">en</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">hero</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;Turning Algorithms Into Reality&#34;</span><span class="w">
+</span></span></span></code></pre></div><p>模板端用 <code>index</code> 取值，不要用點號：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{</span><span class="w"> </span><span class="nx">$home</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">index</span><span class="w"> </span><span class="nx">hugo</span><span class="na">.Data</span><span class="w"> </span><span class="s">&#34;home&#34;</span><span class="w"> </span><span class="nx">site</span><span class="na">.Language.Lang</span><span class="w"> </span><span class="cp">}}</span>
+</span></span></code></pre></div><p>不要寫 <code>hugo.Data.home.zh-tw.title</code>。語言代碼含連字號，用點號取值在 Go template 裡不可靠；<code>index</code> 是唯一安全的寫法。</p>
+<h3 id="坑-2coverrelative-只適用於-zh-tw">坑 2：<code>cover.relative</code> 只適用於 zh-tw</h3>
+<p>PaperMod 的封面可以用 page bundle 裡的相對路徑：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">cover</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;images/cover.jpg&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">relative</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span></code></pre></div><p>這在 zh-tw 很好用，因為圖片真的放在 <code>content/zh-tw/posts/&lt;slug&gt;/images/</code>。但<strong>英文版不要照抄</strong>。英文版沒有 <code>images/</code> 資料夾，而 PaperMod 的 <code>cover.image | absURL</code> 不會跨 bundle 解析，會產生：</p>
+<pre tabindex="0"><code>/blog/en/posts/&lt;slug&gt;/images/cover.jpg   # 不存在
+</code></pre><p>結果就是 <code>og:image</code> 對外 404，Facebook / LinkedIn 分享預覽直接失效。英文版要寫絕對網址：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">cover</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;https://jiejiefu.github.io/blog/posts/&lt;slug&gt;/images/cover.jpg&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c"># 不要加 relative</span><span class="w">
+</span></span></span></code></pre></div><p>內文的 <code>![](images/01_cover.png)</code> 則是另一回事：那是 Hugo 的跨 bundle 資源解析，英文頁會自動指到 zh-tw 的圖片 URL。<strong>這是預期行為，不是壞連結</strong>。</p>
+<pre class="mermaid">flowchart TB
+    A[&#34;content/zh-tw/posts/slug/index.md&#34;] --&gt; B[&#34;/posts/slug/&#34;]
+    A --&gt; C[&#34;content/zh-tw/posts/slug/images/cover.jpg&#34;]
+    D[&#34;content/en/posts/slug/index.md&#34;] --&gt; E[&#34;/en/posts/slug/&#34;]
+    E -.-&gt;|內文圖片：Hugo 跨 bundle 解析| C
+    C --&gt; F[&#34;/blog/posts/slug/images/cover.jpg&#34;]</pre><p>所以圖片<strong>只需要放一份</strong>，放 zh-tw。英文版不用複製，重製圖片時也只覆蓋 zh-tw 的 <code>images/</code>，英文版會自動跟著更新。</p>
+<h2 id="6-day-4github-pages--github-actions">6. Day 4：GitHub Pages + GitHub Actions</h2>
+<p>這是整個站最容易「看起來設定好了，其實沒有」的一段。</p>
+<p>先分清楚兩種 Pages：</p>
+<table>
+	<thead>
+			<tr>
+					<th>類型</th>
+					<th>repo 名稱</th>
+					<th>網址</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>User / Organization site</td>
+					<td><code>&lt;username&gt;.github.io</code></td>
+					<td><code>https://&lt;username&gt;.github.io/</code></td>
+			</tr>
+			<tr>
+					<td>Project site</td>
+					<td>任何其他名稱（這個站是 <code>blog</code>）</td>
+					<td><code>https://&lt;username&gt;.github.io/blog/</code></td>
+			</tr>
+	</tbody>
+</table>
+<p>這個站是 project site，所以 <code>baseURL</code> 一定要有 <code>/blog/</code>。</p>
+<h3 id="這個站實際在跑的-workflow">這個站實際在跑的 workflow</h3>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Deploy Hugo site</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">on</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">push</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">branches</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="l">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">permissions</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">contents</span><span class="p">:</span><span class="w"> </span><span class="l">write</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">concurrency</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">group</span><span class="p">:</span><span class="w"> </span><span class="l">pages-deploy</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">cancel-in-progress</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">jobs</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">deploy</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l">ubuntu-latest</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">steps</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">submodules</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">fetch-depth</span><span class="p">:</span><span class="w"> </span><span class="m">0</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Setup Hugo</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">peaceiris/actions-hugo@v3</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">hugo-version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;latest&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">extended</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Build</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l">hugo --minify</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Deploy</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">peaceiris/actions-gh-pages@v4</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">github_token</span><span class="p">:</span><span class="w"> </span><span class="l">${{ secrets.GITHUB_TOKEN }}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">publish_dir</span><span class="p">:</span><span class="w"> </span><span class="l">./public</span><span class="w">
+</span></span></span></code></pre></div><p>逐段解釋：</p>
+<ul>
+<li><strong><code>on.push.branches: [main]</code></strong>：只有 main 會觸發。開 PR 不會部署，這是對的。</li>
+<li><strong><code>permissions.contents: write</code></strong>：<code>peaceiris/actions-gh-pages</code> 需要把 build 產物推到 <code>gh-pages</code> 分支，所以需要寫入權限。少這行會出現 <code>remote: Permission to ... denied</code>。</li>
+<li><strong><code>concurrency</code></strong>：避免兩次 push 同時部署、互相覆蓋。<code>cancel-in-progress: false</code> 是刻意的：寧可排隊，也不要讓部署中途被取消。</li>
+<li><strong><code>submodules: true</code></strong>：沒有這行，CI 裡的 <code>themes/PaperMod</code> 會是空資料夾。</li>
+<li><strong><code>fetch-depth: 0</code></strong>：抓完整 Git 歷史。若之後啟用 <code>enableGitInfo</code>，Hugo 才能用 commit 時間算 <code>.Lastmod</code>；淺層 clone 會讓時間失真。這個站目前沒開，但這是好習慣。</li>
+<li><strong><code>hugo --minify</code></strong>：正式 build。不需要 <code>--gc</code> 才能上線，<code>--gc</code> 是清快取，對這種規模的站差異不大。</li>
+<li><strong><code>publish_dir: ./public</code></strong>：把 Hugo 的輸出推上去。</li>
+</ul>
+<p>部署完成後，GitHub repo 的 <strong>Settings → Pages → Build and deployment</strong> 要設成：</p>
+<pre tabindex="0"><code>Source: Deploy from a branch
+Branch: gh-pages / (root)
+</code></pre><p>而不是「GitHub Actions」。這一點很容易搞混，因為 GitHub 現在把兩種模式都放在同一個下拉選單裡。</p>
+<h3 id="另一種做法官方-actionsdeploy-pages--oidc">另一種做法：官方 <code>actions/deploy-pages</code> + OIDC</h3>
+<p>如果你不想用 <code>gh-pages</code> 分支，也可以用 GitHub 官方的 Pages 流程：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">permissions</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">contents</span><span class="p">:</span><span class="w"> </span><span class="l">read</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pages</span><span class="p">:</span><span class="w"> </span><span class="l">write</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">id-token</span><span class="p">:</span><span class="w"> </span><span class="l">write</span><span class="w">
+</span></span></span></code></pre></div><p>搭配 <code>actions/configure-pages</code>、<code>actions/upload-pages-artifact</code>、<code>actions/deploy-pages</code>。這種模式的好處是：</p>
+<ul>
+<li>不需要把 build 產物推到另一個分支</li>
+<li>用 OIDC 的短期權杖，不需要長期 token</li>
+<li>Pages 的來源直接設成「GitHub Actions」</li>
+</ul>
+<p>兩種都可行。這個站選擇分支模式，是因為它在 2026 年初就設定好了，而且 <code>peaceiris</code> 的 action 很穩定；如果你現在從零開始，官方模式也值得考慮。<strong>重點是不要把兩種模式的設定混在一起</strong>：用 <code>peaceiris</code> 就設 <code>contents: write</code> + <code>gh-pages</code> 分支；用官方 action 就設 <code>pages: write</code> + <code>id-token: write</code> + GitHub Actions 來源。</p>
+<h3 id="一個我還沒改掉的風險">一個我還沒改掉的風險</h3>
+<p>workflow 裡的 <code>hugo-version: 'latest'</code> 很方便，但也很危險：某天 Hugo 升版、行為改變，你的 build 可能突然壞掉，而且是在 push 之後才發現。</p>
+<p>如果重來，我會釘版本：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">peaceiris/actions-hugo@v3</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">with</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">hugo-version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;0.168.0&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">extended</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span></code></pre></div><p>代價是每次升級要自己改一行；好處是「今天能 build，下個月也能 build」。</p>
+<h3 id="本機驗證正式產物">本機驗證正式產物</h3>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">rm -rf public <span class="o">&amp;&amp;</span> hugo --minify
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># 以已發布的文章為例</span>
+</span></span><span class="line"><span class="cl">ls public/posts/rea_reverse_engineer_anything/index.html
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># og:image 指向的檔案真的存在</span>
+</span></span><span class="line"><span class="cl">rg -o <span class="s1">&#39;og:image&#34; content=&#34;[^&#34;]+&#39;</span> public/posts/rea_reverse_engineer_anything/index.html
+</span></span></code></pre></div><h2 id="7-day-5把首頁從-papermod-預設改成實驗室">7. Day 5：把首頁從 PaperMod 預設改成「實驗室」</h2>
+<p>PaperMod 的首頁有三種模式：Regular、Home-Info、Profile。這個站一開始用 Home-Info，後來整頁重寫。原因不是 Home-Info 不好，而是它能做的事情就到那裡。</p>
+<h3 id="最重要的觀念layoutsindexhtml-會讓-homeinfoparams-完全失效">最重要的觀念：<code>layouts/index.html</code> 會讓 <code>homeInfoParams</code> 完全失效</h3>
+<p>Hugo 的 home page lookup 順序是：</p>
+<pre tabindex="0"><code>layouts/index.html  &gt;  layouts/_default/list.html
+</code></pre><p>只要你的專案裡有 <code>layouts/index.html</code>，PaperMod 的 <code>_default/list.html</code> 在首頁就<strong>永遠不會被呼叫</strong>。而 <code>homeInfoParams</code> 是 <code>home_info.html</code> 在讀的，<code>home_info.html</code> 只會被 <code>_default/list.html</code> 呼叫。</p>
+<p>所以會出現一個很詭異的狀態：</p>
+<ul>
+<li><code>config.yaml</code> 裡的 <code>homeInfoParams</code> 改了，首頁完全沒變</li>
+<li>把 <code>homeInfoParams</code> 整段刪掉，首頁也完全沒變</li>
+<li>你以為是快取，其實是那段設定根本沒有被讀</li>
+</ul>
+<p>這不是 bug，是 lookup order。要改首頁，就只能改 <code>layouts/index.html</code>。</p>
+<h3 id="首頁的資料放在-datahomeyaml">首頁的資料放在 <code>data/home.yaml</code></h3>
+<p>首頁的文案、技術領域卡、Console 的標籤全部集中在 <code>data/home.yaml</code>，用語言分組：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">zh-tw</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">hero</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">eyebrow</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;JAY FU · ENGINEERING LAB&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;把演算法帶進真實世界&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">topics</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;Edge AI&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">icon</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;cpu&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">blurb</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;從感測器串流到邊緣推論，再到完整的平台化部署與故障處理。&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="nt">en</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">hero</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">eyebrow</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;JAY FU · ENGINEERING LAB&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;Turning Algorithms Into Reality&#34;</span><span class="w">
+</span></span></span></code></pre></div><p>模板端一樣用 <code>index</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{</span><span class="w"> </span><span class="nx">$home</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">index</span><span class="w"> </span><span class="nx">hugo</span><span class="na">.Data</span><span class="w"> </span><span class="s">&#34;home&#34;</span><span class="w"> </span><span class="nx">site</span><span class="na">.Language.Lang</span><span class="w"> </span><span class="cp">}}</span>
+</span></span></code></pre></div><h3 id="console真資料與假資料要分清楚">Console：真資料與假資料要分清楚</h3>
+<p>首頁那塊終端機有兩種資料：</p>
+<table>
+	<thead>
+			<tr>
+					<th>區塊</th>
+					<th>性質</th>
+					<th>來源</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>文章數 / 標籤數 / 累積字數 / 最後建置</td>
+					<td><strong>真的</strong></td>
+					<td>Hugo build 時算出來</td>
+			</tr>
+			<tr>
+					<td>吞吐量 / 延遲 / 異常分數 / 日誌 / 進度條</td>
+					<td><strong>假的</strong></td>
+					<td><code>data/home.yaml</code> 的 <code>shared.console</code>，genact 式噪音</td>
+			</tr>
+	</tbody>
+</table>
+<p>真資料那段有一個很容易踩的細節：<strong>必須先過濾草稿</strong>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{</span><span class="w"> </span><span class="nx">$published</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">where</span><span class="w"> </span><span class="nx">$allPosts</span><span class="w"> </span><span class="s">&#34;Draft&#34;</span><span class="w"> </span><span class="k">false</span><span class="w"> </span><span class="cp">}}</span>
+</span></span></code></pre></div><p>Hugo 的 <code>site.RegularPages</code> 與 <code>site.Taxonomies</code> 都會把草稿算進去。這個站大部分文章是 <code>draft: true</code>，如果直接算，首頁的「文章數」會把草稿一起算進去，比線上實際的多。<code>hugo --buildDrafts</code> 也不會把 <code>.Draft</code> 改成 false，它只是把草稿納入建置，所以過濾邏輯要自己寫。</p>
+<p>還有一個小地方：標籤數不要用 <code>len site.Taxonomies.tags</code>，因為那是全站詞彙表，含草稿、而且跨語言合併的行為不一定是你想要的。從已發布文章的 <code>.Params.tags</code> 收集後去重，語意最清楚。</p>
+<h3 id="漸進增強沒有-js-也要看得到">漸進增強：沒有 JS 也要看得到</h3>
+<p>Console 的日誌是每 0.15 秒跳一次的裝飾，但<strong>伺服器端已經先渲染開機訊息、靜態指標與四格統計</strong>。沒有 JS 時，版面完整，只是不會動。</p>
+<p>JS 在三種情況會停掉計時器：</p>
+<ul>
+<li>使用者開啟 <code>prefers-reduced-motion</code></li>
+<li>分頁被隱藏（<code>visibilitychange</code>）</li>
+<li>Console 捲出視窗（<code>IntersectionObserver</code>）</li>
+</ul>
+<p>這樣它不會在背景空轉，也不會讓一個裝飾區塊吃掉手機的電。</p>
+<h3 id="坑-3逐頁條件不能放-extend_footerhtml">坑 3：逐頁條件不能放 <code>extend_footer.html</code></h3>
+<p>這是這個站最隱蔽的坑之一。</p>
+<p>PaperMod 的 <code>baseof.html</code> 裡，footer 是這樣呼叫的：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{</span><span class="w"> </span><span class="nx">partialCached</span><span class="w"> </span><span class="s">&#34;footer.html&#34;</span><span class="w"> </span><span class="na">.</span><span class="w"> </span><span class="na">.Layout</span><span class="w"> </span><span class="na">.Kind</span><span class="w"> </span><span class="o">(</span><span class="na">.Param</span><span class="w"> </span><span class="s">&#34;hideFooter&#34;</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="na">.Param</span><span class="w"> </span><span class="s">&#34;ShowCodeCopyButtons&#34;</span><span class="o">)</span><span class="w"> </span><span class="cp">}}</span>
+</span></span></code></pre></div><p><code>partialCached</code> 的快取鍵是 <code>.Layout</code>、<code>.Kind</code> 與後面兩個參數，<strong>不是頁面本身</strong>。所以任何「這個頁面要不要做 X」的判斷放進 <code>extend_footer.html</code>，實際會變成：</p>
+<blockquote>
+<p>第一個被算到的頁面決定全站。</p>
+</blockquote>
+<p>而且不會報錯、不會有 warning。Mermaid 一開始就是踩在這裡：判斷條件寫對了，但全站頁面裡只有 1 個拿到 <code>&lt;script type=&quot;importmap&quot;&gt;</code>。</p>
+<p>規則很簡單：<strong>逐頁條件一律放 <code>extend_head.html</code></strong>。<code>head.html</code> 是用 <code>{{ partial }}</code> 逐頁求值的，沒有快取問題。</p>
+<h3 id="坑-4script-要走-assets-pipeline">坑 4：script 要走 assets pipeline</h3>
+<p>一開始我把 Console 的 JS 放在 <code>static/js/</code>，用 <code>absURL</code> 指向它。這樣可以跑，但沒有 fingerprint：</p>
+<ul>
+<li>讀者會拿到瀏覽器快取的舊版 JS</li>
+<li>你改了程式，讀者要硬重新整理才看得到</li>
+</ul>
+<p>正確做法是走 Hugo 的 assets pipeline：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nx">resources</span><span class="na">.Get</span><span class="w"> </span><span class="s">&#34;js/lab-console.js&#34;</span><span class="w"> </span><span class="cp">}}</span>
+</span></span><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="nx">$js</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="na">.</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">minify</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">fingerprint</span><span class="w"> </span><span class="cp">}}</span>
+</span></span><span class="line"><span class="cl"><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;</span><span class="cp">{{</span><span class="w"> </span><span class="nx">$js</span><span class="na">.RelPermalink</span><span class="w"> </span><span class="cp">}}</span><span class="s">&#34;</span> <span class="na">defer</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="cp">}}</span>
+</span></span></code></pre></div><p>不要直接把 <code>{{ . | minify | fingerprint }}</code> 印在 <code>src</code> 裡。那樣會呼叫 Resource 的 <code>String()</code>，輸出的是來源路徑（<code>/js/lab-console.js</code>），不是加工後的檔案，結果就是 404。要取 <code>$js.RelPermalink</code>。</p>
+<h2 id="8-day-6內容與圖片管線">8. Day 6：內容與圖片管線</h2>
+<h3 id="page-bundle一篇文就是一個資料夾">Page bundle：一篇文就是一個資料夾</h3>
+<p>這個站的文章用 leaf bundle：</p>
+<pre tabindex="0"><code>content/zh-tw/posts/hugo_papermod_devlog/
+├── index.md
+└── images/
+    └── cover.jpg
+</code></pre><p>好處是圖片跟文章一起版本控制、一起搬移。內文用相對路徑：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-markdown" data-lang="markdown"><span class="line"><span class="cl">![<span class="nt">封面</span>](<span class="na">images/cover.jpg</span>)
+</span></span></code></pre></div><p>Hugo 會把它解析成這篇文章的資源。</p>
+<h3 id="圖片格式不要等到-200-mb-才後悔">圖片格式：不要等到 200 MB 才後悔</h3>
+<p>這個站曾經把資訊圖全部存成 PNG，單檔最大 9.3 MB，六篇合計超過 200 MB。clone 下來很痛，Pages 的頻寬也浪費。後來統一成：</p>
+<table>
+	<thead>
+			<tr>
+					<th>用途</th>
+					<th>格式</th>
+					<th>尺寸</th>
+					<th>指令</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>內文資訊圖</td>
+					<td>WebP q82</td>
+					<td>維持原始寬度（1376px）</td>
+					<td><code>magick</code> + <code>cwebp</code></td>
+			</tr>
+			<tr>
+					<td>封面</td>
+					<td>JPEG q85</td>
+					<td>1200px 寬</td>
+					<td><code>magick -resize 1200x</code></td>
+			</tr>
+			<tr>
+					<td>分享預覽</td>
+					<td>跟封面同一張</td>
+					<td>1200×630</td>
+					<td>同上</td>
+			</tr>
+	</tbody>
+</table>
+<p>三個不能妥協的理由：</p>
+<ol>
+<li><strong>內文圖不要再縮小</strong>。PaperMod 的 <code>--main-width</code> 是 720px，1376px 大約是 1.9 倍，正好是 retina 的倍率。縮到 1000px 只剩 1.4 倍，在高解析螢幕上會糊。</li>
+<li><strong><code>-alpha off</code> 是必要的</strong>。這些 AI 產出的圖 alpha 通道通常 100% 不透明，留著只是死重。</li>
+<li><strong>封面用 JPEG，不要用 WebP</strong>。PaperMod 會把 <code>cover.image</code> 直接塞進 <code>og:image</code>，Facebook / LinkedIn 對 WebP 的預覽支援不完整。</li>
+</ol>
+<p>實際指令：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="c1"># 內文圖：PNG → WebP</span>
+</span></span><span class="line"><span class="cl">magick input.png -alpha off -strip /tmp/t.png
+</span></span><span class="line"><span class="cl">cwebp -quiet -q <span class="m">82</span> -m <span class="m">6</span> /tmp/t.png -o output.webp
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># 封面：1200px 寬、q85</span>
+</span></span><span class="line"><span class="cl">magick cover.png -resize 1200x -strip -quality <span class="m">85</span> cover.jpg
+</span></span></code></pre></div><p>做完之後，<code>content/</code> 從兩百多 MB 降到 15 MB 左右，<code>public/</code> 大約 9 MB。這個數字不是為了炫技，而是<strong>讀者第一次打開網站的等待時間</strong>。</p>
+<p><img alt="content/ 改版前後與 public/ 部署產物的體積比較" loading="lazy" src="/blog/posts/hugo_papermod_devlog/images/01_content_size.webp"></p>
+<p><em>同一批資訊圖，只換編碼與尺寸；<code>public/</code> 是實際部署出去的產物。</em></p>
+<h3 id="坑-5草稿不要放進-content">坑 5：草稿不要放進 <code>content/</code></h3>
+<p>page bundle 裡任何 <code>.md</code> 都會被 Hugo 當成頁面渲染，並發佈成公開 URL。不是只有 <code>index.md</code>。</p>
+<p>曾經有一次，我把 ChatGPT 產的草稿 <code>ChatGPT_artical.md</code> 放進某個 page bundle，裡面有 <code>mermaid</code> shortcode，但那個當下 shortcode template 還沒建好，<code>hugo build</code> 直接失敗。更糟的是，如果它 build 成功，那份草稿就會變成一個公開網址。</p>
+<p>所以後來的規則是：<strong>原始草稿一律放 repo 根的 <code>drafts/</code></strong>，那個資料夾在 <code>.gitignore</code> 裡。<code>content/</code> 只放要發佈的東西。</p>
+<h2 id="9-day-7四個功能四種坑">9. Day 7：四個功能，四種坑</h2>
+<h3 id="katexdelimiter-要一對一對寫">KaTeX：delimiter 要一對一對寫</h3>
+<p>Hugo 沒有 <code>math</code> 這個設定鍵。要讓數學公式原樣輸出、交給 KaTeX 渲染，用的是 Goldmark 的 passthrough extension：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">markup</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">goldmark</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">extensions</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="nt">passthrough</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">enable</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">delimiters</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">block</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span>- <span class="p">[</span><span class="s1">&#39;$$&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;$$&#39;</span><span class="p">]</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">inline</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span>- <span class="p">[</span><span class="s1">&#39;\(&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;\)&#39;</span><span class="p">]</span><span class="w">
+</span></span></span></code></pre></div><p>兩個細節：</p>
+<ul>
+<li><strong>delimiter 必須是成對的巢狀陣列</strong>，不是扁平陣列。寫成 <code>['$$', '$$']</code> 是對的；寫成扁平陣列會讓 Go 端取到單一字元，甚至直接 panic。</li>
+<li><strong>inline 不要用 <code>$</code></strong>。站上的英文文章有 <code>$100 billion</code>、<code>$900,000</code> 這種金額，一旦 <code>$</code> 變成 delimiter，同一段出現兩個金額就會被整段當成 LaTeX 吞掉。</li>
+</ul>
+<h3 id="mermaiddeterministicids-不能拿掉">Mermaid：<code>deterministicIds</code> 不能拿掉</h3>
+<p>Mermaid 的初始化裡有一個選項：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="nx">mermaid</span><span class="p">.</span><span class="nx">initialize</span><span class="p">({</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">startOnLoad</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">deterministicIds</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl"><span class="p">});</span>
+</span></span></code></pre></div><p>不開的話，<code>mermaid.run()</code> 內部用 <code>Date.now()</code> 產生 SVG id。同一個頁面有多張圖時，很容易在同一毫秒內撞到相同 id，結果是：</p>
+<ul>
+<li>後面的圖拿到重複的 id</li>
+<li>產出沒有 <code>viewBox</code> 的空 SVG</li>
+<li>視覺上第 2 張之後的圖疊在一起</li>
+</ul>
+<p>這個 bug 不會報錯，只會靜靜地畫錯。所以 <code>deterministicIds: true</code> 是必要的，不是可選的。</p>
+<p>另外，<code>public/</code> 裡永遠不會有 Mermaid 產生的 SVG，因為那是 client 端渲染。要驗證「每張圖都有 viewBox」，只能在瀏覽器裡跑：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">hugo server -D <span class="p">&amp;</span>
+</span></span><span class="line"><span class="cl"><span class="nv">CH</span><span class="o">=</span><span class="s2">&#34;/Applications/Google Chrome.app/Contents/MacOS/Google Chrome&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="s2">&#34;</span><span class="nv">$CH</span><span class="s2">&#34;</span> --headless<span class="o">=</span>new --disable-gpu --user-data-dir<span class="o">=</span><span class="s2">&#34;</span><span class="k">$(</span>mktemp -d<span class="k">)</span><span class="s2">&#34;</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --virtual-time-budget<span class="o">=</span><span class="m">60000</span> --dump-dom <span class="se">\
+</span></span></span><span class="line"><span class="cl">  <span class="s2">&#34;http://localhost:1313/blog/posts/mermaid_smoke_test/&#34;</span> &gt; /tmp/d.html
+</span></span></code></pre></div><p>然後數 <code>&lt;svg&gt;</code> 裡沒有 <code>viewBox</code> 的數量，必須是 0。</p>
+<h3 id="plotly不要讓每個頁面都付-15-mb">Plotly：不要讓每個頁面都付 1.5 MB</h3>
+<p>Plotly 的 Full bundle 是 4.83 MB min / 1.48 MB gzip，Basic 是 1.20 MB min / 398 KB gzip。這不是「載入一次就好」的成本，而是每個第一次進來的讀者都要付。</p>
+<p>所以這個站的做法是：</p>
+<ul>
+<li><code>plotly-init.js</code> 很小（原始碼約 8 KB，gzip 後約 3 KB），<strong>只在用到 plotly shortcode 的頁面載入</strong></li>
+<li>Plotly 本體由 JS 依容器上的 <code>data-plotly-bundle</code> 動態載入</li>
+<li>同一頁只要有一張 <code>full</code>，全頁載一次 <code>full</code>（full 是 basic 的超集）</li>
+<li>一般文章連 <code>plotly-init.js</code> 都不載，成本是 0</li>
+</ul>
+<table>
+	<thead>
+			<tr>
+					<th>頁面</th>
+					<th>首次載入</th>
+					<th>回訪</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>一般文章</td>
+					<td>0</td>
+					<td>0</td>
+			</tr>
+			<tr>
+					<td>Basic 圖表頁</td>
+					<td>~398 KB gzip</td>
+					<td>0（CDN 快取）</td>
+			</tr>
+			<tr>
+					<td>Full 圖表頁</td>
+					<td>~1.48 MB gzip</td>
+					<td>0</td>
+			</tr>
+	</tbody>
+</table>
+<p>判斷頁面有沒有用 shortcode，用 <code>.HasShortcode &quot;plotly&quot;</code>，不要用 <code>strings.Contains .RawContent &quot;plotly&quot;</code>。後者會讓正文提到 plotly 的文章也誤載。</p>
+<h3 id="chromaclass-based-高亮與檔案排序">Chroma：class-based 高亮與檔案排序</h3>
+<p>Hugo 預設的 <code>noClasses: true</code> 會把顏色寫成行內 style，自訂 CSS 很難蓋。改成：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">markup</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">highlight</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">noClasses</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
+</span></span></span></code></pre></div><p>然後用 <code>hugo gen chromastyles --style=tokyonight-day</code> 產生 token 色。這裡有一個不明顯的坑：PaperMod 內建的是 Catppuccin，而且<strong>不會被移除</strong>。如果你的 Tokyo Night 沒有定義某個 token class，就會漏出 Catppuccin 的顏色（例如 <code>.nv</code> 的淡粉色在淺色底上幾乎看不見）。</p>
+<p>解法是加一層低特異度的 reset：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-css" data-lang="css"><span class="line"><span class="cl"><span class="p">:</span><span class="nd">root</span> <span class="p">.</span><span class="nc">chroma</span> <span class="o">*,</span> <span class="p">:</span><span class="nd">root</span> <span class="p">.</span><span class="nc">bg</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">color</span><span class="p">:</span> <span class="kc">inherit</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">background-color</span><span class="p">:</span> <span class="kc">transparent</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">font-style</span><span class="p">:</span> <span class="kc">inherit</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">font-weight</span><span class="p">:</span> <span class="kc">inherit</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">text-decoration</span><span class="p">:</span> <span class="kc">inherit</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>還有一個更隱蔽的：<code>resources.Match &quot;css/extended/*.css&quot;</code> 是<strong>依檔名排序</strong>。所以 <code>chroma-00-reset.css</code> 必須早於 <code>chroma-tokyonight-*.css</code>，<code>zz-chroma-tokyonight.css</code> 必須晚於 <code>custom.css</code>。改名會靜默改變結果，不會報錯。</p>
+<h2 id="10-三個月七次改版">10. 三個月，七次改版</h2>
+<p>與其說這個站是一次蓋好的，不如說它是三個月內分了七次改版才長成現在的樣子。每一次都解決一個具體的痛點，而不是為了加功能而加：</p>
+<table>
+	<thead>
+			<tr>
+					<th>迭代</th>
+					<th>做了什麼</th>
+					<th>解決的痛點</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>1</td>
+					<td>Hugo + PaperMod + Actions + 第一篇文章</td>
+					<td>先讓「寫文章 → 上線」這條路徑通</td>
+			</tr>
+			<tr>
+					<td>2</td>
+					<td>整理 tags / draft、把草稿趕出 <code>content/</code>、寫 <code>AGENTS.md</code></td>
+					<td>repo 開始變大，而且草稿會意外曝光</td>
+			</tr>
+			<tr>
+					<td>3</td>
+					<td>圖片全面改 WebP / JPEG</td>
+					<td><code>content/</code> 兩百多 MB，clone 與部署都很痛</td>
+			</tr>
+			<tr>
+					<td>4</td>
+					<td>首頁改版：<code>layouts/index.html</code> + <code>data/home.yaml</code> + Console</td>
+					<td>Home-Info 模式已經撐不住想放的東西</td>
+			</tr>
+			<tr>
+					<td>5</td>
+					<td>Mermaid、KaTeX、分享框</td>
+					<td>文章開始有流程圖、公式與分享需求</td>
+			</tr>
+			<tr>
+					<td>6</td>
+					<td>Tokyo Night、黑白配色、Console 動畫</td>
+					<td>程式碼區塊四個角黑黑的，視覺不一致</td>
+			</tr>
+			<tr>
+					<td>7</td>
+					<td>Plotly shortcode、這篇文章</td>
+					<td>有些資料用靜態圖片講不清楚</td>
+			</tr>
+	</tbody>
+</table>
+<p>回頭看，最值得的兩次是第 3 次（圖片瘦身）和第 4 次（首頁改版）。前者讓網站真的變快，後者讓網站開始有自己的樣子。</p>
+<h2 id="11-如果重來我會先做這五件事">11. 如果重來，我會先做這五件事</h2>
+<ol>
+<li><strong>第一天就寫 <code>layouts/index.html</code></strong>。不要先花時間調 <code>homeInfoParams</code>，反正最後一定會被 <code>layouts/index.html</code> 取代。</li>
+<li><strong>第一天就定圖片規範</strong>。內文 WebP q82 / 1376px、封面 JPEG q85 / 1200px，寫進 <code>AGENTS.md</code>，不要等到 200 MB 才回頭救。</li>
+<li><strong>第一天就把草稿放在 <code>content/</code> 外面</strong>。page bundle 裡任何 <code>.md</code> 都會被發佈，這個坑一次就夠了。</li>
+<li><strong>釘住 Hugo 版本</strong>。<code>hugo-version: 'latest'</code> 現在很方便，但未來的某一天會讓你突然 build 不起來。</li>
+<li><strong>加一個 link checker</strong>。<code>projects/</code> 和 <code>resume/</code> 這兩個 draft 頁面曾經在選單裡放了很久的 404，直到有人點到才發現。</li>
+</ol>
+<p>還有一些是刻意不做的：沒有留言系統（要維護）、沒有 CMS（Markdown 就是 CMS）、搜尋是 client-side Fuse.js（文章量還不需要 Elasticsearch）。<strong>知道自己不需要什麼，跟知道要用什麼一樣重要。</strong></p>
+<h2 id="12-踩坑速查表">12. 踩坑速查表</h2>
+<table>
+	<thead>
+			<tr>
+					<th>症狀</th>
+					<th>原因</th>
+					<th>修法</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>線上 CSS / JS 404、頁面沒樣式</td>
+					<td><code>baseURL</code> 少了 <code>/blog/</code></td>
+					<td>改成 <code>https://&lt;user&gt;.github.io/blog/</code>，結尾留 <code>/</code></td>
+			</tr>
+			<tr>
+					<td>CI build 出來沒有主題</td>
+					<td>checkout 沒拉 submodule</td>
+					<td><code>submodules: true</code></td>
+			</tr>
+			<tr>
+					<td>push 後部署失敗、權限被拒</td>
+					<td>workflow 沒有寫入權限</td>
+					<td><code>permissions: contents: write</code>（分支模式）</td>
+			</tr>
+			<tr>
+					<td>首頁改了 <code>homeInfoParams</code> 卻沒變</td>
+					<td><code>layouts/index.html</code> 讓 list.html 不再被呼叫</td>
+					<td>改 <code>layouts/index.html</code>，或刪掉它</td>
+			</tr>
+			<tr>
+					<td>首頁文章數比實際多</td>
+					<td><code>site.RegularPages</code> 含草稿</td>
+					<td><code>where ... &quot;Draft&quot; false</code></td>
+			</tr>
+			<tr>
+					<td>英文版 <code>og:image</code> 404</td>
+					<td><code>cover.relative</code> 不跨 bundle</td>
+					<td>英文版用絕對網址，不加 <code>relative</code></td>
+			</tr>
+			<tr>
+					<td><code>data/home.zh-tw.yaml</code> 取不到</td>
+					<td>Hugo 把它註冊成 <code>home.zh-tw</code></td>
+					<td>單一 <code>home.yaml</code> + <code>index</code> 取值</td>
+			</tr>
+			<tr>
+					<td>某頁的 footer 條件影響全站</td>
+					<td><code>partialCached</code> 的快取鍵不是頁面</td>
+					<td>逐頁條件放 <code>extend_head.html</code></td>
+			</tr>
+			<tr>
+					<td>改了 JS 讀者卻拿到舊版</td>
+					<td>沒有 fingerprint</td>
+					<td><code>resources.Get</code> + <code>minify</code> + <code>fingerprint</code></td>
+			</tr>
+			<tr>
+					<td>Mermaid 第 2 張之後疊在一起</td>
+					<td><code>deterministicIds</code> 沒開</td>
+					<td><code>mermaid.initialize({ deterministicIds: true })</code></td>
+			</tr>
+			<tr>
+					<td>公式沒渲染，畫面出現 <code>$$</code></td>
+					<td>沒開 passthrough，或 delimiter 寫錯</td>
+					<td>成對的巢狀 delimiter，inline 用 <code>\(...\)</code></td>
+			</tr>
+			<tr>
+					<td>檢查 <code>public/</code> 看到草稿版</td>
+					<td><code>hugo server</code> 會改寫 <code>public/</code></td>
+					<td><code>rm -rf public &amp;&amp; hugo --minify</code></td>
+			</tr>
+	</tbody>
+</table>
+<h2 id="13-結尾網站是活的">13. 結尾：網站是活的</h2>
+<p>這個站最有趣的地方，不是它用了什麼技術，而是<strong>它會跟著內容一起長</strong>。今天加一個 Mermaid render hook，明天加一個 Plotly shortcode，後天把首頁的 Console 從靜態改成會動的。每一次改動都留下 commit，也留下一個可以回頭看的決策。</p>
+<p>如果你問我「值不值得自己蓋」，我的答案會是：<strong>如果你打算長期寫，值得；如果你只是要發三篇文，不值得。</strong> 因為自架的價值不在第一篇文章，而在第一百篇——當你需要一個別的平台不會給你的版面、一個自己的網址、一份可以帶著走的 Markdown 時，前面那些踩坑才會開始回本。</p>
+<p>首頁那台 genact 風格的 Engineering Console 本身也值得一篇：真實統計與假日誌是怎麼分開的、三個指標為什麼用腳本化序列而不是隨機數、以及怎麼讓它在沒有 JS 的時候仍然可讀。</p>
+<p>如果你想看這個站的原始碼，它在 <a href="https://github.com/jiejiefu/blog">github.com/jiejiefu/blog</a>。</p>
+<hr>
+<h2 id="參考資料">參考資料</h2>
+<ul>
+<li><a href="https://gohugo.io/documentation/">Hugo 官方文件</a></li>
+<li><a href="https://gohugo.io/host-and-deploy/deploy-to-github-pages/">Hugo：Deploy to GitHub Pages</a></li>
+<li><a href="https://gohugo.io/content-management/multilingual/">Hugo：Multilingual mode</a></li>
+<li><a href="https://gohugo.io/templates/lookup-order/">Hugo：Template lookup order</a></li>
+<li><a href="https://gohugo.io/content-management/image-processing/">Hugo：Image processing</a></li>
+<li><a href="https://github.com/adityatelange/hugo-PaperMod/wiki">PaperMod Wiki</a></li>
+<li><a href="https://docs.github.com/en/pages">GitHub Pages 文件</a></li>
+<li><a href="https://github.com/peaceiris/actions-gh-pages">peaceiris/actions-gh-pages</a></li>
+<li><a href="https://katex.org/docs/autorender">KaTeX：Auto-render extension</a></li>
+<li><a href="https://mermaid.js.org/">Mermaid 文件</a></li>
+<li><a href="https://plotly.com/javascript/">Plotly JavaScript 文件</a></li>
+</ul>
+<blockquote>
+<p>本文的數字與指令以 2026-10 的 repo 狀態為準。Hugo、PaperMod 與 GitHub Actions 都持續更新，實際行為請以你安裝的版本與官方文件為準。</p>
+</blockquote>
+]]></content:encoded></item></channel></rss>
