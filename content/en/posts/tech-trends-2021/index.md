@@ -1,13 +1,12 @@
 ---
-title: "TECH TRENDS FOR 2021"
+title: "Tech Trends for 2021"
 tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-06
 cover:
-    image: "cover.jpg"
+    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2021/cover.jpg"
     alt: "TECH TRENDS FOR 2021"
     caption: ""
-    relative: true
 
 # 2021 Tech Trends & Predictions for Developers
 

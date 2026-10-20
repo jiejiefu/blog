@@ -1,13 +1,12 @@
 ---
-title: "TECH TRENDS FOR 2024"
+title: "Tech Trends for 2024"
 tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-03
 cover:
-    image: "cover.jpg"
+    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2024/cover.jpg"
     alt: "TECH TRENDS FOR 2024"
     caption: "軟體工程師職缺市場的波動，虛擬實境的影響，以及自研晶片對硬體架構的改變。"
-    relative: true
 
 # You probably won’t survive 2024... Top 10 Tech Trends
 
