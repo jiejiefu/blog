@@ -64,6 +64,15 @@
 {{- end }}
 {{- end }}
 
+{{- /* 文章內嵌影片（local-video shortcode）。約 1.6 KB，只控制播放／暫停、
+       視窗與分頁可見性，以及 prefers-reduced-motion。逐頁判斷同樣只能放 head。 */ -}}
+{{- if .HasShortcode "local-video" }}
+{{- with resources.Get "js/local-video.js" }}
+{{- $js := . | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}"></script>
+{{- end }}
+{{- end }}
+
 {{- if .HasShortcode "memory" }}
 {{- with resources.Get "js/memory-fold.js" }}
 {{- $js := . | minify | fingerprint }}

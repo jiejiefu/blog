@@ -661,3 +661,88 @@
         height: 38px;
     }
 }
+
+/* ---- 文章內嵌影片（local-video shortcode）--------------------------------- */
+.post-video {
+    margin: 2rem 0;
+}
+
+.post-video__frame {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0b1220;
+    border: 1px solid var(--border);
+}
+
+.post-video__media {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: pointer;
+}
+
+.post-video__media:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.post-video__toggle {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(11, 18, 32, 0.35);
+    color: #e8eef9;
+    cursor: pointer;
+}
+
+.post-video__toggle[hidden] {
+    display: none;
+}
+
+.post-video__toggle svg {
+    width: 58px;
+    height: 58px;
+    padding: 16px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background: rgba(11, 18, 32, 0.72);
+    border: 1px solid rgba(232, 238, 249, 0.32);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.post-video__toggle:hover svg {
+    transform: scale(1.06);
+    background: rgba(11, 18, 32, 0.86);
+}
+
+.post-video__toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -4px;
+}
+
+.post-video__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.post-video__caption {
+    margin-top: 0.7rem;
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--secondary);
+    text-align: center;
+}

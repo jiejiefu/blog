@@ -1,0 +1,45 @@
+{{- /* 頁面 bundle 內的影片：靜音自動循環，尊重 prefers-reduced-motion。
+       用法：{{< local-video src="intro.mp4" poster="intro-poster.jpg" caption="..." >}}
+       src / poster 都是相對於目前 page bundle 的檔名。 */ -}}
+{{- $src := .Get "src" -}}
+{{- if not $src -}}
+{{- errorf "local-video: 缺少 src（%s）" .Page.File.Path -}}
+{{- end -}}
+{{- $video := .Page.Resources.GetMatch $src -}}
+{{- if not $video -}}
+{{- errorf "local-video: 在 bundle 找不到 %q（%s）" $src .Page.File.Path -}}
+{{- end -}}
+{{- $poster := "" -}}
+{{- with .Get "poster" -}}
+{{- $p := $.Page.Resources.GetMatch . -}}
+{{- if $p -}}
+{{- $poster = $p.RelPermalink -}}
+{{- else -}}
+{{- errorf "local-video: 在 bundle 找不到 poster %q（%s）" . $.Page.File.Path -}}
+{{- end -}}
+{{- end -}}
+{{- $caption := .Get "caption" -}}
+<figure class="post-video" data-post-video>
+    <div class="post-video__frame">
+        <video
+            class="post-video__media"
+            src="{{ $video.RelPermalink }}"
+            {{- with $poster }} poster="{{ . }}"{{ end }}
+            muted
+            loop
+            playsinline
+            preload="metadata"
+            tabindex="0"
+            aria-label="{{ $caption | default "開場動畫" }}"
+        ></video>
+        <button class="post-video__toggle" type="button" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M8 5.5v13l11-6.5z" fill="currentColor"></path>
+            </svg>
+            <span class="post-video__sr">播放影片</span>
+        </button>
+    </div>
+    {{- with $caption }}
+    <figcaption class="post-video__caption">{{ . }}</figcaption>
+    {{- end }}
+</figure>
