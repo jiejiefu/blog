@@ -91,7 +91,7 @@ def motif_black_mirror(c):
       <stop offset="0" stop-color="{accent}" stop-opacity=".18"/>
       <stop offset=".48" stop-color="{accent}" stop-opacity="0"/>
     </linearGradient>
-    """
+"""
     body = [
         f'<rect x="690" y="112" width="402" height="422" rx="10" '
         f'fill="url(#bmglass)" stroke="#2E2E34" stroke-width="1.4"/>',
@@ -810,14 +810,24 @@ def build_svgs():
 
 
 # --------------------------------------------------------------------------
-# Collection mini marks: one original symbol per film, drawn at 58x58
+# Collection mini marks: one original symbol per film.
+#
+# Each mark is drawn in its own arbitrary coordinate space and carries a
+# bounding box so the collection can normalise it to a common optical size.
+# Without the normalisation the wide marks (blade runner, paprika) look huge
+# and the compact ones (2001, matrix) look like specks.
 # --------------------------------------------------------------------------
 
+MARK_BOX = 86
 
-def _mini(cx, cy, key, body):
+
+def _mini(cx, cy, key, body, bbox, zoom=1.0):
+    x0, y0, x1, y1 = bbox
+    scale = MARK_BOX / max(x1 - x0, y1 - y0) * zoom
+    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
     return (
-        f'<g data-mini="{key}" transform="translate({cx:.1f} {cy:.1f})">'
-        f"{body}</g>"
+        f'<g data-mini="{key}" transform="translate({cx:.1f} {cy:.1f}) '
+        f'scale({scale:.4f}) translate({-mx:.2f} {-my:.2f})">{body}</g>'
     )
 
 
@@ -831,7 +841,7 @@ def mini_black_mirror(cx, cy):
         '<rect x="2" y="-10" width="4" height="4" fill="#7DD3FC" opacity=".55"/>'
         '<rect x="-4" y="10" width="4" height="4" fill="#7DD3FC" opacity=".7"/>'
     )
-    return _mini(cx, cy, "bm", body)
+    return _mini(cx, cy, "bm", body, bbox=(-17, -23, 17, 23))
 
 
 def mini_2001(cx, cy):
@@ -841,7 +851,7 @@ def mini_2001(cx, cy):
         '<line x1="-9" y1="-20" x2="-9" y2="20" stroke="#FFFFFF" stroke-opacity=".22"/>'
         '<line x1="8" y1="-20" x2="8" y2="20" stroke="#FFFFFF" stroke-opacity=".08"/>'
     )
-    return _mini(cx, cy, "2001", body)
+    return _mini(cx, cy, "2001", body, bbox=(-10, -20, 22, 20))
 
 
 def mini_akira(cx, cy):
@@ -860,7 +870,7 @@ def mini_akira(cx, cy):
         '<circle cx="0" cy="0" r="4.5" fill="#E11D2E"/>',
         '<circle cx="0" cy="0" r="1.8" fill="#141416"/>',
     ]
-    return _mini(cx, cy, "ak", "".join(parts))
+    return _mini(cx, cy, "ak", "".join(parts), bbox=(-21, -21, 21, 21))
 
 
 def mini_blade_runner(cx, cy):
@@ -893,7 +903,7 @@ def mini_blade_runner(cx, cy):
         '<line x1="-29" y1="20" x2="29" y2="20" stroke="#F0A21B" '
         'stroke-width="1.2" opacity=".5"/>'
     )
-    return _mini(cx, cy, "br", "".join(parts))
+    return _mini(cx, cy, "br", "".join(parts), bbox=(-29, -28, 29, 20), zoom=1.1)
 
 
 def mini_interstellar(cx, cy):
@@ -907,9 +917,9 @@ def mini_interstellar(cx, cy):
         '<circle cx="0" cy="0" r="9" fill="#071426"/>'
         '<circle cx="0" cy="0" r="9" fill="none" stroke="#F2A65A" '
         'stroke-width="1.2" opacity=".8"/>'
-        '<circle cx="-24" cy="18" r="1.6" fill="#DCE9F7"/>'
+        '<circle cx="-18" cy="13" r="1.4" fill="#DCE9F7"/>'
     )
-    return _mini(cx, cy, "is", body)
+    return _mini(cx, cy, "is", body, bbox=(-29, -17, 29, 17), zoom=1.12)
 
 
 def mini_dune(cx, cy):
@@ -925,7 +935,7 @@ def mini_dune(cx, cy):
         '<path d="M6 8.5 L6 13 M6 10 L3.5 12 M6 10 L8.5 11.6 M6 13 L4 16 M6 13 L8 16" '
         'fill="none" stroke="#1A120B" stroke-width="1.3" stroke-linecap="round"/>'
     )
-    return _mini(cx, cy, "du", body)
+    return _mini(cx, cy, "du", body, bbox=(-29, -24, 29, 29))
 
 
 def mini_matrix(cx, cy):
@@ -941,7 +951,7 @@ def mini_matrix(cx, cy):
                 f'font-size="8" fill="{color}" opacity="{opacity:.2f}">'
                 f"{esc(glyph)}</text>"
             )
-    return _mini(cx, cy, "mx", "".join(parts))
+    return _mini(cx, cy, "mx", "".join(parts), bbox=(-23, -22, 11, 9))
 
 
 def mini_paprika(cx, cy):
@@ -965,7 +975,7 @@ def mini_paprika(cx, cy):
         '<path d="M24 12 L29 20 L20 19 Z" fill="#00A6B8" '
         'stroke="#12100F" stroke-width="1"/>'
     )
-    return _mini(cx, cy, "pp", body)
+    return _mini(cx, cy, "pp", body, bbox=(-29, -20, 29, 20))
 
 
 def mini_ghost(cx, cy):
@@ -981,7 +991,7 @@ def mini_ghost(cx, cy):
         'stroke-width="1" opacity=".55"/>'
         '<circle cx="0" cy="0" r="2.6" fill="#59E1D6"/>'
     )
-    return _mini(cx, cy, "gs", body)
+    return _mini(cx, cy, "gs", body, bbox=(-22, -22, 22, 22))
 
 
 def mini_titan(cx, cy):
@@ -1006,80 +1016,97 @@ def mini_titan(cx, cy):
         'M0 -1 L-1.5 1.5 M0 -1 L1.5 1.5" fill="none" stroke="#F2EFE7" '
         'stroke-width="1.1" stroke-linecap="round"/>',
     ]
-    return _mini(cx, cy, "at", "".join(parts))
+    return _mini(cx, cy, "at", "".join(parts), bbox=(-24, -25, 24, 26))
 
 
 def collection_svg():
     ink = "#F2EFE7"
-    muted = "#8C887E"
+    muted = "#B9B4A8"
     bg = "#0B0B0C"
     accent = "#E8B54A"
     codes = [
-        ("BM", "#7DD3FC", mini_black_mirror),
-        ("2001", "#D7263D", mini_2001),
-        ("AK", "#E11D2E", mini_akira),
-        ("BR", "#F0A21B", mini_blade_runner),
-        ("IS", "#F2A65A", mini_interstellar),
-        ("DU", "#C2410C", mini_dune),
-        ("MX", "#00FF66", mini_matrix),
-        ("PP", "#FF2E88", mini_paprika),
-        ("GS", "#59E1D6", mini_ghost),
-        ("AT", "#B3121A", mini_titan),
+        ("BM", "#7DD3FC", "黑鏡", mini_black_mirror),
+        ("2001", "#D7263D", "2001", mini_2001),
+        ("AK", "#E11D2E", "阿基拉", mini_akira),
+        ("BR", "#F0A21B", "銀翼殺手", mini_blade_runner),
+        ("IS", "#F2A65A", "星際效應", mini_interstellar),
+        ("DU", "#C2410C", "沙丘", mini_dune),
+        ("MX", "#00FF66", "駭客任務", mini_matrix),
+        ("PP", "#FF2E88", "紅辣椒", mini_paprika),
+        ("GS", "#59E1D6", "攻殼機動隊", mini_ghost),
+        ("AT", "#B3121A", "進擊的巨人", mini_titan),
     ]
+    card_defs = "".join(
+        f'<linearGradient id="cg{i:02d}" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0" stop-color="{color}" stop-opacity=".07"/>'
+        f'<stop offset=".55" stop-color="{color}" stop-opacity="0"/>'
+        "</linearGradient>"
+        for i, (_, color, _, _) in enumerate(codes, 1)
+    )
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
         f'viewBox="0 0 {W} {H}">',
         "<title>從黑鏡到巨人：十部一生摯愛的科幻與人性史詩 — 自製封面</title>",
-        "<desc>An original cover built from ten small abstract frames, one per film.</desc>",
+        "<desc>An original cover built from ten abstract frames laid out in two rows of five.</desc>",
         "<defs>",
         '<linearGradient id="cfade" x1="0" y1="0" x2="1" y2="0">'
         '<stop offset="0" stop-color="#E8B54A" stop-opacity=".9"/>'
         '<stop offset="1" stop-color="#E8B54A" stop-opacity=".15"/>'
         "</linearGradient>",
+        card_defs,
         "</defs>",
         f'<rect width="{W}" height="{H}" fill="{bg}"/>',
         dotgrid("#FFFFFF", 0.045),
         f'<rect x="40" y="40" width="{W - 80}" height="{H - 80}" fill="none" '
         f'stroke="{ink}" stroke-width="1" opacity=".2"/>',
-        f'<text x="80" y="104" font-family="{MONO}" font-size="11" letter-spacing="4" '
+        f'<text x="80" y="80" font-family="{MONO}" font-size="12.5" letter-spacing="4" '
         f'fill="{accent}">TEN LIFELONG CLASSICS</text>',
-        f'<text x="1120" y="104" text-anchor="end" font-family="{MONO}" font-size="10" '
+        f'<text x="1120" y="80" text-anchor="end" font-family="{MONO}" font-size="11" '
         f'letter-spacing="3" fill="{muted}">ESSAY · 2026</text>',
-        f'<text x="80" y="196" font-family="{SERIF}" font-size="62" font-weight="700" '
+        f'<line x1="40" y1="94" x2="1160" y2="94" stroke="{ink}" stroke-width="1" opacity=".18"/>',
+        f'<text x="80" y="148" font-family="{SERIF}" font-size="56" font-weight="700" '
         f'letter-spacing="3" fill="{ink}">從黑鏡到巨人</text>',
-        f'<line x1="82" y1="222" x2="300" y2="222" stroke="url(#cfade)" stroke-width="3"/>',
-        f'<text x="80" y="272" font-family="{SANS}" font-size="21" letter-spacing="2" '
+        f'<line x1="82" y1="170" x2="300" y2="170" stroke="url(#cfade)" stroke-width="3"/>',
+        f'<text x="80" y="200" font-family="{SANS}" font-size="20" letter-spacing="2" '
         f'fill="{muted}">十部科幻與人性史詩 · 五組對讀</text>',
-        f'<text x="80" y="308" font-family="{MONO}" font-size="10.5" letter-spacing="2.6" '
-        f'fill="{muted}" opacity=".8">10 FILMS / 5 PAIRS / ONE QUESTION</text>',
+        f'<text x="1120" y="200" text-anchor="end" font-family="{MONO}" font-size="11" '
+        f'letter-spacing="2.6" fill="{muted}">10 FILMS / 5 PAIRS / ONE QUESTION</text>',
     ]
 
-    # filmstrip
-    x0, y0, fw, fh, gap = 80, 356, 97, 132, 8
-    for i, (code, color, mark) in enumerate(codes):
-        x = x0 + i * (fw + gap)
+    # Two rows of five: the grid now spans the full width, so every frame gets
+    # roughly twice the area of the old single filmstrip.
+    gap = 12
+    cw = (W - 160 - 4 * gap) / 5
+    ch = 154
+    x0, y0 = 80, 222
+    for i, (code, color, zh, mark) in enumerate(codes):
+        col, row = i % 5, i // 5
+        x = x0 + col * (cw + gap)
+        y = y0 + row * (ch + gap)
         parts += [
-            f'<rect x="{x}" y="{y0}" width="{fw}" height="{fh}" fill="#141416" '
+            f'<rect x="{x:.1f}" y="{y}" width="{cw:.1f}" height="{ch}" fill="#141416" '
             f'stroke="#2C2C31" stroke-width="1"/>',
-            f'<rect x="{x}" y="{y0}" width="{fw}" height="3" fill="{color}"/>',
-            f'<text x="{x + 10}" y="{y0 + 24}" font-family="{MONO}" font-size="9" '
+            f'<rect x="{x:.1f}" y="{y}" width="{cw:.1f}" height="{ch}" fill="url(#cg{i + 1:02d})"/>',
+            f'<rect x="{x:.1f}" y="{y}" width="{cw:.1f}" height="3" fill="{color}"/>',
+            f'<text x="{x + 13:.1f}" y="{y + 23}" font-family="{MONO}" font-size="11" '
             f'letter-spacing="1.4" fill="{muted}">{10 - i:02d}</text>',
+            f'<text x="{x + cw - 13:.1f}" y="{y + 23}" text-anchor="end" '
+            f'font-family="{MONO}" font-size="10.5" letter-spacing="1.6" '
+            f'fill="{muted}">{code}</text>',
         ]
-        parts.append(mark(x + fw / 2, y0 + 78))
+        parts.append(mark(x + cw / 2, y + 84))
         parts.append(
-            f'<text x="{x + fw / 2}" y="{y0 + 122}" text-anchor="middle" '
-            f'font-family="{MONO}" font-size="9" letter-spacing="1.6" '
-            f'fill="{ink}" opacity=".65">{code}</text>'
+            f'<text x="{x + cw / 2:.1f}" y="{y + 147}" text-anchor="middle" '
+            f'font-family="{SANS}" font-size="13" letter-spacing="1.2" '
+            f'fill="{ink}">{esc(zh)}</text>'
         )
 
     parts += [
-        f'<text x="80" y="534" font-family="{SANS}" font-size="15" letter-spacing=".5" '
-        f'fill="{muted}">黑鏡 · 2001 · 阿基拉 · 銀翼殺手 · 星際效應 · 沙丘 · 駭客任務 · 紅辣椒 · 攻殼機動隊 · 進擊的巨人</text>',
-        f'<line x1="80" y1="552" x2="1120" y2="552" stroke="{ink}" stroke-width="1" opacity=".14"/>',
-        f'<text x="80" y="576" font-family="{MONO}" font-size="9.5" letter-spacing="2.2" '
-        f'fill="{muted}" opacity=".65">ORIGINAL ARTWORK · NO FILM STILLS USED</text>',
-        f'<text x="1120" y="576" text-anchor="end" font-family="{MONO}" font-size="9.5" '
-        f'letter-spacing="2.2" fill="{muted}" opacity=".65">JAY FU / 2026</text>',
+        f'<line x1="80" y1="558" x2="1120" y2="558" stroke="{ink}" stroke-width="1" opacity=".14"/>',
+        f'<text x="80" y="576" font-family="{MONO}" font-size="11" letter-spacing="2.2" '
+        f'fill="{muted}">ORIGINAL ARTWORK · NO FILM STILLS USED</text>',
+        f'<text x="1120" y="576" text-anchor="end" font-family="{MONO}" font-size="11" '
+        f'letter-spacing="2.2" fill="{muted}">JAY FU / 2026</text>',
         "</svg>",
     ]
     return "\n".join(parts)
