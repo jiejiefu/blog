@@ -825,4 +825,4 @@ markup:
 - [Mermaid 文件](https://mermaid.js.org/)
 - [Plotly JavaScript 文件](https://plotly.com/javascript/)
 
-> 本文的數字與指令以 2026-10 的 repo 狀態為準。Hugo、PaperMod 與 GitHub Actions 都持續更新，實際行為請以你安裝的版本與官方文件為準。
+> 本文的數字與指令以撰稿時的 repo 狀態為準。Hugo、PaperMod 與 GitHub Actions 都持續更新，實際行為請以你安裝的版本與官方文件為準。
