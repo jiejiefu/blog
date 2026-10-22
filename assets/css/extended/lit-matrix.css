@@ -1,0 +1,79 @@
+/*
+ * 文獻矩陣表格：4 欄句子級內容在 720px 正文欄會溢出（自然寬約 817px）。
+ * ≥1024px 讓表格突破正文欄寬（上限 1000px），<1024px 每列堆疊成卡片。
+ * 900–1023px 仍用卡片：四欄在 817px 會被壓成每欄 3–4 行，比卡片難讀。
+ */
+
+@media (min-width: 1024px) {
+    .lit-matrix table {
+        display: table;
+        width: min(1000px, calc(100vw - 6rem));
+        margin-left: calc((100% - min(1000px, calc(100vw - 6rem))) / 2);
+        overflow: visible;
+    }
+}
+
+@media (max-width: 1023px) {
+    .lit-matrix table,
+    .lit-matrix tbody,
+    .lit-matrix tr,
+    .lit-matrix td {
+        display: block;
+        width: 100%;
+    }
+
+    .lit-matrix table {
+        overflow: visible;
+    }
+
+    .lit-matrix thead {
+        display: none;
+    }
+
+    .post-content .lit-matrix tr {
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .lit-matrix tr:last-child {
+        border-bottom: 0;
+    }
+
+    .post-content .lit-matrix table td {
+        min-width: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .lit-matrix td:nth-child(1) {
+        font-weight: 600;
+    }
+
+    .lit-matrix td:nth-child(2) {
+        display: inline-block;
+        margin: 0.35rem 0 0.55rem;
+        font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--secondary);
+    }
+
+    .lit-matrix td:nth-child(3)::before,
+    .lit-matrix td:nth-child(4)::before {
+        display: block;
+        margin-bottom: 0.15rem;
+        font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        color: var(--secondary);
+    }
+
+    .lit-matrix td:nth-child(3)::before {
+        content: "這篇在說什麼";
+    }
+
+    .lit-matrix td:nth-child(4)::before {
+        content: "對應到專案";
+    }
+}
