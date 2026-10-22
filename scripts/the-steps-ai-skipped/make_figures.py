@@ -5,8 +5,8 @@ Every figure is drawn from scratch as SVG with basic shapes and text. The
 scripts keep the SVG sources next to this file so they can be edited later.
 
 Usage:
-    python3 scripts/the_steps_ai_skipped/make_figures.py
-    python3 scripts/the_steps_ai_skipped/make_figures.py --preview
+    python3 scripts/the-steps-ai-skipped/make_figures.py
+    python3 scripts/the-steps-ai-skipped/make_figures.py --preview
 """
 
 import argparse
@@ -18,8 +18,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = Path(__file__).resolve().parent
-BUNDLE_IMAGES = ROOT / "content/zh-tw/posts/the_steps_ai_skipped/images"
-PREVIEW_DIR = Path(tempfile.gettempdir()) / "the_steps_ai_skipped_preview"
+BUNDLE_IMAGES = ROOT / "content/zh-tw/posts/the-steps-ai-skipped/images"
+PREVIEW_DIR = Path(tempfile.gettempdir()) / "the-steps-ai-skipped-preview"
 
 sys.path.insert(0, str(ROOT / "scripts"))
 from image_utils import svg_to_jpeg, svg_to_webp  # noqa: E402

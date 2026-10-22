@@ -20,7 +20,7 @@ import sys
 root = pathlib.Path(sys.argv[1])
 out = pathlib.Path(sys.argv[2])
 
-for svg in sorted((root / "scripts" / "ten_lifelong_classics").glob("[0-9]*.svg")):
+for svg in sorted((root / "scripts" / "ten-lifelong-classics").glob("[0-9]*.svg")):
     if svg.name.startswith("00_"):
         continue
     source = svg.read_text(encoding="utf-8")

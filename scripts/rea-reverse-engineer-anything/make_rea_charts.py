@@ -1,7 +1,7 @@
 """Generate the two charts used in the REA post.
 
 Usage:
-    python3 scripts/rea_reverse_engineer_anything/make_rea_charts.py
+    python3 scripts/rea-reverse-engineer-anything/make_rea_charts.py
 
 Writes 1600x900 and 1600x840 WebP files directly into the post's page
 bundle. The PNG intermediates stay in a temporary directory and are never
@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from image_utils import save_figure_webp
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "content/zh-tw/posts/rea_reverse_engineer_anything/images"
+OUT_DIR = ROOT / "content/zh-tw/posts/rea-reverse-engineer-anything/images"
 
 plt.rcParams["font.sans-serif"] = ["PingFang TC", "Arial Unicode MS", "Heiti TC"]
 plt.rcParams["axes.unicode_minus"] = False

@@ -5,9 +5,9 @@ Every cover is drawn from scratch with basic SVG shapes. No film stills,
 posters, logos, or characters are used.
 
 Usage:
-    python3 scripts/ten_lifelong_classics/make_covers.py
-    python3 scripts/ten_lifelong_classics/make_covers.py --preview
-    python3 scripts/ten_lifelong_classics/make_covers.py --render
+    python3 scripts/ten-lifelong-classics/make_covers.py
+    python3 scripts/ten-lifelong-classics/make_covers.py --preview
+    python3 scripts/ten-lifelong-classics/make_covers.py --render
 """
 
 import argparse
@@ -22,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = Path(__file__).resolve().parent
-BUNDLE_IMAGES = ROOT / "content/zh-tw/posts/ten_lifelong_classics/images"
+BUNDLE_IMAGES = ROOT / "content/zh-tw/posts/ten-lifelong-classics/images"
 PREVIEW_DIR = Path(tempfile.gettempdir()) / "ten_classics_preview"
 
 sys.path.insert(0, str(ROOT / "scripts"))

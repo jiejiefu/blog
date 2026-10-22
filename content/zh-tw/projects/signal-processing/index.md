@@ -4,4 +4,4 @@ draft = true
 title = 'Projects'
 +++
 
-## Signal Proecessing
+## Signal Processing

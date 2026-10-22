@@ -2,7 +2,7 @@
 """Generate charts for the Hugo/PaperMod build-log post.
 
 Usage:
-    python3 scripts/hugo_papermod_devlog/make_devlog_charts.py
+    python3 scripts/hugo-papermod-devlog/make_devlog_charts.py
 
 Writes a 1376x720 WebP directly into the post's page bundle. The PNG
 intermediate stays in a temporary directory and is never published.
@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from image_utils import save_figure_webp
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "content/zh-tw/posts/hugo_papermod_devlog/images"
+OUT_DIR = ROOT / "content/zh-tw/posts/hugo-papermod-devlog/images"
 
 PINGFANG = font_manager.findfont("PingFang TC")
 FONT = font_manager.FontProperties(fname=PINGFANG)

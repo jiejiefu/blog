@@ -286,8 +286,8 @@ languages:
 兩邊用**相同的 slug**，PaperMod 的語言切換就會自動把同一篇文章串起來：
 
 ```
-content/zh-tw/posts/hugo_papermod_devlog/index.md
-content/en/posts/hugo_papermod_devlog/index.md
+content/zh-tw/posts/hugo-papermod-devlog/index.md
+content/en/posts/hugo-papermod-devlog/index.md
 ```
 
 介面文字則由 `i18n/` 覆寫。例如想把 `read_more` 固定成「閱讀全文」，就在 `i18n/zh-tw.yaml` 補：
@@ -473,10 +473,10 @@ workflow 裡的 `hugo-version: 'latest'` 很方便，但也很危險：某天 Hu
 rm -rf public && hugo --minify
 
 # 以已發布的文章為例
-ls public/posts/rea_reverse_engineer_anything/index.html
+ls public/posts/rea-reverse-engineer-anything/index.html
 
 # og:image 指向的檔案真的存在
-rg -o 'og:image" content="[^"]+' public/posts/rea_reverse_engineer_anything/index.html
+rg -o 'og:image" content="[^"]+' public/posts/rea-reverse-engineer-anything/index.html
 ```
 
 ## 7. Day 5：把首頁從 PaperMod 預設改成「實驗室」
@@ -600,7 +600,7 @@ PaperMod 的 `baseof.html` 裡，footer 是這樣呼叫的：
 這個站的文章用 leaf bundle：
 
 ```
-content/zh-tw/posts/hugo_papermod_devlog/
+content/zh-tw/posts/hugo-papermod-devlog/
 ├── index.md
 └── images/
     └── cover.jpg
@@ -706,7 +706,7 @@ hugo server -D &
 CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 "$CH" --headless=new --disable-gpu --user-data-dir="$(mktemp -d)" \
   --virtual-time-budget=60000 --dump-dom \
-  "http://localhost:1313/blog/posts/mermaid_smoke_test/" > /tmp/d.html
+  "http://localhost:1313/blog/posts/mermaid-smoke-test/" > /tmp/d.html
 ```
 
 然後數 `<svg>` 裡沒有 `viewBox` 的數量，必須是 0。

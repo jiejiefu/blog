@@ -1,5 +1,4 @@
 ---
-featured: true
 title: "Smart Fab Edge-AI: Predictive Maintenance and Autonomous Decision Agent System"
 date: 2026-10-18
 draft: false
@@ -12,7 +11,7 @@ tags:
   - AI Agent
 description: "An engineering guide to edge deployment, predictive maintenance, Edge Agents, Industrial RAG, MLOps, and autonomous decision systems for smart factories."
 cover:
-  image: "https://jiejiefu.github.io/blog/posts/fab_predictive_maintenance_ppt169/images/01_cover.png"
+  image: "https://jiejiefu.github.io/blog/projects/fab-predictive-maintenance-ppt169/images/01_cover.png"
   alt: "Smart Fab Edge-AI Predictive Maintenance Cover"
   hidden: false
 ---

@@ -1,5 +1,4 @@
 ---
-featured: true
 title: "半導體設備 Edge AI 平台：從感測器資料到智慧決策的端到端系統設計"
 date: 2026-10-18
 draft: false

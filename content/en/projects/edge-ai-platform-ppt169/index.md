@@ -1,5 +1,4 @@
 ---
-featured: true
 title: "Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions"
 date: 2026-10-18
 draft: false
@@ -14,7 +13,7 @@ tags:
   - System Design
 description: "An end-to-end look at a semiconductor equipment Edge AI and PHM platform, covering sensor processing, machine learning, Flask services, AI agents, edge deployment, failure handling, and system evolution."
 cover:
-  image: "https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/images/01_project_overview.png"
+  image: "https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/images/01_project_overview.png"
   alt: "Semiconductor Equipment Edge AI Platform"
   hidden: false
 ---

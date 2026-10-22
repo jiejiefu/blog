@@ -1,5 +1,4 @@
 ---
-featured: true
 title: "智慧工廠邊緣 AI：從預測性維護到自主決策 Agent 的系統架構設計"
 date: 2026-10-18
 draft: false
