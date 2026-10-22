@@ -23,53 +23,74 @@ cover:
 
 2026 年可以寫東西的地方多得是：Medium、Substack、方格子（vocus）、Notion，甚至直接在 GitHub 開一個 repo 寫 Markdown 都行。
 
-先把 WordPress、痞客邦這類傳統自架或老牌平台放在一邊。若只看 2026 年台灣繁體中文圈「公開發表與流量擴散」的寫作平台，大致可以分成三個梯隊：方格子與 Medium 這類自帶流量、讀者慣性強的平台約佔一半；Substack 代表的私域電子報約四分之一；Notion 與 GitHub / Markdown 這類知識庫型寫作則約兩成。下面的圓餅圖把各區間的中點歸一化成 100%，用來看相對量級；它不是平台官方統計，也不代表唯一的寫作方式。
+先把 WordPress、痞客邦這類傳統自架或老牌平台放在一邊。若只看 2026 年台灣繁體中文圈「知識型長文的曝光與觸及」，結構其實非常傾斜：FB／IG／Threads 這類社群平台大約佔四分之三，Medium 約 14%，Notion / GitHub 這類公開筆記與作品集約 7%，方格子約 3%，Substack 約 1%。換句話說，多數讀者是先在社群裡「看到」文章，文章最後寫在哪個平台反而沒那麼關鍵。
 
-{{< plotly height="440" caption="2026 年台灣繁體中文寫作平台的概略佔比" >}}
+{{< plotly height="500" caption="2026 年台灣繁體中文知識型內容的曝光來源概略佔比" >}}
 {
   "data": [
     {
       "type": "pie",
-      "labels": ["方格子", "Medium", "Substack", "Notion/GitHub"],
-      "values": [29, 24, 26, 21],
+      "labels": ["FB/IG/Threads", "Medium", "Notion/GitHub", "方格子", "Substack"],
+      "values": [75, 14, 7, 3, 1],
       "sort": false,
       "direction": "clockwise",
-      "texttemplate": "%{label}<br>%{percent}",
+      "rotation": 27,
+      "text": ["FB/IG/Threads<br>75%", "Medium<br>14%", "", "", ""],
+      "textinfo": "text",
       "textposition": "inside",
       "insidetextorientation": "horizontal",
-      "textfont": { "size": 16 },
+      "textfont": { "size": 14 },
       "hovertext": [
-        "第一梯隊：大眾創作與內容發現",
-        "第一梯隊：大眾創作與內容發現",
-        "第二梯隊：私域流量與電子報訂閱",
-        "第三梯隊：極客手札與生產力延伸"
+        "社群擴散：台灣最大的流量入口",
+        "SEO 與技術文章的長期遺產",
+        "公開筆記、作品集與技術文件",
+        "本土付費沙龍：變現產值高於流量佔比",
+        "利基電子報：Stripe 未支援台灣本地開戶"
       ],
       "hovertemplate": "%{label}<br>%{percent}<br>%{hovertext}<extra></extra>",
       "marker": {
-        "colors": ["#6366F1", "#818CF8", "#C7D2FE", "#94A3B8"],
-        "line": { "color": "rgba(255,255,255,0.55)", "width": 1 }
+        "colors": ["#4338CA", "#818CF8", "#64748B", "#94A3B8", "#475569"],
+        "line": { "color": "rgba(100,116,139,0.55)", "width": 1 }
       }
     }
   ],
   "layout": {
-    "margin": { "t": 16, "b": 92, "l": 16, "r": 16 },
+    "margin": { "t": 60, "b": 104, "l": 16, "r": 16 },
     "font": {
       "family": "-apple-system, BlinkMacSystemFont, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif",
       "size": 13
     },
+    "annotations": [
+      {
+        "x": 0.5,
+        "y": 0.88,
+        "xref": "paper",
+        "yref": "paper",
+        "text": "Notion/GitHub 7%",
+        "showarrow": true,
+        "arrowhead": 0,
+        "arrowwidth": 1,
+        "arrowcolor": "rgba(100,116,139,0.8)",
+        "ax": 0,
+        "ay": -46,
+        "xanchor": "center",
+        "yanchor": "bottom",
+        "font": { "size": 13 }
+      }
+    ],
     "legend": {
       "orientation": "h",
       "x": 0.5,
       "xanchor": "center",
       "y": -0.12,
       "yanchor": "top",
-      "font": { "size": 12 }
+      "font": { "size": 11 }
     }
   }
 }
 {{< /plotly >}}
 
-而且這幾塊通常不是互斥的：常見的組合是先用 Medium 接外部 SEO，把讀者引流到 Substack 或方格子沉澱，再用 Notion / GitHub 管理長期的知識與作品集。平台負責被看見，自己的站負責把內容留下來。
+而且這幾塊通常不是互斥的：一篇文章可以同時發在 Medium 接外部 SEO、丟到 FB／Threads 擴散、再把讀者引流到 Substack 或方格子沉澱，最後用 Notion / GitHub 管理長期的知識與作品集。平台負責被看見，自己的站負責把內容留下來。
 
 自己蓋一個站，說到底只換來三件事：
 
