@@ -1,7 +1,7 @@
 ---
 draft: false
 date: 2026-10-22
-title: "模型不是大腦：0.8B 小型語言模型 × Pokémon Red 的 Harness 工程"
+title: "小模型不像是大腦：0.8B 小型語言模型 × Pokémon Red 的 Harness 工程"
 description: "用 0.8B 本地 SLM 玩 Pokémon Red，從 VLM 截圖的 1–2 秒延遲與幻覺，改用 RAM／TileMap 的 0.01 ms 觀測，再用三層 Agent Harness 把反射、記憶與導航從模型身上拆出去。這是一場把小型語言模型放對位置的工程實驗，不是模型評測。"
 tags: ["small-language-models", "ai-agent", "edge-ai", "reverse-engineering", "game-boy", "system-design"]
 ShowToc: true
@@ -408,11 +408,11 @@ Whidden 的 Pokémon Red RL 實驗很容易被拿來對照。他用 PPO 開大�
 - 錯誤代價高，需要更強的世界知識與判斷。
 - 你要處理的是「沒見過的問題」，不是「見過很多次的問題」。
 
-## 9. 結論：模型不是大腦
+## 9. 結論：小模型不像是大腦
 
 我以前會把 agent 想成「一個很聰明的大腦，加上一些手腳」。這次做完，比較準確的畫面是反過來：
 
-**模型不是大腦。它比較像整個系統裡最會說話的那一層。**
+**小模型不像是大腦。它比較像整個系統裡最會說話的那一層。**
 
 它負責在幾個被整理好的選項裡，選一個當下最合理的。讓 agent 變聰明的，是那個把世界整理成選項的 harness：可靠的觀測、會遺忘的記憶、能走路的導航、以及知道什麼時候不要問模型的反射層。
 

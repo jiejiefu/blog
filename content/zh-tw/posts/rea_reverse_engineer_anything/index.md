@@ -1,7 +1,7 @@
 ---
 draft: false
 date: 2026-10-19
-title: "REA 深度解析：33 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位"
+title: "REA 深度解析：36 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位"
 description: "REA（Reverse Engineer Anything）把 Hopper、Ghidra、IDA 這些重型反編譯引擎包成一個本地 MCP 閘道，讓 AI Agent 用自然語言對已編譯的軟體提問。本文拆解它的雙路徑架構、Evidence 模型與重建責任帳本，並整理實務維運會踩到的坑。"
 tags: ["ai-agent", "mcp", "reverse-engineering", "developer-tools", "open-source", "system-design"]
 featured: true
@@ -33,7 +33,7 @@ REA 想換掉的就是這段：**把「編譯後的黑盒」變成「Agent 可�
 
 > 在任何應用程式裡看到喜歡的功能，就讓 Agent 去查它是怎麼做到的，一路追到二進位層級。
 
-這句話的關鍵字是「查」，不是「猜」。REA 不要求 LLM 記住整份虛擬碼，而是提供一組**外科手術式的查詢工具**：讀某個位址的位元組、拿某個函式的組譯碼、追某條呼叫路徑、沿著 IPC 通道找接收端。Agent 拿到的是結構化的事實與限制，而不是一大坨需要硬記的程式碼。
+這句話的關鍵字是「查」，不是「猜」。REA 不要求 LLM 記住整份虛擬碼，而是提供一組**外科手術式的查詢工具**：讀某個位址的位元組、拿某個函式的組譯碼、追某條呼叫路徑、沿著 IPC 通道找接收端。回傳的是結構化的事實與限制，不是一大坨要硬記的程式碼。
 
 ### 它到底解決了什麼問題
 
@@ -47,13 +47,13 @@ REA 想換掉的就是這段：**把「編譯後的黑盒」變成「Agent 可�
 | 引擎選擇各自為政 | 每個引擎一套流程 | 統一的 session 與 provider 路由，必要時明確拒絕猜測 |
 | 工具鏈很重 | 每個人都要自己接 | `npx rea-agents setup` 一次註冊到多種 Agent 客戶端 |
 
-### 專案快照（會過期，看數字請看當下）
+### 專案快照（數字會過期）
 
-以下數字只是給讀者一個量級感。REA 目前每天都在變動，**寫死的數字隔幾天就會失準**，有興趣請直接看官方 repo：
+以下數字只提供量級感。REA 每天都在變動，**寫死的數字隔幾天就失準**，請直接看官方 repo：
 
 | 項目 | 數值（2026-10 快照） |
 |---|---|
-| GitHub | `morluto/rea`，約 33 萬 stars、8 萬 forks |
+| GitHub | `morluto/rea`，約 36 萬 stars、9 萬 forks |
 | npm | `rea-agents`，首版 2026-07-12，最新 `6.7.0`（2026-10-18） |
 | 授權 | MIT |
 | 語言 | TypeScript |
@@ -68,7 +68,7 @@ REA 想換掉的就是這段：**把「編譯後的黑盒」變成「Agent 可�
 
 ## 2. 三股力量匯流，才長出 REA 這個形狀
 
-REA 不是憑空冒出來的想法。它站在三個已經成熟的趨勢交會點上；少掉任何一個，這個專案都不會長成現在的樣子。
+REA 站在三個已經成熟的趨勢交會點上；少掉任何一個，它都不會長成現在的樣子。
 
 ```mermaid
 flowchart LR
@@ -126,7 +126,7 @@ flowchart LR
 | 記憶體 | 低 | 每個引擎進程可達 GB 等級 |
 | 常見工具 | `analyze_javascript_application`、`inspect_managed_artifact`、`inspect_go_binary`、`inspect_rust_binary`、`inspect_wasm_artifact` | `open_binary`、`binary_overview`、`analyze_function`、`read_bytes`、`list_procedures` |
 
-真正的設計重點是：**能用輕路徑解決的，就不要啟動重引擎**。分析一個 Electron App 不需要 Ghidra，這件事本身就是一個重要的成本決策。
+真正的設計重點是：**能用輕路徑解決的，就不要啟動重引擎**。分析一個 Electron App 不需要 Ghidra。
 
 ### 3.2 Evidence：閘道真正在生產的東西
 
@@ -179,9 +179,9 @@ npx -y rea-agents@latest analyze-javascript-application /absolute/path/to/app --
 
 ### 4.1 官方案例：Notion 的剪貼簿 IPC 通道
 
-官方案例分析的對象是 Notion Desktop 7.6.1 的 `app.asar`（8,903,750 bytes，檔案雜湊記錄在案例頁面）。REA 在**沒有啟動任何原生引擎、也沒有執行 Notion**的前提下，從 renderer 的 preload 找到 context bridge，沿著 IPC 追進 main process，並讀出 `notion:clipboard:write` 這個通道名稱與自訂 MIME 型態。
+官方案例分析的對象是 Notion Desktop 7.6.1 的 `app.asar`（8,903,750 bytes，檔案雜湊記錄在案例頁面）。REA 在**沒有啟動任何原生引擎、也沒有執行 Notion**的前提下，從 renderer 的 preload 找到 context bridge，沿著 IPC 追進 main process，讀出 `notion:clipboard:write` 這個通道名稱與自訂 MIME 型態。
 
-值得注意的是案例頁面自己的誠實聲明：頁面上呈現的兩張結果面板是「可讀的投影」，**不是完整、可重播的 Evidence 物件**；而且那次追蹤的圖並沒有完整涵蓋整條剪貼簿路徑，所以案例只主張「直接觀察到的 API 與 invoke 來源範圍」，沒有把不完整的圖說成完整路線。
+案例頁面自己也說得明白：畫面上呈現的兩張結果面板是「可讀的投影」，**不是完整、可重播的 Evidence 物件**。那次追蹤的圖也沒有涵蓋整條剪貼簿路徑，所以案例只主張「直接觀察到的 API 與 invoke 來源範圍」，不把不完整的圖說成完整路線。
 
 這種「先說清楚自己沒證明什麼」的寫法，是 REA 文件最一致的特徵。
 
@@ -206,7 +206,7 @@ $$
 \text{Machine Code} \;\xrightarrow{\text{lift}}\; \text{IR} \;\xrightarrow{\text{CFG}}\; \text{Control Flow Graph} \;\xrightarrow{\text{type inference}}\; \text{C-like Pseudocode}
 $$
 
-REA 在這條鏈裡的角色不是執行上面的箭頭，而是**把箭頭後面那台機器包起來**：管理引擎生命週期、把輸出正規化、處理超時與取消。
+REA 不執行這些箭頭，它**把箭頭後面那台機器包起來**：管理引擎生命週期、把輸出正規化、處理超時與取消。
 
 ### 5.1 一次原生調查的實際往復
 
@@ -262,7 +262,7 @@ REA 的文件反覆強調不要把三件事混在一起：
 
 ### 6.2 超量不是失敗，是資源限制
 
-脈絡視窗一定會被灌爆，所以 REA 不等你爆，而是先擋下來。文件記載伺服器在固定大小的傳輸預算內準備完整結果（包含文字與結構化表示）；如果塞不下，會回傳 `resource_constraint` 並附上證據參照，讓你再分頁讀取或整包匯出。
+上下文一定會被灌爆，所以 REA 不等你爆，而是先擋下來：塞不下就回傳 `resource_constraint`，不把完整結果硬丟給 Agent（操作細節見 9.2）。
 
 這裡有兩個實務重點：
 
@@ -331,7 +331,7 @@ flowchart TD
 
 ## 8. 不只是工具：六個 MCP Prompt
 
-多數 MCP 伺服器只提供工具清單；REA 額外提供六個**引導式工作流 Prompt**，讓 Agent 知道「一項調查通常長什麼樣」，而不是從幾百個工具裡亂槍打鳥。
+多數 MCP 伺服器只提供工具清單；REA 額外提供六個**引導式工作流 Prompt**，讓 Agent 知道「一項調查通常長什麼樣」，而不是從一百多個工具裡亂槍打鳥。
 
 | Prompt | 用途 |
 |---|---|
@@ -342,7 +342,7 @@ flowchart TD
 | `audit_residual_unknowns` | 稽核目前尚未解決的未知項目 |
 | `prepare_bounded_process_capture` | 在執行前設計一個有界的受控行程實驗 |
 
-這六個 Prompt 的價值在於**把方法論寫成可重用的入口**。它們不會自動幫你呼叫工具，但會提供以當前工具名稱撰寫的起點，並要求 Agent 把觀察、推論與未知分開陳述。
+這六個 Prompt 的價值在於**把方法論寫成可重用的入口**。它們不會自動幫你呼叫工具，但會提供用當下工具名稱寫好的起點，並要求 Agent 把觀察、推論與未知分開陳述。
 
 呼叫方式就是標準 MCP：
 
@@ -387,13 +387,13 @@ const overview = await client.callTool(
 export REA_GHIDRA_STARTUP_TIMEOUT_MS=360000
 ```
 
-提醒：**進度通知不會自動延長客戶端的逾時**。要讓進度重設計時器，客戶端必須明確開啟對應選項；否則 Server 端等再久也沒用。
+提醒：**進度通知不會自動延長客戶端的逾時**。要讓進度重設計時器，客戶端必須明確開啟對應選項；否則伺服器等再久也沒用。
 
 ### 9.2 回應預算：不是錯誤，是煞車
 
 - **症狀**：大範圍查詢回傳 `resource_constraint`。
 - **原因**：完整結果超過單一 MCP frame 的傳輸預算（文件以 10 MiB 等級描述）。
-- **處方**：用 `inspect_analysis_view` 分頁讀取，或 `export_evidence_bundle` 整包匯出。完整證據仍在 session 裡，不會消失。
+- **處方**：用 `inspect_analysis_view` 分頁讀取，或 `export_evidence_bundle` 整包匯出。
 
 ### 9.3 引擎選擇歧義：REA 不會替你猜
 
@@ -414,10 +414,11 @@ export REA_ANALYSIS_PROVIDER=ghidra
 
 *圖二：工具 schema 的傳輸成本（資料來源：REA 官方文件的量測，數字隨版本變動）。這張圖的重點不是精確數字，而是「工具定義本身也是一種上下文成本」。*
 
-- **處方**：改用精簡的 schema profile，或讓客戶端正確得知模型實際的上下文視窗大小。
+- **處方**：確認 schema profile 是 `compact`（新版本已是預設），或讓客戶端正確得知模型實際的上下文視窗大小。
+
+若客戶端仍載入完整 schema，在 REA 設定 env 裡明確指定：
 
 ```json
-// 在客戶端的 REA 設定 env 裡加上
 { "REA_MCP_INPUT_SCHEMA_PROFILE": "compact" }
 ```
 
@@ -443,7 +444,7 @@ flowchart LR
 | 案例 | 目標型態 | 走哪條路 | 核心還原 | 量化驗證 |
 |---|---|---|---|---|
 | Notion | Electron `app.asar` | 無引擎靜態 | renderer → preload → main 的剪貼簿 IPC | 直接觀察的 API／invoke 來源範圍（案例明確聲明圖不完整） |
-| DX-Ball | 原生 x86 PE | Ghidra | 磚塊座標轉左右聲道的平移函式 | 3,205 個原始 x86 案例；完整函式 63 bytes 全等 |
+| DX-Ball | 原生 x86 PE | Ghidra | 磚塊座標轉左右聲道的平移函式 | 3,205 個行為案例（與原始 x86 逐值比對）；完整函式 63 bytes 全等 |
 | TH04 | 16 位 DOS PC-98 | Ghidra | 固定與瞄準角度的彈幕計算 | 與歷史編譯器輸出比對，重構 C++ 的數學約束驗證 |
 
 ### 10.1 DX-Ball：63 個位元組的份量
@@ -473,7 +474,7 @@ int dxball_screen_pan(int x) {
 }
 ```
 
-真正的重點不是這段 C 看起來多簡單，而是**它被驗證到什麼程度**：3,205 個差分案例全數通過，且用釘定的編譯器重建後，產出的 63 個位元組與原始函式完全一致。這正是「功能等價」比「看起來像」更硬的地方。
+真正的重點不是這段 C 看起來多簡單，而是**它被驗證到什麼程度**：3,205 個行為案例全數通過（0–640 的每個整數位置 × 五種 pan scale），且用釘定的編譯器重建後，產出的 63 個位元組與原始函式完全一致。這正是「功能等價」比「看起來像」更硬的地方。
 
 ---
 

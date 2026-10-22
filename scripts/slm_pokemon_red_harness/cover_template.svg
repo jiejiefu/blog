@@ -29,7 +29,7 @@
   <text x="64" y="86" fill="#8EA3C0" font-family="Menlo, monospace" font-size="18" letter-spacing="3">EDGE AGENT / CASE STUDY</text>
   <rect x="64" y="105" width="84" height="3" fill="url(#accent)"/>
 
-  <text x="62" y="192" fill="#F8FAFC" font-family="PingFang TC, Heiti TC, sans-serif" font-size="70" font-weight="700" letter-spacing="2">模型不是大腦</text>
+  <text x="62" y="192" fill="#F8FAFC" font-family="PingFang TC, Heiti TC, sans-serif" font-size="70" font-weight="700" letter-spacing="2">小模型不像是大腦</text>
   <text x="64" y="250" fill="#C7D2E5" font-family="PingFang TC, Heiti TC, sans-serif" font-size="26">0.8B 小型語言模型 × Pokémon Red</text>
   <text x="64" y="286" fill="#C7D2E5" font-family="PingFang TC, Heiti TC, sans-serif" font-size="26">的 Agent Harness 工程</text>
 
