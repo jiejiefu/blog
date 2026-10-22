@@ -1,4 +1,503 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>System Design on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/system-design/</link><description>Recent content in System Design on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Mon, 19 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/system-design/index.xml" rel="self" type="application/rss+xml"/><item><title>REA 深度解析：33 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位</title><link>https://jiejiefu.github.io/blog/posts/rea_reverse_engineer_anything/</link><pubDate>Mon, 19 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/rea_reverse_engineer_anything/</guid><description>REA（Reverse Engineer Anything）把 Hopper、Ghidra、IDA 這些重型反編譯引擎包成一個本地 MCP 閘道，讓 AI Agent 用自然語言對已編譯的軟體提問。本文拆解它的雙路徑架構、Evidence 模型與重建責任帳本，並整理實務維運會踩到的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>System-Design on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/system-design/</link><description>Recent content in System-Design on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Thu, 22 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/system-design/index.xml" rel="self" type="application/rss+xml"/><item><title>模型不是大腦：0.8B 小型語言模型 × Pokémon Red 的 Harness 工程</title><link>https://jiejiefu.github.io/blog/posts/slm_pokemon_red_harness/</link><pubDate>Thu, 22 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/slm_pokemon_red_harness/</guid><description>用 0.8B 本地 SLM 玩 Pokémon Red，從 VLM 截圖的 1–2 秒延遲與幻覺，改用 RAM／TileMap 的 0.01 ms 觀測，再用三層 Agent Harness 把反射、記憶與導航從模型身上拆出去。這是一場把小型語言模型放對位置的工程實驗，不是模型評測。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+  <p class="tldr__label">TL;DR</p>
+  <p><strong>0.8B 的價值，是在一個被整理好的世界裡做選擇。</strong></p>
+<p>我一開始把遊戲畫面丟給同一個 0.8B 模型，讓它看圖決定按鍵。結果跑了 22.5 分鐘、132 個 episode（平均每個約 10 秒），動作欄位只有一個值：<code>A</code>，畫面還停在標題。後來我沒換更大的模型；我把「看畫面」改成「讀 RAM」，把「記路」從模型手上拿走，它第一次自己走出了家門，抵達 Pallet Town（真新鎮）。</p>
+<p>這篇是 Agent Harness 的工程記錄，重點是感知、記憶、導航、反射這四件事：哪些該交給模型，哪些不該。</p>
+
+</aside>
+
+<h2 id="0-按了-132-次-a還在標題畫面">0. 按了 132 次 A，還在標題畫面</h2>
+<p>專案的 SQLite 裡躺著一段很難看的紀錄。</p>
+<p>132 個 episode，動作欄位只有一個值：<code>A</code>。最後一次狀態仍是 <code>title</code>，其中 10 筆被標記為 <code>stuck_detected</code>。如果把這段 log 貼給任何人看，得到的結論大概都是：「0.8B 太笨了。」</p>
+<p>我一開始也這樣想。</p>
+<p>但把時間軸拉長，會看到另一個問題。它被塞進一張 120×96 的截圖裡，同時要做 OCR、地圖辨識、座標定位、碰撞判斷、路徑規劃與按鍵控制。任何一個環節錯了，下一步就沒有意義。模型連「自己在哪裡」都不知道。</p>
+<p>那不是模型笨，是<strong>我把太多工作塞給同一個模型</strong>。</p>
+<h2 id="1-六篇-slm-文獻拼出同一個結論">1. 六篇 SLM 文獻，拼出同一個結論</h2>
+<p>為了確認這不是自己的錯覺，我把手邊六篇 SLM 相關論文重新讀了一次。它們的證據類型不同，但放在一起，剛好可以解釋這個專案為什麼會失敗、又為什麼後來能動。</p>
+<div class="lit-matrix">
+<table>
+	<thead>
+			<tr>
+					<th>論文</th>
+					<th>證據類型</th>
+					<th>這篇在說什麼</th>
+					<th>對應到專案</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><em>A Comprehensive Survey of SLMs</em> <code>2411.03350</code></td>
+					<td>Survey</td>
+					<td>SLM 的定義應該看能力與資源限制，不是只看參數量</td>
+					<td>0.8B 在 16GB Mac 上跑得動，這本身就是設計條件</td>
+			</tr>
+			<tr>
+					<td><em>SLMs Can Still Pack a Punch</em> <code>2501.05465</code></td>
+					<td>Survey</td>
+					<td>1–8B 的模型在特定任務可以接近、甚至超過大模型</td>
+					<td>但前提是「特定任務」，不是開放式世界知識</td>
+			</tr>
+			<tr>
+					<td><em>SLM: Survey, Measurements, and Insights</em> <code>2409.15790</code></td>
+					<td>Measurement</td>
+					<td>量測 70 個開源 SLM 的延遲與記憶體</td>
+					<td>本地推論的價值是延遲、隱私與成本，不是榜單分數</td>
+			</tr>
+			<tr>
+					<td><em>SLMs are the Future of Agentic AI</em> <code>2506.02153</code></td>
+					<td>Position</td>
+					<td>Agent 的工作重複、專門，SLM 應是預設，LLM 是 fallback</td>
+					<td>0.8B 適合當慢速策略層，不適合當全能大腦</td>
+			</tr>
+			<tr>
+					<td><em>SLMs for Agentic Systems</em> <code>2510.03847</code></td>
+					<td>Survey</td>
+					<td>Agent 的瓶頸常在 orchestration 與 I/O，不是世界知識</td>
+					<td>這個觀察幾乎就是這個專案的診斷書</td>
+			</tr>
+			<tr>
+					<td><em>Readability ≠ Learnability</em> <code>2510.13915</code></td>
+					<td>Empirical</td>
+					<td>簡化不等於更好學；不要把人腦的直覺套到模型上</td>
+					<td>prompt 寫得更簡單沒有救，重寫觀測介面才有</td>
+			</tr>
+	</tbody>
+</table>
+
+</div>
+
+<p>不過，Belcak 等人的 <em>SLMs are the Future of Agentic AI</em> 是 NVIDIA 的 position paper，不是中立綜述；Lee 與 Berg-Kirkpatrick 的 <em>Readability ≠ Learnability</em> 是訓練研究，不能當成 agentic system 的 benchmark。把它們當成「共識」會過度解讀。</p>
+<p>但其中有一個觀察，和這個專案的體感很接近。Sharma 與 Mehta 的 <em>SLMs for Agentic Systems</em> 指出，對很多 agentic workload 而言，主要瓶頸經常是 <strong>orchestration 與 I/O</strong>，而不是模型的長程世界知識。它把 SLM 定位成多數 agent pipeline 的預設引擎，只在開放域推理與長程規劃等真正困難的環節，才呼叫更大的 LLM。</p>
+<p>我的結論是：</p>
+<blockquote>
+<p>如果問題是「開放式世界知識」，0.8B 一定輸。
+如果問題是「在幾個結構化選項裡做選擇」，0.8B 可能夠用。</p>
+</blockquote>
+<p>這篇文章要測的是：</p>
+<p><strong>把哪些工作從 0.8B 拿走之後，它就能玩？</strong></p>
+<p>我實際跑的是 <code>qwen3.5:0.8b</code>。這個任務的瓶頸不在知識量，所以我不需要更大的模型。與其把預算花在參數，不如先確認模型看見了什麼。</p>
+<h2 id="2-為什麼是-pokémon-red">2. 為什麼是 Pokémon Red</h2>
+<p>Pokémon Red 不是一個公平的 benchmark。它是一個很方便的 stress test。</p>
+<p>它有四個特性：</p>
+<ol>
+<li><strong>部分可觀測</strong>：玩家只能看到當下畫面，但遊戲的真正狀態藏在 RAM 裡。</li>
+<li><strong>延遲敏感</strong>：Game Boy 的移動、對話、選單都有自己的 frame 節奏，按太快或太慢都會失效。</li>
+<li><strong>長時序</strong>：一步走錯不會馬上爆炸，但會在半小時後變成「卡在房子裡」。</li>
+<li><strong>可重現</strong>：模擬器、存檔、RAM map 都是公開的，錯誤可以反覆重跑。</li>
+</ol>
+<p>Pokémon Red 的 RAM map 有社群整理（DataCrystal 的 RAM map 頁面），所以我可以把「觀測」從像素換成狀態，專心測試 harness。如果今天換成一款沒有 RAM map 的遊戲，VLM 或 OCR 可能仍是唯一的路。</p>
+<p>本文不會散布 ROM。遊戲本體請使用自己合法取得的副本。</p>
+<h2 id="3-第一版把畫面丟給模型">3. 第一版：把畫面丟給模型</h2>
+<p>第一版是 VLM（視覺語言模型）pipeline，做法很直覺：</p>
+<pre class="mermaid">flowchart LR
+    A[PyBoy 畫面&lt;br/&gt;160×144] --&gt; B[縮圖 120×96&lt;br/&gt;NEAREST 放大回 160×144]
+    B --&gt; C[Base64 PNG]
+    C --&gt; D[qwen3.5:0.8b]
+    D --&gt; E[單一按鍵]
+    E --&gt; F[PyBoy 下一幀]</pre><p>Game Boy 的原生解析度是 160×144。我以為把畫面縮到 120×96 再放大回 160×144，可以降低 base64 大小，於是就這樣送進模型。這個「最佳化」是第一個致命傷：120×96 不是 160×144 的等比例縮放，8×8 的字元被壓成約 6×5.3，對話框、選單、數字與地圖細節全部糊掉。更諷刺的是，繞了一圈又回到 160×144，base64 不一定變小。先失去的細節卻回不來了。如果重來，我會用 120×108，至少保住 10:9 的比例。</p>
+<p>第二個致命傷是 prompt。我當時只問：</p>
+<blockquote>
+<p>你正在玩 Pokémon Red。看這張截圖，選一個最好的下一個按鍵。只輸出 UP、DOWN、LEFT、RIGHT、A、B、START、SELECT、NONE。</p>
+</blockquote>
+<p>沒有地圖名稱、沒有座標、沒有碰撞資訊、沒有行動歷史。模型看到的是一張縮圖，卻要回答一個需要狀態的問題。</p>
+<p>後來加上狀態抽取器，情況也沒有好轉。JSON schema 裡只有 <code>location_hint</code>、<code>summary</code>、<code>confidence</code> 這些欄位，而且 prompt 還明寫「不要從像素猜精確座標」。於是模型給出的就是「看起來像在房間裡」這種描述。對人類來說這很合理，但 agent 要決定「往左還是往右」，這種描述等於沒有觀測。</p>
+<p>延遲也是災難。視覺模式把推論間隔設為 1 秒，實際每次決策約 1–2 秒。如果主迴圈同步等待，遊戲就會定格。MacBook 的 M 系列晶片又是 CPU/GPU 共用記憶體，PyBoy 的模擬與顯示、Ollama 的推論共享同一塊記憶體與 GPU 資源，兩邊一起搶，風扇先受不了。</p>
+<p>那段 132 次 <code>A</code> 的紀錄，就是這個階段的極端結果。模型沒有隨機亂按；它收斂到一個最保守的動作：既然不知道自己在哪，按 <code>A</code> 不會移動，至少不會立刻撞牆。</p>
+<p>我沒有因此認為視覺模型沒用。<strong>視覺不是錯，錯的是用視覺去讀一個已經有結構化記憶體的世界。</strong></p>
+<h2 id="4-第二版ram-是更好的眼睛">4. 第二版：RAM 是更好的眼睛</h2>
+<p>Pokémon Red 的 RAM 是公開的。地圖 ID、玩家座標、面朝方向、戰鬥狀態、隊伍 HP、徽章、金錢、背包，全部有固定位址。與其讓模型從像素猜，不如直接讀。</p>
+<table>
+	<thead>
+			<tr>
+					<th>位址</th>
+					<th>內容</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>0xD35E</code></td>
+					<td>地圖 ID</td>
+			</tr>
+			<tr>
+					<td><code>0xD361</code> / <code>0xD362</code></td>
+					<td>玩家 Y / X 座標</td>
+			</tr>
+			<tr>
+					<td><code>0xC109</code></td>
+					<td>面朝方向</td>
+			</tr>
+			<tr>
+					<td><code>0xD057</code></td>
+					<td>戰鬥狀態（0/1/2）</td>
+			</tr>
+			<tr>
+					<td><code>0xCFD8</code></td>
+					<td>敵方精靈 ID</td>
+			</tr>
+			<tr>
+					<td><code>0xCFE6–0xCFE7</code> / <code>0xCFE8</code></td>
+					<td>敵方 HP / 等級</td>
+			</tr>
+			<tr>
+					<td><code>0xD163</code></td>
+					<td>隊伍數量</td>
+			</tr>
+			<tr>
+					<td><code>0xD16C–0xD16D</code> / <code>0xD18D–0xD18E</code></td>
+					<td>當前 HP / 最大 HP</td>
+			</tr>
+			<tr>
+					<td><code>0xD18C</code></td>
+					<td>等級</td>
+			</tr>
+			<tr>
+					<td><code>0xD173–0xD176</code></td>
+					<td>四招招式 ID</td>
+			</tr>
+			<tr>
+					<td><code>0xD188–0xD18B</code></td>
+					<td>四招剩餘 PP（使用次數）</td>
+			</tr>
+			<tr>
+					<td><code>0xD16F</code></td>
+					<td>異常狀態</td>
+			</tr>
+			<tr>
+					<td><code>0xD356</code></td>
+					<td>徽章 bitfield（popcount 後才是數量）</td>
+			</tr>
+			<tr>
+					<td><code>0xD347–0xD349</code></td>
+					<td>金錢（BCD）</td>
+			</tr>
+			<tr>
+					<td><code>0xD31D</code></td>
+					<td>背包物品列表（數量在 <code>0xD31C</code>）</td>
+			</tr>
+			<tr>
+					<td><code>0xCD38</code></td>
+					<td>腳本化按鍵模擬索引（非 0 時停用碰撞）</td>
+			</tr>
+			<tr>
+					<td><code>0xC3A0–0xC507</code></td>
+					<td><code>wTileMap</code>，20×18 的螢幕文字層</td>
+			</tr>
+	</tbody>
+</table>
+<p><code>0xCD38</code> 是 <code>wSimulatedJoypadStatesIndex</code>；它讓遊戲模擬按鍵，非 0 時會停用碰撞，但不是完整的控制鎖定。真正的按鍵忽略旗標是 <code>wJoyIgnore</code>。</p>
+<p>讀取本身很短：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">u8</span><span class="p">(</span><span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyboy</span><span class="o">.</span><span class="n">memory</span><span class="p">[</span><span class="n">addr</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">state</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;map_id&#34;</span><span class="p">:</span> <span class="n">u8</span><span class="p">(</span><span class="mh">0xD35E</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;y&#34;</span><span class="p">:</span> <span class="n">u8</span><span class="p">(</span><span class="mh">0xD361</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;x&#34;</span><span class="p">:</span> <span class="n">u8</span><span class="p">(</span><span class="mh">0xD362</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;facing&#34;</span><span class="p">:</span> <span class="n">u8</span><span class="p">(</span><span class="mh">0xC109</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>搭配 Game Boy 的 charmap 解碼，<code>wTileMap</code> 可以直接還原對話框、選單項目與游標位置。這些字元是遊戲自己寫進記憶體的事實，不需要 OCR 猜。</p>
+<p>依專案 README 的自測值，這一層的讀取延遲小於 <code>0.01 ms</code>。這是專案自測，量測方式也很土：在同樣的 Python 迴圈裡連續讀幾次，抓個大概。但它和「1–2 秒的截圖推論」差了好幾個量級。</p>
+<p>前後對照大概是這樣：</p>
+<table>
+	<thead>
+			<tr>
+					<th></th>
+					<th>VLM 管線</th>
+					<th>RAM 管線</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>觀測</td>
+					<td>120×96 截圖</td>
+					<td>RAM + TileMap</td>
+			</tr>
+			<tr>
+					<td>狀態</td>
+					<td>自然語言摘要</td>
+					<td>結構化欄位</td>
+			</tr>
+			<tr>
+					<td>座標</td>
+					<td>模型猜</td>
+					<td>直接讀</td>
+			</tr>
+			<tr>
+					<td>延遲</td>
+					<td>端到端 1–2 秒</td>
+					<td>讀取 &lt;0.01 ms + 決策 10–50 ms</td>
+			</tr>
+			<tr>
+					<td>失敗模式</td>
+					<td>幻覺、字太小</td>
+					<td>ROM 綁定、需要逆向工程</td>
+			</tr>
+			<tr>
+					<td>除錯</td>
+					<td>看 log 猜</td>
+					<td>看地圖、座標、碰撞邊界</td>
+			</tr>
+	</tbody>
+</table>
+<p>代價也很清楚：這是 ROM-specific 的解法。換一款遊戲，RAM map 要重找；換一個平台，charmap 要重寫。這種解法成立的前提，是世界本身有結構。</p>
+<h2 id="5-三層-harness把聰明拆開">5. 三層 Harness：把「聰明」拆開</h2>
+<p>有了可靠的觀測，接下來我把它放進三層架構。</p>
+<pre class="mermaid">flowchart TB
+    RAM[RAM + TileMap 觀測]
+    subgraph L0[Layer 0 反射層]
+        R[對話框 / 選單 / 過場]
+    end
+    subgraph L1[Layer 1 空間層]
+        M[blocked_moves + seen_coords]
+        B[BFS / frontier / warp]
+    end
+    subgraph L2[Layer 2 策略層]
+        S[0.8B SLM]
+    end
+    RAM --&gt; R
+    RAM --&gt; M
+    RAM --&gt; S
+    R --&gt; EXEC[PyBoy 執行]
+    M --&gt; B
+    B --&gt; EXEC
+    S --&gt;|高層方向| B
+    S --&gt; EXEC</pre><h3 id="layer-0反射">Layer 0：反射</h3>
+<p>對話框出現就按 <code>A</code>，過場動畫就等待，選單有 YES/NO 就確認。這些規則明確、延遲要求高，交給模型反而變慢。</p>
+<p>Layer 0 的優先順序最高。程式只要看到 <code>screen_type == &quot;dialogue&quot;</code>，就不會去問模型「你覺得要不要按 A」。這樣做是為了不浪費它的時間，跟信不信任無關。</p>
+<h3 id="layer-1空間記憶">Layer 1：空間記憶</h3>
+<p>Layer 1 維護三種東西：</p>
+<ul>
+<li><code>seen_coords</code>：走過的格子。</li>
+<li><code>blocked_moves</code>：<code>(map_id, x, y, direction)</code> 的碰撞邊界。</li>
+<li><code>discovered_warps</code>：走過的門、樓梯、入口。</li>
+</ul>
+<p>然後用 BFS（廣度優先搜尋）找最近的未探索 frontier，或走到已知出口。這層完全不需要語言模型。它要的是全域路徑、碰撞檢查與一致性。</p>
+<h3 id="layer-208b-的策略">Layer 2：0.8B 的策略</h3>
+<p>模型拿到的是整理過的狀態：地圖名稱、座標、可行方向、障礙方向、NPC 線索、frontier 方向、上一個動作。模型的輸出是一個動作（方向或互動鍵），必要時附帶 1–3 步的步數。</p>
+<p>依 README 的自測值，文字模式推論約 <code>10–50 ms</code>。這個數字同樣是專案自測，不是獨立 benchmark；但至少說明，當輸入是結構化狀態時，0.8B 不需要很長的思考時間。</p>
+<h3 id="非同步讓慢的層不要擋住快的層">非同步：讓慢的層不要擋住快的層</h3>
+<pre class="mermaid">sequenceDiagram
+    participant M as PyBoy 主迴圈
+    participant Q as Queue maxsize=1
+    participant W as Ollama Worker
+    M-&gt;&gt;Q: 最新狀態
+    Q-&gt;&gt;W: state + prompt
+    W--&gt;&gt;M: action
+    M-&gt;&gt;M: 下一幀</pre><p>主迴圈維持 30–60 FPS，模型在背景執行緒跑。<code>Queue(maxsize=1)</code> 是刻意的：寧可丟掉排隊中的舊狀態，也不要讓模型追著歷史跑。但這樣只能丟掉排隊中的狀態，不能保證回傳的 action 對應最新狀態；要做到「只採用最新」，每個狀態得帶一個遞增的 sequence number，模型回來時比對，舊的就丟掉。</p>
+<p>按鍵也有時序校正，單位是 Game Boy 的 60 Hz 幀：方向鍵按住 12 幀、放開 12 幀，總共 24 幀；A/B 這類非方向鍵是按住 8 幀、放開 10 幀。按太快，遊戲只會轉向不會走；按太慢，一個 tile 的移動會拖成兩步。</p>
+<p>這種分層在機器人學裡很常見：<strong>慢速 planner + 快速 controller</strong>。在這裡，planner 是一顆 0.8B 的語言模型，controller 是 BFS 與反射規則。</p>
+<h2 id="6-四個卡點">6. 四個卡點</h2>
+<h3 id="61-warp-不是-frontier">6.1 Warp 不是 frontier</h3>
+<p>Agent 第一次卡住，是在房子裡上樓、下樓、再上樓。</p>
+<p>原因是 BFS 對 frontier 的定義太單純：<strong>沒走過的格子就是未探索</strong>。但樓梯與門口也是「沒走過」的格子，卻不是房間的一部分。模型看到 frontier 在樓梯口，就走過去。一走過去就被傳送到另一層。另一層的 BFS 又把剛剛的入口當成 frontier，於是來回跳。</p>
+<p>我把「門」從「房間」裡分離出來。</p>
+<ul>
+<li><code>known_warps</code> 不列入 frontier 目標。</li>
+<li>記錄 <code>current_entry_warps</code>，剛進來的那個入口要冷卻。</li>
+<li>一般冷卻 25 步；偵測到嚴重來回震盪時鎖 60 步。</li>
+</ul>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="c1"># 已知的 warp 是傳送門，不是未探索的地板</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">known_warps</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="o">...</span>
+</span></span></code></pre></div><p>BFS 現在追的是「還沒探索」的格子，已知的門直接排除。</p>
+<p>BFS 排除 warp 只保證它不會把樓梯當目標，不能保證模型不會自己走過去。所以我在給模型的路況摘要裡把走過的 warp 入口標成 <code>[B]</code>，新出口才是 <code>[D]</code>。Prompt 直接寫明 <code>[B]</code> 是來時路，當前區域沒走完就不要踩。</p>
+<h3 id="62-四個方向都-blocked">6.2 四個方向都 blocked</h3>
+<p>第二個卡點更荒謬。Log 長這樣：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">Immediate Paths: Walkable -&gt; [None] | Obstacles -&gt; [UP, DOWN, LEFT, RIGHT]
+</span></span></code></pre></div><p>四個方向都被標成牆。模型收到「沒有路」，探索建議也失效。Agent 站在一個理論上不可能存在的位置。</p>
+<p>根因是碰撞網格把一次誤判累積成四面牆。可能是按鍵沒生效、可能是地圖切換瞬間讀到舊座標、也可能是一次移動被對話框打斷。只要有一次錯，那個 <code>(map, x, y, direction)</code> 就被永久標成 blocked。這層記憶沒有過期機制，錯誤會一直留著。</p>
+<p>我加了兩層處理：</p>
+<ul>
+<li><code>get_movement_options</code> 偵測四個方向全 blocked 時，自動衰減，必要時清除這個位置的區域障礙。</li>
+<li>Smart Unstick 在真的卡住時，從可行方向隨機挑一個，重新取狀態。</li>
+</ul>
+<h3 id="63-壞掉的碰撞網格被存下來">6.3 壞掉的碰撞網格被存下來</h3>
+<p>第三個卡點更難查。Agent 不動了，但 stuck detector 沒有觸發。重開程式，還是在原地按 <code>B</code>。</p>
+<p>因為壞掉的碰撞網格被持久化到磁碟了。程式重跑，讀回同一份「四面都是牆」的記憶，於是永遠找不到路。更糟的是，卡死檢測只看座標有沒有變。如果當下 <code>screen_type</code> 是選單或對話，它會刻意忽略停滯，避免把「按 A 翻頁」誤判成卡住。兩個機制疊在一起，就變成一個不會自己結束的迴圈。</p>
+<p>後來的做法是：</p>
+<ul>
+<li>寫入磁碟前先驗證網格是否自相矛盾。</li>
+<li>地圖切換時重置局部障礙。</li>
+<li>不把「四個方向全 blocked」的狀態持久化。</li>
+<li>為這個案例加一個回歸測試。</li>
+</ul>
+<p><strong>原則：持久化錯誤比錯誤本身更貴。</strong> 一個會消失的 bug 還可以重跑；一個被寫進 state 的 bug 會跟著你到下一次啟動。</p>
+<h3 id="64-模型原地打轉">6.4 模型原地打轉</h3>
+<p>最後一個卡點不是空間，是行為。模型連續輸出：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">Action: DOWN 2
+</span></span><span class="line"><span class="cl">Action: DOWN 2
+</span></span><span class="line"><span class="cl">Action: DOWN 2
+</span></span></code></pre></div><p>它看不見自己剛剛做了什麼。Prompt 裡有當前狀態，卻沒有行動歷史。0.8B 的有效上下文與指令跟隨能力有限，很容易把「往下走」當成預設答案。</p>
+<p>最後我把決策空間縮小。</p>
+<ul>
+<li>把最近 N 個動作放進 prompt。</li>
+<li>加入停滯檢測，重複動作時強制換方向。</li>
+<li>只給四個方向與互動鍵，不給開放式指令。</li>
+<li>讓 Layer 1 在模型選到 blocked 方向時直接覆蓋。</li>
+</ul>
+<h2 id="7-實驗從-title-screen-到-pallet-town">7. 實驗：從 title screen 到 Pallet Town</h2>
+<p>先看舊管線的紀錄：</p>
+<table>
+	<thead>
+			<tr>
+					<th>指標</th>
+					<th>數值</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Episode 數</td>
+					<td>132</td>
+			</tr>
+			<tr>
+					<td>時間跨度</td>
+					<td>22.5 分鐘</td>
+			</tr>
+			<tr>
+					<td>平均 episode 長度</td>
+					<td>10.2 秒（含截圖、推論與環境重置）</td>
+			</tr>
+			<tr>
+					<td>動作分布</td>
+					<td><code>A</code> × 132</td>
+			</tr>
+			<tr>
+					<td>最後狀態</td>
+					<td><code>title</code></td>
+			</tr>
+			<tr>
+					<td><code>stuck_detected</code></td>
+					<td>10</td>
+			</tr>
+	</tbody>
+</table>
+<p>這還談不上玩得好不好：它根本沒有進入遊戲。拿來開場可以，當基準不行。這是舊的視覺狀態格式，不能和後來的 RAM 管線直接比。</p>
+<p>新管線的記憶檔是另一組數字：</p>
+<table>
+	<thead>
+			<tr>
+					<th>指標</th>
+					<th>數值</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>走過的格子</td>
+					<td>72</td>
+			</tr>
+			<tr>
+					<td>碰撞邊界</td>
+					<td>34</td>
+			</tr>
+			<tr>
+					<td>地圖數</td>
+					<td>3（37 / 38 / 0）</td>
+			</tr>
+			<tr>
+					<td>Quest log</td>
+					<td>5 筆</td>
+			</tr>
+			<tr>
+					<td>最後位置</td>
+					<td>Pallet Town</td>
+			</tr>
+	</tbody>
+</table>
+<p>三張地圖分別是 Red&rsquo;s House 2F（37）、Red&rsquo;s House 1F（38）與 Pallet Town（0）。Quest log 裡有兩次「Entered new area: Red&rsquo;s House 1F!」，這是 warp 偵測的噪音。所以 warp 偵測不能只看一次狀態變化。</p>
+<p>它沒有通關，只是第一次靠自己走出家門。</p>
+<p>兩邊比的不是同一件事。舊管線在標題畫面按了 132 次 <code>A</code>。新管線在 72 個格子、34 條碰撞邊界與 3 張地圖之間，完成了一次有意義的移動。</p>
+<p>延遲量級如下（專案自測與設計參數，尚未獨立驗證）：</p>
+<figure class="plotly-figure">
+  <div class="plotly-chart" id="plotly-2" data-plotly-bundle="basic" style="height: 380px" role="img" aria-label="三種決策路徑的延遲量級。VLM 為 1–2 秒，RAM 抽取 &lt;0.01 ms（只算記憶體讀取），文字 SLM 決策 10–50 ms；此圖只表示量級，不是嚴謹 benchmark。"></div>
+  <script type="application/json" class="plotly-chart__spec">{"config":{"displayModeBar":false,"responsive":true},"data":[{"hovertemplate":"%{y}\u003cbr\u003e%{x} ms\u003cextra\u003e\u003c/extra\u003e","marker":{"color":["#EF4444","#22C55E","#6366F1"]},"orientation":"h","text":["1–2 s","\u003c 0.01 ms","10–50 ms"],"textposition":"outside","type":"bar","x":[1500,0.01,30],"y":["VLM 截圖決策","RAM 狀態抽取","文字 SLM 決策"]}],"layout":{"font":{"family":"system-ui, sans-serif","size":13},"margin":{"b":55,"l":150,"r":110,"t":20},"paper_bgcolor":"rgba(0,0,0,0)","plot_bgcolor":"rgba(0,0,0,0)","showlegend":false,"xaxis":{"gridcolor":"rgba(128,128,128,0.18)","range":[-2,4],"title":"毫秒（對數刻度）","type":"log"},"yaxis":{"automargin":true}}}</script>
+  <figcaption>三種決策路徑的延遲量級。VLM 為 1–2 秒，RAM 抽取 &lt;0.01 ms（只算記憶體讀取），文字 SLM 決策 10–50 ms；此圖只表示量級，不是嚴謹 benchmark。</figcaption>
+</figure>
+
+<p>不要把 <code>0.01 ms</code> 當成「RAM 萬能」。觀測變快了，決策還是原本的難題。加速來自整個 pipeline 的重新分工，單看一個數字會誤判。</p>
+<h2 id="8-討論slm-的正確位置">8. 討論：SLM 的正確位置</h2>
+<p>把這次實驗拆開，我會把 agent 的工作分成這樣：</p>
+<table>
+	<thead>
+			<tr>
+					<th>工作</th>
+					<th>交給誰</th>
+					<th>為什麼</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>讀座標、地圖、對話</td>
+					<td>RAM / TileMap</td>
+					<td>確定性、低延遲、沒有幻覺</td>
+			</tr>
+			<tr>
+					<td>走路、避牆、找 frontier</td>
+					<td>BFS + 碰撞記憶</td>
+					<td>需要全域路徑，不需要語言</td>
+			</tr>
+			<tr>
+					<td>對話、選單、過場</td>
+					<td>Layer 0 反射</td>
+					<td>規則明確，模型反而增加延遲</td>
+			</tr>
+			<tr>
+					<td>高層策略、選目標</td>
+					<td>0.8B SLM</td>
+					<td>選項少、上下文短、需要一點常識</td>
+			</tr>
+			<tr>
+					<td>多跳推理、模糊語意</td>
+					<td>更大的 LLM fallback</td>
+					<td>SLM 容易自信地猜錯</td>
+			</tr>
+	</tbody>
+</table>
+<p>這張表大致對應前面的文獻回顧：SLM 適合當預設引擎，LLM 留給較難的個案。Belcak 等人的 position paper 更激進，但那是立場，不是定論。</p>
+<p>Lee 與 Berg-Kirkpatrick 的研究則提醒我：該動的是<strong>介面</strong>，不是語言。我一開始也犯過類似的錯，以為 prompt 寫得更短、更口語，0.8B 就會更聰明。後來發現，把世界整理成四個方向、一個互動鍵、一份碰撞記憶，比寫一段更友善的 prompt 有用得多。</p>
+<p>Whidden 的 Pokémon Red RL 實驗很容易被拿來對照。他用 PPO 開大量平行模擬器，reward 包含探索新格子、重複停留的懲罰、事件旗標與徽章。這類來回彈跳在訓練裡會被重複停留的負 reward 壓下去，最後變成 policy 的一部分。</p>
+<p>這套方法不能直接搬到 0.8B。LLM 是 inference，決策時不會更新權重；不可能像 RL 那樣跑大量 episode 再回頭改模型。但 reward 的形狀可以借：新格子加分、重複停留扣分、剛走過的 warp 扣分。我沒有把 RL 放進這個專案，也不是說兩者等價。RL 用訓練時間換 policy；這裡用 harness 把問題縮小。</p>
+<p>所以，什麼時候該用 SLM？</p>
+<ul>
+<li>動作空間是結構化的（按鍵、API、工具呼叫）。</li>
+<li>上下文不長，狀態可以壓縮。</li>
+<li>任務重複、專門，且錯誤可以檢查。</li>
+<li>你需要在本地跑，在意延遲、隱私或成本。</li>
+</ul>
+<p>什麼時候該 fallback 給大模型？</p>
+<ul>
+<li>需要多跳推理或長上下文整合。</li>
+<li>語言本身有歧義，選項無法事先列舉。</li>
+<li>錯誤代價高，需要更強的世界知識與判斷。</li>
+<li>你要處理的是「沒見過的問題」，不是「見過很多次的問題」。</li>
+</ul>
+<h2 id="9-結論模型不是大腦">9. 結論：模型不是大腦</h2>
+<p>我以前會把 agent 想成「一個很聰明的大腦，加上一些手腳」。這次做完，比較準確的畫面是反過來：</p>
+<p><strong>模型不是大腦。它比較像整個系統裡最會說話的那一層。</strong></p>
+<p>它負責在幾個被整理好的選項裡，選一個當下最合理的。讓 agent 變聰明的，是那個把世界整理成選項的 harness：可靠的觀測、會遺忘的記憶、能走路的導航、以及知道什麼時候不要問模型的反射層。</p>
+<p>如果你也在做 edge agent，可以先問自己一個問題：</p>
+<blockquote>
+<p>模型現在被迫做哪些不該它做的事？</p>
+</blockquote>
+<p>把那些事拿走，0.8B 可能比你想像的更能幹。</p>
+<p>下一步，我會把戰鬥策略、跨地圖的長期記憶與工具路由補上，也會試著讓 0.8B 與 4B／雲端模型分工：小模型處理常規決策，大模型在被需要時接手。</p>
+<p>0.8B 不是終點。它是一個很好的預算單位。</p>
+<h2 id="參考資料">參考資料</h2>
+<ul>
+<li>Wang et al., <em>A Comprehensive Survey of Small Language Models in the Era of Large Language Models</em>, arXiv:2411.03350. <a href="https://arxiv.org/abs/2411.03350">https://arxiv.org/abs/2411.03350</a></li>
+<li>Gupta et al., <em>Small Language Models (SLMs) Can Still Pack a Punch: A Survey</em>, arXiv:2501.05465. <a href="https://arxiv.org/abs/2501.05465">https://arxiv.org/abs/2501.05465</a></li>
+<li>Lu et al., <em>Small Language Models: Survey, Measurements, and Insights</em>, arXiv:2409.15790. <a href="https://arxiv.org/abs/2409.15790">https://arxiv.org/abs/2409.15790</a></li>
+<li>Belcak et al., <em>Small Language Models are the Future of Agentic AI</em>, arXiv:2506.02153. <a href="https://arxiv.org/abs/2506.02153">https://arxiv.org/abs/2506.02153</a></li>
+<li>Sharma &amp; Mehta, <em>Small Language Models for Agentic Systems: A Survey of Architectures, Capabilities, and Deployment Trade-offs</em>, arXiv:2510.03847. <a href="https://arxiv.org/abs/2510.03847">https://arxiv.org/abs/2510.03847</a></li>
+<li>Lee &amp; Berg-Kirkpatrick, <em>Readability ≠ Learnability: Rethinking the Role of Simplicity in Training Small Language Models</em>, arXiv:2510.13915. <a href="https://arxiv.org/abs/2510.13915">https://arxiv.org/abs/2510.13915</a></li>
+<li>DataCrystal, <em>Pokémon Red and Blue RAM map</em>. <a href="https://datacrystal.tcrf.net/wiki/Pok%C3%A9mon_Red_and_Blue/RAM_map">https://datacrystal.tcrf.net/wiki/Pok%C3%A9mon_Red_and_Blue/RAM_map</a></li>
+<li>PyBoy, Game Boy emulator for Python. <a href="https://github.com/Baekalfen/PyBoy">https://github.com/Baekalfen/PyBoy</a></li>
+<li>Whidden, P. <em>PokemonRedExperiments: Playing Pokémon Red with Reinforcement Learning</em>. GitHub. <a href="https://github.com/PWhiddy/PokemonRedExperiments">https://github.com/PWhiddy/PokemonRedExperiments</a></li>
+<li>Ollama, local LLM runtime. <a href="https://ollama.com">https://ollama.com</a></li>
+</ul>
+<blockquote>
+<p>本文的程式碼、log 與記憶檔來自本地專案；ROM 未隨文章散布。遊戲與相關商標權利屬於原權利人。</p>
+</blockquote>
+]]></content:encoded></item><item><title>REA 深度解析：33 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位</title><link>https://jiejiefu.github.io/blog/posts/rea_reverse_engineer_anything/</link><pubDate>Mon, 19 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/rea_reverse_engineer_anything/</guid><description>REA（Reverse Engineer Anything）把 Hopper、Ghidra、IDA 這些重型反編譯引擎包成一個本地 MCP 閘道，讓 AI Agent 用自然語言對已編譯的軟體提問。本文拆解它的雙路徑架構、Evidence 模型與重建責任帳本，並整理實務維運會踩到的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <p><strong>REA（Reverse Engineer Anything）是一個本地執行的 MCP 伺服器</strong>，把 Hopper、Ghidra、IDA 等反編譯引擎，以及 JavaScript／Electron、.NET、Go、Rust、WASM、SQLite 等靜態解析能力，統一包成 AI Agent 可以呼叫的工具。</p>
 <p><strong>它的核心不是「幫你反編譯」，而是「幫你把證據整理成 Agent 能消化的形式」</strong>：每一筆結論都帶著來源、涵蓋範圍與限制，還有明確標記的「未知」，避免 LLM 用流暢的語氣編出違反二進位事實的假設。</p>
