@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>System-Design on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/system-design/</link><description>Recent content in System-Design on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Thu, 22 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/system-design/index.xml" rel="self" type="application/rss+xml"/><item><title>模型不是大腦：0.8B 小型語言模型 × Pokémon Red 的 Harness 工程</title><link>https://jiejiefu.github.io/blog/posts/slm_pokemon_red_harness/</link><pubDate>Thu, 22 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/slm_pokemon_red_harness/</guid><description>用 0.8B 本地 SLM 玩 Pokémon Red，從 VLM 截圖的 1–2 秒延遲與幻覺，改用 RAM／TileMap 的 0.01 ms 觀測，再用三層 Agent Harness 把反射、記憶與導航從模型身上拆出去。這是一場把小型語言模型放對位置的工程實驗，不是模型評測。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>System-Design on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/system-design/</link><description>Recent content in System-Design on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Thu, 22 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/system-design/index.xml" rel="self" type="application/rss+xml"/><item><title>小模型不像是大腦：0.8B 小型語言模型 × Pokémon Red 的 Harness 工程</title><link>https://jiejiefu.github.io/blog/posts/slm-pokemon-red-harness/</link><pubDate>Thu, 22 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/slm-pokemon-red-harness/</guid><description>用 0.8B 本地 SLM 玩 Pokémon Red，從 VLM 截圖的 1–2 秒延遲與幻覺，改用 RAM／TileMap 的 0.01 ms 觀測，再用三層 Agent Harness 把反射、記憶與導航從模型身上拆出去。這是一場把小型語言模型放對位置的工程實驗，不是模型評測。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <p><strong>0.8B 的價值，是在一個被整理好的世界裡做選擇。</strong></p>
 <p>我一開始把遊戲畫面丟給同一個 0.8B 模型，讓它看圖決定按鍵。結果跑了 22.5 分鐘、132 個 episode（平均每個約 10 秒），動作欄位只有一個值：<code>A</code>，畫面還停在標題。後來我沒換更大的模型；我把「看畫面」改成「讀 RAM」，把「記路」從模型手上拿走，它第一次自己走出了家門，抵達 Pallet Town（真新鎮）。</p>
@@ -470,9 +470,9 @@
 <li>錯誤代價高，需要更強的世界知識與判斷。</li>
 <li>你要處理的是「沒見過的問題」，不是「見過很多次的問題」。</li>
 </ul>
-<h2 id="9-結論模型不是大腦">9. 結論：模型不是大腦</h2>
+<h2 id="9-結論小模型不像是大腦">9. 結論：小模型不像是大腦</h2>
 <p>我以前會把 agent 想成「一個很聰明的大腦，加上一些手腳」。這次做完，比較準確的畫面是反過來：</p>
-<p><strong>模型不是大腦。它比較像整個系統裡最會說話的那一層。</strong></p>
+<p><strong>小模型不像是大腦。它比較像整個系統裡最會說話的那一層。</strong></p>
 <p>它負責在幾個被整理好的選項裡，選一個當下最合理的。讓 agent 變聰明的，是那個把世界整理成選項的 harness：可靠的觀測、會遺忘的記憶、能走路的導航、以及知道什麼時候不要問模型的反射層。</p>
 <p>如果你也在做 edge agent，可以先問自己一個問題：</p>
 <blockquote>
@@ -497,7 +497,7 @@
 <blockquote>
 <p>本文的程式碼、log 與記憶檔來自本地專案；ROM 未隨文章散布。遊戲與相關商標權利屬於原權利人。</p>
 </blockquote>
-]]></content:encoded></item><item><title>REA 深度解析：33 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位</title><link>https://jiejiefu.github.io/blog/posts/rea_reverse_engineer_anything/</link><pubDate>Mon, 19 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/rea_reverse_engineer_anything/</guid><description>REA（Reverse Engineer Anything）把 Hopper、Ghidra、IDA 這些重型反編譯引擎包成一個本地 MCP 閘道，讓 AI Agent 用自然語言對已編譯的軟體提問。本文拆解它的雙路徑架構、Evidence 模型與重建責任帳本，並整理實務維運會踩到的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+]]></content:encoded></item><item><title>REA 深度解析：36 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位</title><link>https://jiejiefu.github.io/blog/posts/rea-reverse-engineer-anything/</link><pubDate>Mon, 19 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/rea-reverse-engineer-anything/</guid><description>REA（Reverse Engineer Anything）把 Hopper、Ghidra、IDA 這些重型反編譯引擎包成一個本地 MCP 閘道，讓 AI Agent 用自然語言對已編譯的軟體提問。本文拆解它的雙路徑架構、Evidence 模型與重建責任帳本，並整理實務維運會踩到的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <p><strong>REA（Reverse Engineer Anything）是一個本地執行的 MCP 伺服器</strong>，把 Hopper、Ghidra、IDA 等反編譯引擎，以及 JavaScript／Electron、.NET、Go、Rust、WASM、SQLite 等靜態解析能力，統一包成 AI Agent 可以呼叫的工具。</p>
 <p><strong>它的核心不是「幫你反編譯」，而是「幫你把證據整理成 Agent 能消化的形式」</strong>：每一筆結論都帶著來源、涵蓋範圍與限制，還有明確標記的「未知」，避免 LLM 用流暢的語氣編出違反二進位事實的假設。</p>
@@ -515,7 +515,7 @@
 <blockquote>
 <p>在任何應用程式裡看到喜歡的功能，就讓 Agent 去查它是怎麼做到的，一路追到二進位層級。</p>
 </blockquote>
-<p>這句話的關鍵字是「查」，不是「猜」。REA 不要求 LLM 記住整份虛擬碼，而是提供一組<strong>外科手術式的查詢工具</strong>：讀某個位址的位元組、拿某個函式的組譯碼、追某條呼叫路徑、沿著 IPC 通道找接收端。Agent 拿到的是結構化的事實與限制，而不是一大坨需要硬記的程式碼。</p>
+<p>這句話的關鍵字是「查」，不是「猜」。REA 不要求 LLM 記住整份虛擬碼，而是提供一組<strong>外科手術式的查詢工具</strong>：讀某個位址的位元組、拿某個函式的組譯碼、追某條呼叫路徑、沿著 IPC 通道找接收端。回傳的是結構化的事實與限制，不是一大坨要硬記的程式碼。</p>
 <h3 id="它到底解決了什麼問題">它到底解決了什麼問題</h3>
 <p>先把問題講清楚，才不會把 REA 當成魔法：</p>
 <table>
@@ -554,8 +554,8 @@
 			</tr>
 	</tbody>
 </table>
-<h3 id="專案快照會過期看數字請看當下">專案快照（會過期，看數字請看當下）</h3>
-<p>以下數字只是給讀者一個量級感。REA 目前每天都在變動，<strong>寫死的數字隔幾天就會失準</strong>，有興趣請直接看官方 repo：</p>
+<h3 id="專案快照數字會過期">專案快照（數字會過期）</h3>
+<p>以下數字只提供量級感。REA 每天都在變動，<strong>寫死的數字隔幾天就失準</strong>，請直接看官方 repo：</p>
 <table>
 	<thead>
 			<tr>
@@ -566,7 +566,7 @@
 	<tbody>
 			<tr>
 					<td>GitHub</td>
-					<td><code>morluto/rea</code>，約 33 萬 stars、8 萬 forks</td>
+					<td><code>morluto/rea</code>，約 36 萬 stars、9 萬 forks</td>
 			</tr>
 			<tr>
 					<td>npm</td>
@@ -590,11 +590,11 @@
 			</tr>
 	</tbody>
 </table>
-<p><img alt="REA 的 GitHub Stars 成長曲線" loading="lazy" src="/blog/posts/rea_reverse_engineer_anything/images/01_star_growth.webp"></p>
+<p><img alt="REA 的 GitHub Stars 成長曲線" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/01_star_growth.webp"></p>
 <p><em>圖一：REA 的 stars 成長曲線（資料來源：GitHub Trending 追蹤與 GitHub API，2026-10-19）。數字會隨時間變動，此圖僅作為「社群關注度」的視覺錨點。</em></p>
 <hr>
 <h2 id="2-三股力量匯流才長出-rea-這個形狀">2. 三股力量匯流，才長出 REA 這個形狀</h2>
-<p>REA 不是憑空冒出來的想法。它站在三個已經成熟的趨勢交會點上；少掉任何一個，這個專案都不會長成現在的樣子。</p>
+<p>REA 站在三個已經成熟的趨勢交會點上；少掉任何一個，它都不會長成現在的樣子。</p>
 <pre class="mermaid">flowchart LR
     A[AI Agent 能讀能寫&lt;br/&gt;但看不進已編譯的系統] --&gt; D[REA]
     B[MCP 把工具接入標準化] --&gt; D
@@ -661,7 +661,7 @@
 			</tr>
 	</tbody>
 </table>
-<p>真正的設計重點是：<strong>能用輕路徑解決的，就不要啟動重引擎</strong>。分析一個 Electron App 不需要 Ghidra，這件事本身就是一個重要的成本決策。</p>
+<p>真正的設計重點是：<strong>能用輕路徑解決的，就不要啟動重引擎</strong>。分析一個 Electron App 不需要 Ghidra。</p>
 <h3 id="32-evidence閘道真正在生產的東西">3.2 Evidence：閘道真正在生產的東西</h3>
 <p>REA 的工具回傳不是「一段字串」，而是一筆 Evidence 記錄。以 <code>docs/mcp-contracts.md</code> 的定義來看，一次成功的工具呼叫至少包含：</p>
 <table>
@@ -722,8 +722,8 @@
 <p>一個典型的最小指令（不需要任何原生引擎）：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">npx -y rea-agents@latest analyze-javascript-application /absolute/path/to/app --json
 </span></span></code></pre></div><h3 id="41-官方案例notion-的剪貼簿-ipc-通道">4.1 官方案例：Notion 的剪貼簿 IPC 通道</h3>
-<p>官方案例分析的對象是 Notion Desktop 7.6.1 的 <code>app.asar</code>（8,903,750 bytes，檔案雜湊記錄在案例頁面）。REA 在<strong>沒有啟動任何原生引擎、也沒有執行 Notion</strong>的前提下，從 renderer 的 preload 找到 context bridge，沿著 IPC 追進 main process，並讀出 <code>notion:clipboard:write</code> 這個通道名稱與自訂 MIME 型態。</p>
-<p>值得注意的是案例頁面自己的誠實聲明：頁面上呈現的兩張結果面板是「可讀的投影」，<strong>不是完整、可重播的 Evidence 物件</strong>；而且那次追蹤的圖並沒有完整涵蓋整條剪貼簿路徑，所以案例只主張「直接觀察到的 API 與 invoke 來源範圍」，沒有把不完整的圖說成完整路線。</p>
+<p>官方案例分析的對象是 Notion Desktop 7.6.1 的 <code>app.asar</code>（8,903,750 bytes，檔案雜湊記錄在案例頁面）。REA 在<strong>沒有啟動任何原生引擎、也沒有執行 Notion</strong>的前提下，從 renderer 的 preload 找到 context bridge，沿著 IPC 追進 main process，讀出 <code>notion:clipboard:write</code> 這個通道名稱與自訂 MIME 型態。</p>
+<p>案例頁面自己也說得明白：畫面上呈現的兩張結果面板是「可讀的投影」，<strong>不是完整、可重播的 Evidence 物件</strong>。那次追蹤的圖也沒有涵蓋整條剪貼簿路徑，所以案例只主張「直接觀察到的 API 與 invoke 來源範圍」，不把不完整的圖說成完整路線。</p>
 <p>這種「先說清楚自己沒證明什麼」的寫法，是 REA 文件最一致的特徵。</p>
 <hr>
 <h2 id="5-外部引擎路徑編譯過的東西要怎麼被還原">5. 外部引擎路徑：編譯過的東西要怎麼被還原</h2>
@@ -736,7 +736,7 @@
     E --&gt; F[Agent 讀取與比對]</pre><p>用數學寫出來，這條鏈是：</p>
 $$
 \text{Machine Code} \;\xrightarrow{\text{lift}}\; \text{IR} \;\xrightarrow{\text{CFG}}\; \text{Control Flow Graph} \;\xrightarrow{\text{type inference}}\; \text{C-like Pseudocode}
-$$<p>REA 在這條鏈裡的角色不是執行上面的箭頭，而是<strong>把箭頭後面那台機器包起來</strong>：管理引擎生命週期、把輸出正規化、處理超時與取消。</p>
+$$<p>REA 不執行這些箭頭，它<strong>把箭頭後面那台機器包起來</strong>：管理引擎生命週期、把輸出正規化、處理超時與取消。</p>
 <h3 id="51-一次原生調查的實際往復">5.1 一次原生調查的實際往復</h3>
 <pre class="mermaid">sequenceDiagram
     participant A as Agent
@@ -776,7 +776,7 @@ $$<p>REA 在這條鏈裡的角色不是執行上面的箭頭，而是<strong>把
 </ul>
 <p>「留白」和「未知」看起來很像，但在逆向工程裡差很多：留白會讓 Agent 自己補一個合理的故事，未知則會讓 Agent 停下來問。</p>
 <h3 id="62-超量不是失敗是資源限制">6.2 超量不是失敗，是資源限制</h3>
-<p>脈絡視窗一定會被灌爆，所以 REA 不等你爆，而是先擋下來。文件記載伺服器在固定大小的傳輸預算內準備完整結果（包含文字與結構化表示）；如果塞不下，會回傳 <code>resource_constraint</code> 並附上證據參照，讓你再分頁讀取或整包匯出。</p>
+<p>上下文一定會被灌爆，所以 REA 不等你爆，而是先擋下來：塞不下就回傳 <code>resource_constraint</code>，不把完整結果硬丟給 Agent（操作細節見 9.2）。</p>
 <p>這裡有兩個實務重點：</p>
 <ul>
 <li><strong>完整結果仍然留在 session</strong>。傳輸被擋不代表分析白做，只是不適合用單一 MCP frame 傳。</li>
@@ -822,7 +822,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <p>這就是把它叫做「會計」而不是「評分」的原因。不是打個分數就好，而是<strong>每一筆核銷都要有對應等級的憑證</strong>。不方便，但這正是它比「LLM 說 OK」可信的地方。</p>
 <hr>
 <h2 id="8-不只是工具六個-mcp-prompt">8. 不只是工具：六個 MCP Prompt</h2>
-<p>多數 MCP 伺服器只提供工具清單；REA 額外提供六個<strong>引導式工作流 Prompt</strong>，讓 Agent 知道「一項調查通常長什麼樣」，而不是從幾百個工具裡亂槍打鳥。</p>
+<p>多數 MCP 伺服器只提供工具清單；REA 額外提供六個<strong>引導式工作流 Prompt</strong>，讓 Agent 知道「一項調查通常長什麼樣」，而不是從一百多個工具裡亂槍打鳥。</p>
 <table>
 	<thead>
 			<tr>
@@ -857,7 +857,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 			</tr>
 	</tbody>
 </table>
-<p>這六個 Prompt 的價值在於<strong>把方法論寫成可重用的入口</strong>。它們不會自動幫你呼叫工具，但會提供以當前工具名稱撰寫的起點，並要求 Agent 把觀察、推論與未知分開陳述。</p>
+<p>這六個 Prompt 的價值在於<strong>把方法論寫成可重用的入口</strong>。它們不會自動幫你呼叫工具，但會提供用當下工具名稱寫好的起點，並要求 Agent 把觀察、推論與未知分開陳述。</p>
 <p>呼叫方式就是標準 MCP：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span> <span class="nt">&#34;method&#34;</span><span class="p">:</span> <span class="s2">&#34;prompts/list&#34;</span><span class="p">,</span> <span class="nt">&#34;params&#34;</span><span class="p">:</span> <span class="p">{}</span> <span class="p">}</span>
 </span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span>
@@ -885,12 +885,12 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 </span></span><span class="line"><span class="cl"><span class="p">);</span>
 </span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="c1"># 需要更長的引擎啟動時間時</span>
 </span></span><span class="line"><span class="cl"><span class="nb">export</span> <span class="nv">REA_GHIDRA_STARTUP_TIMEOUT_MS</span><span class="o">=</span><span class="m">360000</span>
-</span></span></code></pre></div><p>提醒：<strong>進度通知不會自動延長客戶端的逾時</strong>。要讓進度重設計時器，客戶端必須明確開啟對應選項；否則 Server 端等再久也沒用。</p>
+</span></span></code></pre></div><p>提醒：<strong>進度通知不會自動延長客戶端的逾時</strong>。要讓進度重設計時器，客戶端必須明確開啟對應選項；否則伺服器等再久也沒用。</p>
 <h3 id="92-回應預算不是錯誤是煞車">9.2 回應預算：不是錯誤，是煞車</h3>
 <ul>
 <li><strong>症狀</strong>：大範圍查詢回傳 <code>resource_constraint</code>。</li>
 <li><strong>原因</strong>：完整結果超過單一 MCP frame 的傳輸預算（文件以 10 MiB 等級描述）。</li>
-<li><strong>處方</strong>：用 <code>inspect_analysis_view</code> 分頁讀取，或 <code>export_evidence_bundle</code> 整包匯出。完整證據仍在 session 裡，不會消失。</li>
+<li><strong>處方</strong>：用 <code>inspect_analysis_view</code> 分頁讀取，或 <code>export_evidence_bundle</code> 整包匯出。</li>
 </ul>
 <h3 id="93-引擎選擇歧義rea-不會替你猜">9.3 引擎選擇歧義：REA 不會替你猜</h3>
 <ul>
@@ -904,13 +904,13 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <li><strong>症狀</strong>：使用非第一方端點時，Claude Code 可能關閉 tool search，於是每次請求都帶著所有工具的定義，造成上下文反覆被填滿。</li>
 <li><strong>原因</strong>：REA 的工具數量不小，完整 schema 相當可觀。</li>
 </ul>
-<p><img alt="172 個工具的 schema 成本" loading="lazy" src="/blog/posts/rea_reverse_engineer_anything/images/02_schema_payload.webp"></p>
+<p><img alt="172 個工具的 schema 成本" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/02_schema_payload.webp"></p>
 <p><em>圖二：工具 schema 的傳輸成本（資料來源：REA 官方文件的量測，數字隨版本變動）。這張圖的重點不是精確數字，而是「工具定義本身也是一種上下文成本」。</em></p>
 <ul>
-<li><strong>處方</strong>：改用精簡的 schema profile，或讓客戶端正確得知模型實際的上下文視窗大小。</li>
+<li><strong>處方</strong>：確認 schema profile 是 <code>compact</code>（新版本已是預設），或讓客戶端正確得知模型實際的上下文視窗大小。</li>
 </ul>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="c1">// 在客戶端的 REA 設定 env 裡加上
-</span></span></span><span class="line"><span class="cl"><span class="p">{</span> <span class="nt">&#34;REA_MCP_INPUT_SCHEMA_PROFILE&#34;</span><span class="p">:</span> <span class="s2">&#34;compact&#34;</span> <span class="p">}</span>
+<p>若客戶端仍載入完整 schema，在 REA 設定 env 裡明確指定：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-json" data-lang="json"><span class="line"><span class="cl"><span class="p">{</span> <span class="nt">&#34;REA_MCP_INPUT_SCHEMA_PROFILE&#34;</span><span class="p">:</span> <span class="s2">&#34;compact&#34;</span> <span class="p">}</span>
 </span></span></code></pre></div><h3 id="95-記憶體與平台邊界">9.5 記憶體與平台邊界</h3>
 <ul>
 <li><strong>症狀</strong>：深度分析時機器變慢，或行程被系統 OOM 殺掉；Windows 上更容易遇到不穩定。</li>
@@ -946,7 +946,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 					<td>原生 x86 PE</td>
 					<td>Ghidra</td>
 					<td>磚塊座標轉左右聲道的平移函式</td>
-					<td>3,205 個原始 x86 案例；完整函式 63 bytes 全等</td>
+					<td>3,205 個行為案例（與原始 x86 逐值比對）；完整函式 63 bytes 全等</td>
 			</tr>
 			<tr>
 					<td>TH04</td>
@@ -975,7 +975,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 </span></span></span><span class="line"><span class="cl">    <span class="n">pan</span> <span class="o">=</span> <span class="n">pan</span> <span class="o">*</span> <span class="n">dxball_pan_scale</span><span class="p">;</span> <span class="c1">// 從 [0x4210a0] 讀出的比例
 </span></span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">pan</span><span class="p">;</span>          <span class="c1">// __ftol
 </span></span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>真正的重點不是這段 C 看起來多簡單，而是<strong>它被驗證到什麼程度</strong>：3,205 個差分案例全數通過，且用釘定的編譯器重建後，產出的 63 個位元組與原始函式完全一致。這正是「功能等價」比「看起來像」更硬的地方。</p>
+</span></span></code></pre></div><p>真正的重點不是這段 C 看起來多簡單，而是<strong>它被驗證到什麼程度</strong>：3,205 個行為案例全數通過（0–640 的每個整數位置 × 五種 pan scale），且用釘定的編譯器重建後，產出的 63 個位元組與原始函式完全一致。這正是「功能等價」比「看起來像」更硬的地方。</p>
 <hr>
 <h2 id="11-安全與法律邊界能力越強越需要寫清楚">11. 安全與法律邊界：能力越強，越需要寫清楚</h2>
 <p>REA 的 <code>DISCLAIMER.md</code> 把意圖寫得非常明確。它的合法用途是：安全研究、惡意程式與事件分析、漏洞研究與協調揭露、CTF 與教學、互通性、軟體保存，以及稽核你擁有或被授權檢查的軟體。</p>
@@ -1023,7 +1023,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <blockquote>
 <p>本文為技術架構解析，非 REA 官方文件。所有數字與工具名稱以撰寫當下的官方 repo 為準；此專案更新頻繁，實際行為請以你安裝的版本與官方文件為準。</p>
 </blockquote>
-]]></content:encoded></item><item><title>半導體設備 Edge AI 平台：從感測器資料到智慧決策的端到端系統設計</title><link>https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/</guid><description>介紹半導體設備 Edge AI／PHM 平台的端到端架構，涵蓋感測器資料處理、機器學習、Flask 後端、AI Agent、邊緣部署、故障處理與系統擴充。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+]]></content:encoded></item><item><title>半導體設備 Edge AI 平台：從感測器資料到智慧決策的端到端系統設計</title><link>https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/</guid><description>介紹半導體設備 Edge AI／PHM 平台的端到端架構，涵蓋感測器資料處理、機器學習、Flask 後端、AI Agent、邊緣部署、故障處理與系統擴充。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <ul>
 <li>Edge AI 平台是一套端到端工程系統：資料接入、特徵工程、推論、監控與人員工作流程，必須環環相扣。</li>
@@ -1054,7 +1054,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 </blockquote>
 <hr>
 <h2 id="1-專案總覽建立從感測器到工程決策的完整流程">1. 專案總覽：建立從感測器到工程決策的完整流程</h2>
-<p><img alt="專案總覽：半導體設備 Edge AI 平台" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/01_project_overview.png"></p>
+<p><img alt="專案總覽：半導體設備 Edge AI 平台" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/01_project_overview.png"></p>
 <h3 id="11-專案定位">1.1 專案定位</h3>
 <p>這套平台的核心目標，是將感測器資料、機器學習模型、設備端推論、監控告警與 AI 輔助診斷整合成一條完整的工程工作流程。</p>
 <p>整體流程可以分成五個階段：</p>
@@ -1112,7 +1112,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <p>Edge AI 系統不一定需要一開始就採用微服務、訊息佇列叢集與大型資料庫。真正重要的是理解設備端的運算資源、網路條件、資料流量、維運能力與可靠性要求，再選擇合適的架構。</p>
 <hr>
 <h2 id="2-為什麼需要-edge-ai-平台">2. 為什麼需要 Edge AI 平台？</h2>
-<p><img alt="為什麼需要 Edge AI 平台" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/02_why.png"></p>
+<p><img alt="為什麼需要 Edge AI 平台" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/02_why.png"></p>
 <h3 id="21-before功能存在流程卻彼此分離">2.1 Before：功能存在，流程卻彼此分離</h3>
 <p>在整合之前，感測器資料處理、模型實驗、設備端執行與監控介面可能分散在不同工具中。</p>
 <p>例如：</p>
@@ -1146,7 +1146,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <p>真正值得追求的，是建立可以持續量測、重現與改善的工程流程。</p>
 <hr>
 <h2 id="3-系統架構五層整合設計">3. 系統架構：五層整合設計</h2>
-<p><img alt="系統組裝與架構設計" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/03_system_architecture.png"></p>
+<p><img alt="系統組裝與架構設計" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/03_system_architecture.png"></p>
 <p>平台採用分層設計，將使用者操作、後端服務、機器學習、設備端執行與資料持久化分開管理。</p>
 <pre class="mermaid">flowchart TB
     subgraph L1[&#34;L1 User &amp; Frontend&#34;]
@@ -1248,7 +1248,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <p>對工程系統而言，效能指標必須能夠重現，才具有實際的診斷與比較價值。</p>
 <hr>
 <h2 id="4-端到端資料流從高頻訊號到健康度監控">4. 端到端資料流：從高頻訊號到健康度監控</h2>
-<p><img alt="端到端資料流" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/04_end_to_end_data_flow.png"></p>
+<p><img alt="端到端資料流" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/04_end_to_end_data_flow.png"></p>
 <p>在系統設計中，資料流不只是把資料從 A 傳到 B，更需要定義資料如何進入系統、如何被處理，以及系統在流量突然增加時如何維持穩定。</p>
 <pre class="mermaid">flowchart TD
     A[&#34;感測器 / 檔案輸入&#34;] --&gt; B[&#34;記憶體緩衝區&#34;]
@@ -1296,7 +1296,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <p>此處需要區分兩件事：<strong>異常偵測負責辨識偏離，根因分析則負責提出可能的解釋。</strong> 前者可以由模型分數與規則驅動；後者通常需要結合歷史資料、設備知識與工程師驗證，不能只憑一個異常分數就斷言故障原因。</p>
 <hr>
 <h2 id="5-ml--phm-pipeline如何從感測器資料辨識異常">5. ML &amp; PHM Pipeline：如何從感測器資料辨識異常？</h2>
-<p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/05_ml_phm_pipeline.png"></p>
+<p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/05_ml_phm_pipeline.png"></p>
 <p>設備健康管理的難點之一，是實際故障案例通常有限，而且不同設備、負載與運轉條件可能產生不同的訊號分布。</p>
 <p>因此，平台使用多種分析方法處理不同問題，而不是期待單一模型解決所有情況。</p>
 <h3 id="51-訊號預處理與特徵工程">5.1 訊號預處理與特徵工程</h3>
@@ -1391,7 +1391,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>這些方法可以互補，但實際組合仍須依設備與資料特性驗證。</p>
 <hr>
 <h2 id="6-backend-engineering讓資料模型與服務可維護">6. Backend Engineering：讓資料、模型與服務可維護</h2>
-<p><img alt="後端工程" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/06_backend_engineering.png"></p>
+<p><img alt="後端工程" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/06_backend_engineering.png"></p>
 <p>模型與感測器資料只是整個平台的一部分。要讓系統能持續運作，還需要身分驗證、資料存取、背景工作、狀態管理與錯誤處理。</p>
 <h3 id="61-flask-與-blueprint-模組化">6.1 Flask 與 Blueprint 模組化</h3>
 <p>後端使用 Flask 建立 REST API，並依業務領域拆分 Blueprint，例如：</p>
@@ -1460,7 +1460,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>這些項目應列入後續的維運驗證與可靠性改善工作。</p>
 <hr>
 <h2 id="7-ai-agent從自然語言查詢到可控的工程工具">7. AI Agent：從自然語言查詢到可控的工程工具</h2>
-<p><img alt="AI Agent 架構" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/07_ai_agent_architecture.png"></p>
+<p><img alt="AI Agent 架構" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/07_ai_agent_architecture.png"></p>
 <p>將 LLM 加入設備監控平台，真正的挑戰不只是讓模型能夠回答問題，而是讓它能在具備權限控制、資料可追溯與執行邊界的環境中使用系統能力。</p>
 <h3 id="71-為什麼需要-tool-calling">7.1 為什麼需要 Tool Calling？</h3>
 <p>假設工程師詢問：</p>
@@ -1542,7 +1542,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>若未來需要瀏覽器與伺服器進行頻繁的雙向即時互動，再評估 WebSocket 是否更合適。</p>
 <hr>
 <h2 id="8-部署與監控讓平台能在目標環境中運作">8. 部署與監控：讓平台能在目標環境中運作</h2>
-<p><img alt="部署與監控" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/08_deployment_monitoring.png"></p>
+<p><img alt="部署與監控" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/08_deployment_monitoring.png"></p>
 <p>一個可以在開發環境成功執行的系統，不一定能直接部署到另一台設備或伺服器。</p>
 <p>部署設計需要處理依賴、環境設定、持久化資料、背景工作與更新流程。</p>
 <h3 id="81-docker-compose-容器化部署">8.1 Docker Compose 容器化部署</h3>
@@ -1607,7 +1607,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>這些指標能幫助工程師區分設備異常、資料管線故障與應用服務故障，避免把所有問題都當成模型問題處理。</p>
 <hr>
 <h2 id="9-failure-handling--scalability從單機限制到橫向擴充">9. Failure Handling &amp; Scalability：從單機限制到橫向擴充</h2>
-<p><img alt="故障處理與擴展性" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/09_failure_scaling.png"></p>
+<p><img alt="故障處理與擴展性" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/09_failure_scaling.png"></p>
 <p>單機架構的優點是部署簡單、依賴少、維運成本較低。但隨著資料量與併發請求增加，原本的簡化設計也會逐漸出現限制。</p>
 <h3 id="91-有界佇列的容量與資料完整性">9.1 有界佇列的容量與資料完整性</h3>
 <p>目前資料流透過記憶體佇列吸收短暫突發流量，再批次寫入 SQLite。</p>
@@ -1683,7 +1683,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>如此一來，架構演進是由實際需求驅動，而不是因為某種技術流行就提前引入。</p>
 <hr>
 <h2 id="10-engineering-trade-offs技術選擇與架構演進">10. Engineering Trade-offs：技術選擇與架構演進</h2>
-<p><img alt="工程權衡" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/10_engineering_tradeoffs.png"></p>
+<p><img alt="工程權衡" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/10_engineering_tradeoffs.png"></p>
 <p>系統設計不只是選擇技術，也是在不同的限制之間取得平衡。</p>
 <p>對 Edge AI 平台而言，部署便利性、離線運作、資料完整性、效能與維運成本都可能互相影響。</p>
 <h3 id="101-現行方案與未來演進">10.1 現行方案與未來演進</h3>

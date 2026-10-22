@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Fab Domain on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/fab-domain/</link><description>Recent content in Fab Domain on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/fab-domain/index.xml" rel="self" type="application/rss+xml"/><item><title>智慧工廠邊緣 AI：從預測性維護到自主決策 Agent 的系統架構設計</title><link>https://jiejiefu.github.io/blog/posts/fab_predictive_maintenance_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/fab_predictive_maintenance_ppt169/</guid><description>從感測器串流、異常偵測、剩餘壽命預測，到邊緣部署與工業知識檢索，說明一套智慧工廠邊緣 AI 系統的分層架構與設計取捨。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Fab Domain on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/fab-domain/</link><description>Recent content in Fab Domain on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/fab-domain/index.xml" rel="self" type="application/rss+xml"/><item><title>智慧工廠邊緣 AI：從預測性維護到自主決策 Agent 的系統架構設計</title><link>https://jiejiefu.github.io/blog/projects/fab-predictive-maintenance-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/projects/fab-predictive-maintenance-ppt169/</guid><description>從感測器串流、異常偵測、剩餘壽命預測，到邊緣部署與工業知識檢索，說明一套智慧工廠邊緣 AI 系統的分層架構與設計取捨。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <ul>
 <li>架構涵蓋六個層級，從感測器與串流，一路到 PHM、Edge Agent 與 MES／EAP 安全整合。</li>
@@ -20,7 +20,7 @@
 </blockquote>
 <hr>
 <h2 id="01-系統目標與設計前提">01. 系統目標與設計前提</h2>
-<p><img alt="封面：智慧工廠邊緣端預測性維護與自主決策 Agent 系統" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/01_cover.png"></p>
+<p><img alt="封面：智慧工廠邊緣端預測性維護與自主決策 Agent 系統" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/01_cover.png"></p>
 <p>半導體製造的產線設備具有幾項共同特性：設備種類多、感測資料頻率高、停機成本高，而且部分控制流程對延遲與可靠性有嚴格要求。</p>
 <p>如果將所有資料送往雲端，再統一進行分析與決策，雖然有利於集中管理，但也會增加網路傳輸、資料治理及系統依賴的成本。因此，這套架構採用邊緣運算與集中式管理並行的方式，將需要低延遲反應的工作留在廠區內處理。</p>
 <p>整體設計主要考量四個面向：</p>
@@ -33,7 +33,7 @@
 <p>這些前提會直接影響後續的架構分層、模型選擇與 Agent 的權限設計。</p>
 <hr>
 <h2 id="02-端到端技術架構">02. 端到端技術架構</h2>
-<p><img alt="端到端技術架構地圖" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/02_architecture.png"></p>
+<p><img alt="端到端技術架構地圖" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/02_architecture.png"></p>
 <p>整體架構分為六個層級。感測器與資料擷取層負責取得設備狀態；串流與訊號處理層負責資料整理；AI 分析層負責異常偵測與健康度評估；最上層則整合決策、維護流程及必要的控制介面。</p>
 <table>
 	<thead>
@@ -81,7 +81,7 @@
 <p>同樣地，邊緣推論與設備控制也不是同一件事。即使模型能在數毫秒內產生結果，仍須將資料擷取、訊號處理、推論、通訊及控制器執行時間一併納入端到端延遲評估。</p>
 <hr>
 <h2 id="03-高吞吐資料串流與訊號處理">03. 高吞吐資料串流與訊號處理</h2>
-<p><img alt="高吞吐資料串流與訊號處理" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/03_streaming.png"></p>
+<p><img alt="高吞吐資料串流與訊號處理" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/03_streaming.png"></p>
 <p>在高頻感測場景中，資料處理的第一個問題通常不是模型準確率，而是如何有效地處理持續輸入的資料。</p>
 <h3 id="資料量估算與計算範圍">資料量估算與計算範圍</h3>
 <p>以一個代表性資料情境為例，假設有 20 台設備，每台設備配置 3 個感測通道，每個通道以 2 kHz 連續取樣，每筆數值以 4 bytes 儲存。</p>
@@ -119,7 +119,7 @@ $$<p>也就是約 <strong>41.47 GB／日</strong>，採十進位換算（1 GB = 
 <p>CPU 使用率則應搭配統計區間、核心數與測試負載解讀，不宜直接視為所有部署環境的穩態使用率。</p>
 <hr>
 <h2 id="04-雙層異常偵測">04. 雙層異常偵測</h2>
-<p><img alt="雙層異常偵測" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/04_anomaly_detection.png"></p>
+<p><img alt="雙層異常偵測" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/04_anomaly_detection.png"></p>
 <p>設備故障資料通常具有明顯的不平衡特性。正常運作的資料容易取得，但真正發生故障的案例相對少，因此只依賴監督式學習，往往會面臨標籤不足的問題。</p>
 <p>另一個實務問題是誤報。即使模型能偵測出部分異常，如果每天產生大量無法採取行動的告警，現場人員就很難持續信任系統。</p>
 <p>因此，這套架構採用分層偵測，將低成本的初步篩選與較深入的異常判斷分開。</p>
@@ -148,7 +148,7 @@ $$<p>也就是約 <strong>41.47 GB／日</strong>，採十進位換算（1 GB = 
 <p>此外，若誤報率的改善同時來自模型調整、門檻設定及重複告警抑制，就應將其理解為整體告警流程的改善，而不能直接認定全部改善都來自模型本身。</p>
 <hr>
 <h2 id="05-設備健康管理與剩餘壽命預測">05. 設備健康管理與剩餘壽命預測</h2>
-<p><img alt="PHM 與剩餘壽命預測" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/05_rul_prediction.png"></p>
+<p><img alt="PHM 與剩餘壽命預測" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/05_rul_prediction.png"></p>
 <p>異常偵測主要回答「目前是否偏離正常狀態」，預測性維護則進一步回答「設備健康度正在如何變化，以及何時可能需要維護」。</p>
 <p>PHM（Prognostics and Health Management）通常會整合感測特徵、設備歷史、故障模式及維護紀錄。若資料足夠，也可以建立 RUL（Remaining Useful Life，剩餘使用壽命）模型，估計設備距離特定失效條件還有多少時間。</p>
 <h3 id="rul-模型設計">RUL 模型設計</h3>
@@ -177,7 +177,7 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <p>至於停機時間減少 42% 與維護成本降低 28%，應視為特定專案範圍內的整體改善指標。若無法將模型本身的貢獻與維護流程、備品策略或設備更新等因素分開，便不宜將全部改善直接歸因於 AI 模型。</p>
 <hr>
 <h2 id="06-邊緣部署與模型生命週期管理">06. 邊緣部署與模型生命週期管理</h2>
-<p><img alt="邊緣部署與低代碼平台" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/06_edge_deployment.png"></p>
+<p><img alt="邊緣部署與低代碼平台" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/06_edge_deployment.png"></p>
 <p>模型完成訓練之後，還需要解決另一個問題：如何將它穩定地部署到不同設備與產線，並在更新失敗時恢復原本的服務。</p>
 <p>在工廠環境中，部署不只是將程式打包成容器。作業系統、硬體架構、驅動程式、推論引擎版本與設備通訊方式，都可能影響模型是否能正常執行。</p>
 <p>因此，部署流程可以拆成以下幾個階段。</p>
@@ -196,7 +196,7 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <p>這些數字應視為特定部署條件下的專案指標，而不是所有邊緣設備都能直接達到的通用標準。</p>
 <hr>
 <h2 id="07-edge-agent任務協調與決策邊界">07. Edge Agent：任務協調與決策邊界</h2>
-<p><img alt="邊緣端智慧代理 (Edge Agent)" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/07_edge_agent.png"></p>
+<p><img alt="邊緣端智慧代理 (Edge Agent)" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/07_edge_agent.png"></p>
 <p>Edge Agent 的角色，是將感測資料、模型推論、設備狀態與維護流程整合成一套可執行、可追蹤的工作流程。</p>
 <p>它不一定需要在每次決策時都呼叫大型語言模型。對於延遲要求明確、輸入輸出固定的任務，使用傳統程式邏輯或輕量模型通常更容易測試與驗證。Agent 則可以負責需要跨工具協調、資訊整合或多步驟處理的任務。</p>
 <h3 id="邊緣端的任務分工">邊緣端的任務分工</h3>
@@ -223,7 +223,7 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <p>對於 OHT、載台及其他高風險設備，仍必須以獨立的安全機制及適當的驗證程序確保安全，不能單憑 Agent 的執行成功率推論設備安全。</p>
 <hr>
 <h2 id="08-工業-rag讓設備知識可以被檢索與追溯">08. 工業 RAG：讓設備知識可以被檢索與追溯</h2>
-<p><img alt="產業知識檢索增強生成 (Industrial RAG)" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/08_industrial_rag.png"></p>
+<p><img alt="產業知識檢索增強生成 (Industrial RAG)" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/08_industrial_rag.png"></p>
 <p>工廠的知識不只存在於設備手冊，也散落在維修日誌、異常分析報告、工程師筆記與歷史工單中。</p>
 <p>這些資料往往具有不同的格式、命名習慣與品質。如果只將文件直接放進向量資料庫，即使可以產生看似流暢的回答，也不代表答案正確，更不代表它適用於目前的設備狀態。</p>
 <p>因此，工業 RAG（Retrieval-Augmented Generation）的重點不只是生成答案，而是建立從問題、檢索結果到原始文件的可追溯流程。</p>
@@ -244,7 +244,7 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <p>至於查找時間，建議將其定義為使用者提出問題至找到可供參考的知識來源所花費的時間，而不是直接等同於完整故障排除或維修作業的時間。如果原始的三小時與 40 秒使用不同的計算口徑，便不宜直接作為同一指標比較。</p>
 <hr>
 <h2 id="09-mlops模型上線後的持續監控">09. MLOps：模型上線後的持續監控</h2>
-<p><img alt="MLOps 與持續學習" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/09_mlops.png"></p>
+<p><img alt="MLOps 與持續學習" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/09_mlops.png"></p>
 <p>模型在測試資料上表現良好，不代表上線之後能一直維持相同的品質。</p>
 <p>設備可能因零件老化、維護作業、負載改變或製程條件變化，產生與訓練資料不同的特徵分布。因此，模型上線後仍需要持續監控，並建立從問題發現到版本更新的完整流程。</p>
 <h3 id="漂移監控">漂移監控</h3>
@@ -268,7 +268,7 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <p>異常停機率與人工投入則屬於系統或流程層級的指標。若改善同時受到資料管線、自動化工具、維護流程與人員分工調整影響，就不宜將全部成效直接歸因於模型重訓機制。</p>
 <hr>
 <h2 id="10-系統整合與後續發展方向">10. 系統整合與後續發展方向</h2>
-<p><img alt="策略影響與成長藍圖 (2026–2027)" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/10_star_impact.png"></p>
+<p><img alt="策略影響與成長藍圖 (2026–2027)" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/10_star_impact.png"></p>
 <p>前面討論的串流處理、異常偵測、RUL 預測、Edge Agent、工業 RAG 與 MLOps，解決的是不同層次的問題。</p>
 <p>串流處理確保資料可以被穩定地取得與分析；異常偵測與 RUL 模型提供設備狀態的判斷依據；Agent 負責整合資訊與協調任務；RAG 提供可追溯的文件知識；MLOps 則管理模型從驗證到上線後的生命週期。</p>
 <p>這些元件需要透過明確的資料介面、權限機制與錯誤處理方式整合，而不是單純將所有服務串接起來，就認為已經形成自主決策系統。</p>
@@ -329,7 +329,7 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <p>不過，多 Agent 協作也會帶來新的問題，例如狀態一致性、任務衝突、通訊中斷、權限管理及錯誤擴散。因此，擴大自主協作之前，仍需要先定義每個 Agent 的責任範圍、可執行動作與失敗時的處理方式。</p>
 <hr>
 <h2 id="11-結語">11. 結語</h2>
-<p><img alt="感謝聆聽" loading="lazy" src="/blog/posts/fab_predictive_maintenance_ppt169/images/11_thanks.png"></p>
+<p><img alt="感謝聆聽" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/11_thanks.png"></p>
 <p>智慧工廠的邊緣 AI 系統，並不是將感測器、機器學習模型與 Agent 框架組合在一起就能完成。</p>
 <p>真正需要處理的是整個系統的工程問題：資料能否穩定取得、模型能否在受限資源下執行、異常結果是否值得信任、部署失敗時能否回退，以及 AI 的建議如何在不破壞既有安全機制的前提下，融入設備與維護流程。</p>
 <p>從這個角度來看，預測性維護與自主決策 Agent 並不是兩個獨立的功能。前者提供設備狀態與風險資訊，後者負責將這些資訊轉換成可追蹤的工作流程；而資料治理、模型監控與安全控制，則是讓整套系統能夠長期運作的必要條件。</p>

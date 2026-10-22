@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Backend Engineering on Jay Fu's Tech Blog</title><link>https://jiejiefu.github.io/blog/en/tags/backend-engineering/</link><description>Recent content in Backend Engineering on Jay Fu's Tech Blog</description><generator>Hugo -- 0.168.0</generator><language>en</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/en/tags/backend-engineering/index.xml" rel="self" type="application/rss+xml"/><item><title>Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions</title><link>https://jiejiefu.github.io/blog/en/posts/edge_ai_platform_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/en/posts/edge_ai_platform_ppt169/</guid><description>An end-to-end look at a semiconductor equipment Edge AI and PHM platform, covering sensor processing, machine learning, Flask services, AI agents, edge deployment, failure handling, and system evolution.</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Backend Engineering on Jay Fu's Tech Blog</title><link>https://jiejiefu.github.io/blog/en/tags/backend-engineering/</link><description>Recent content in Backend Engineering on Jay Fu's Tech Blog</description><generator>Hugo -- 0.168.0</generator><language>en</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/en/tags/backend-engineering/index.xml" rel="self" type="application/rss+xml"/><item><title>Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions</title><link>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</guid><description>An end-to-end look at a semiconductor equipment Edge AI and PHM platform, covering sensor processing, machine learning, Flask services, AI agents, edge deployment, failure handling, and system evolution.</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <ul>
 <li>An Edge AI platform is an end-to-end engineering system: data ingestion, feature engineering, inference, monitoring, and human workflows must all hold together.</li>
@@ -15,7 +15,7 @@
 <p>This article introduces an Edge AI / Prognostics and Health Management (PHM) platform from a system-design perspective. It covers the architecture, data flow, analytical methods, backend implementation, AI-agent integration, deployment, failure handling, and the trade-offs behind the design.</p>
 <p>The emphasis is on how the components work together — not simply on listing technologies.</p>
 <h2 id="1-project-overview">1. Project Overview</h2>
-<p><img alt="Project overview: Semiconductor Equipment Edge AI Platform" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/01_project_overview.png"></p>
+<p><img alt="Project overview: Semiconductor Equipment Edge AI Platform" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/01_project_overview.png"></p>
 <p>The platform is designed to turn equipment signals into information that engineers can use to investigate equipment health and plan maintenance. Its main workflow can be summarized as:</p>
 <pre class="mermaid">flowchart LR
     A[Sensor Data] --&gt; B[Feature Engineering]
@@ -52,7 +52,7 @@
 </table>
 <p>The AI agent is an assistance layer, not an autonomous replacement for engineering judgment. Decisions that can affect production equipment should remain subject to appropriate validation and human oversight.</p>
 <h2 id="2-why-edge-ai">2. Why Edge AI?</h2>
-<p><img alt="Why an Edge AI Platform" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/02_why.png"></p>
+<p><img alt="Why an Edge AI Platform" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/02_why.png"></p>
 <p>A model is only one part of a production system. The surrounding data path, deployment process, integration points, and operational controls often determine whether an AI solution is useful in practice.</p>
 <h3 id="21-common-engineering-challenges">2.1 Common engineering challenges</h3>
 <p><strong>Integration complexity.</strong> Data acquisition, preprocessing, model execution, APIs, dashboards, and alerts may be implemented by different components. Without clear interfaces, even a small change can require updates across multiple modules.</p>
@@ -88,7 +88,7 @@
 </table>
 <p>The project materials include illustrative figures such as a deployment cycle reduced from 28 days to 1 day, an 85% reduction in integration code, and 100% synchronization of data lineage within the measured scope. These numbers should be published as verified results only if their definitions, measurement periods, and comparison baselines can be documented. Otherwise, label them as internal estimates or targets.</p>
 <h2 id="3-system-architecture">3. System Architecture</h2>
-<p><img alt="System assembly and architecture design" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/03_system_architecture.png"></p>
+<p><img alt="System assembly and architecture design" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/03_system_architecture.png"></p>
 <p>The platform can be understood as five cooperating layers: presentation, API services, analytics, edge execution, and persistence.</p>
 <pre class="mermaid">flowchart TB
     subgraph UI[&#34;Presentation Layer&#34;]
@@ -137,7 +137,7 @@
 <h3 id="35-persistence-layer">3.5 Persistence layer</h3>
 <p>The current design uses SQLite databases for application and vibration-related data, along with files for model or analysis artifacts. This is a pragmatic starting point for a local or single-node deployment, but it introduces concurrency and lifecycle considerations as workload grows.</p>
 <h2 id="4-end-to-end-data-flow">4. End-to-End Data Flow</h2>
-<p><img alt="End-to-end data flow" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/04_end_to_end_data_flow.png"></p>
+<p><img alt="End-to-end data flow" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/04_end_to_end_data_flow.png"></p>
 <p>A typical processing path consists of ingestion, buffering, persistence, feature extraction, model analysis, health assessment, and follow-up action.</p>
 <pre class="mermaid">flowchart TD
     A[&#34;Sensor / File Input&#34;] --&gt; B[&#34;In-Memory Buffer&#34;]
@@ -158,7 +158,7 @@
 <h3 id="43-results-and-action">4.3 Results and action</h3>
 <p>The platform presents results through dashboards, reports, or alerts. The purpose is not merely to generate a score; it is to give engineers enough context to inspect the evidence, understand the potential issue, and decide what to do next.</p>
 <h2 id="5-machine-learning-and-phm-methods">5. Machine Learning and PHM Methods</h2>
-<p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/05_ml_phm_pipeline.png"></p>
+<p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/05_ml_phm_pipeline.png"></p>
 <p>PHM systems combine domain knowledge, signal processing, statistical analysis, and machine learning. No single algorithm can reliably answer every equipment-health question.</p>
 <h3 id="51-signal-features">5.1 Signal features</h3>
 <p>Common time-domain features include:</p>
@@ -237,7 +237,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
 </table>
 <p>A robust PHM workflow combines these methods with engineering context, historical evidence, and validation.</p>
 <h2 id="6-backend-design">6. Backend Design</h2>
-<p><img alt="Backend engineering" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/06_backend_engineering.png"></p>
+<p><img alt="Backend engineering" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/06_backend_engineering.png"></p>
 <h3 id="61-flask-application-structure">6.1 Flask application structure</h3>
 <p>Flask Blueprints can separate API areas by responsibility — for example, authentication, equipment data, analysis, reports, and agent operations. This makes the application easier to test and maintain than a single large route module.</p>
 <p>The backend should validate request parameters, enforce authorization, handle errors consistently, and return predictable response formats. Long-running analysis should be treated differently from short synchronous API requests.</p>
@@ -265,7 +265,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
     [*] --&gt; building
     building --&gt; completed
     building --&gt; failed</pre><h2 id="7-ai-agent-from-data-retrieval-to-assisted-investigation">7. AI Agent: From Data Retrieval to Assisted Investigation</h2>
-<p><img alt="AI Agent architecture" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/07_ai_agent_architecture.png"></p>
+<p><img alt="AI Agent architecture" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/07_ai_agent_architecture.png"></p>
 <p>An AI agent can help users navigate the platform by translating a natural-language request into a controlled sequence of data retrieval and analysis operations. The LLM should not be the only component responsible for correctness or security.</p>
 <pre class="mermaid">flowchart TD
     A[&#34;User Request&#34;] --&gt; B[&#34;LLM Planner / Orchestrator&#34;]
@@ -332,7 +332,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
 <p>Server-Sent Events can stream progress or partial results from the backend to the frontend over an HTTP connection. This is useful when an agent performs multiple steps and the user should see that work is progressing.</p>
 <p>The implementation should define event types, error behavior, connection timeouts, and client reconnection semantics. Streaming text to the interface does not replace backend logging or durable job state.</p>
 <h2 id="8-deployment-and-observability">8. Deployment and Observability</h2>
-<p><img alt="Deployment and monitoring" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/08_deployment_monitoring.png"></p>
+<p><img alt="Deployment and monitoring" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/08_deployment_monitoring.png"></p>
 <h3 id="81-docker-compose">8.1 Docker Compose</h3>
 <p>Docker Compose can package the web application and its supporting services for repeatable deployment on a single host. It helps standardize runtime dependencies, ports, environment variables, volumes, and startup relationships.</p>
 <p>A container being healthy does not guarantee that the whole application is functioning correctly. Readiness checks should verify the dependencies that matter, and persistent data should be stored in appropriate volumes rather than only in a container&rsquo;s writable layer.</p>
@@ -356,7 +356,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
 </ul>
 <p>Observability should help answer three questions: what failed, where it failed, and whether the system can safely recover.</p>
 <h2 id="9-failure-handling-and-scaling">9. Failure Handling and Scaling</h2>
-<p><img alt="Failure handling and scalability" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/09_failure_scaling.png"></p>
+<p><img alt="Failure handling and scalability" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/09_failure_scaling.png"></p>
 <p>Failure handling should be designed into the data path, rather than added only after an incident.</p>
 <table>
 	<thead>
@@ -423,7 +423,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
     F --&gt; H
     G --&gt; H
     H --&gt; I[&#34;Frontend&#34;]</pre><h2 id="10-engineering-trade-offs">10. Engineering Trade-offs</h2>
-<p><img alt="Engineering trade-offs" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/10_engineering_tradeoffs.png"></p>
+<p><img alt="Engineering trade-offs" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/10_engineering_tradeoffs.png"></p>
 <p>Every architecture reflects constraints. The objective is not to select the most sophisticated technology in every layer, but to make the current system reliable while preserving a practical path forward.</p>
 <table>
 	<thead>

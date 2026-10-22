@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>PHM on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/phm/</link><description>Recent content in PHM on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/phm/index.xml" rel="self" type="application/rss+xml"/><item><title>半導體設備 Edge AI 平台：從感測器資料到智慧決策的端到端系統設計</title><link>https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/edge_ai_platform_ppt169/</guid><description>介紹半導體設備 Edge AI／PHM 平台的端到端架構，涵蓋感測器資料處理、機器學習、Flask 後端、AI Agent、邊緣部署、故障處理與系統擴充。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>PHM on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/phm/</link><description>Recent content in PHM on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/phm/index.xml" rel="self" type="application/rss+xml"/><item><title>半導體設備 Edge AI 平台：從感測器資料到智慧決策的端到端系統設計</title><link>https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/</guid><description>介紹半導體設備 Edge AI／PHM 平台的端到端架構，涵蓋感測器資料處理、機器學習、Flask 後端、AI Agent、邊緣部署、故障處理與系統擴充。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <ul>
 <li>Edge AI 平台是一套端到端工程系統：資料接入、特徵工程、推論、監控與人員工作流程，必須環環相扣。</li>
@@ -29,7 +29,7 @@
 </blockquote>
 <hr>
 <h2 id="1-專案總覽建立從感測器到工程決策的完整流程">1. 專案總覽：建立從感測器到工程決策的完整流程</h2>
-<p><img alt="專案總覽：半導體設備 Edge AI 平台" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/01_project_overview.png"></p>
+<p><img alt="專案總覽：半導體設備 Edge AI 平台" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/01_project_overview.png"></p>
 <h3 id="11-專案定位">1.1 專案定位</h3>
 <p>這套平台的核心目標，是將感測器資料、機器學習模型、設備端推論、監控告警與 AI 輔助診斷整合成一條完整的工程工作流程。</p>
 <p>整體流程可以分成五個階段：</p>
@@ -87,7 +87,7 @@
 <p>Edge AI 系統不一定需要一開始就採用微服務、訊息佇列叢集與大型資料庫。真正重要的是理解設備端的運算資源、網路條件、資料流量、維運能力與可靠性要求，再選擇合適的架構。</p>
 <hr>
 <h2 id="2-為什麼需要-edge-ai-平台">2. 為什麼需要 Edge AI 平台？</h2>
-<p><img alt="為什麼需要 Edge AI 平台" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/02_why.png"></p>
+<p><img alt="為什麼需要 Edge AI 平台" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/02_why.png"></p>
 <h3 id="21-before功能存在流程卻彼此分離">2.1 Before：功能存在，流程卻彼此分離</h3>
 <p>在整合之前，感測器資料處理、模型實驗、設備端執行與監控介面可能分散在不同工具中。</p>
 <p>例如：</p>
@@ -121,7 +121,7 @@
 <p>真正值得追求的，是建立可以持續量測、重現與改善的工程流程。</p>
 <hr>
 <h2 id="3-系統架構五層整合設計">3. 系統架構：五層整合設計</h2>
-<p><img alt="系統組裝與架構設計" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/03_system_architecture.png"></p>
+<p><img alt="系統組裝與架構設計" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/03_system_architecture.png"></p>
 <p>平台採用分層設計，將使用者操作、後端服務、機器學習、設備端執行與資料持久化分開管理。</p>
 <pre class="mermaid">flowchart TB
     subgraph L1[&#34;L1 User &amp; Frontend&#34;]
@@ -223,7 +223,7 @@
 <p>對工程系統而言，效能指標必須能夠重現，才具有實際的診斷與比較價值。</p>
 <hr>
 <h2 id="4-端到端資料流從高頻訊號到健康度監控">4. 端到端資料流：從高頻訊號到健康度監控</h2>
-<p><img alt="端到端資料流" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/04_end_to_end_data_flow.png"></p>
+<p><img alt="端到端資料流" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/04_end_to_end_data_flow.png"></p>
 <p>在系統設計中，資料流不只是把資料從 A 傳到 B，更需要定義資料如何進入系統、如何被處理，以及系統在流量突然增加時如何維持穩定。</p>
 <pre class="mermaid">flowchart TD
     A[&#34;感測器 / 檔案輸入&#34;] --&gt; B[&#34;記憶體緩衝區&#34;]
@@ -271,7 +271,7 @@
 <p>此處需要區分兩件事：<strong>異常偵測負責辨識偏離，根因分析則負責提出可能的解釋。</strong> 前者可以由模型分數與規則驅動；後者通常需要結合歷史資料、設備知識與工程師驗證，不能只憑一個異常分數就斷言故障原因。</p>
 <hr>
 <h2 id="5-ml--phm-pipeline如何從感測器資料辨識異常">5. ML &amp; PHM Pipeline：如何從感測器資料辨識異常？</h2>
-<p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/05_ml_phm_pipeline.png"></p>
+<p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/05_ml_phm_pipeline.png"></p>
 <p>設備健康管理的難點之一，是實際故障案例通常有限，而且不同設備、負載與運轉條件可能產生不同的訊號分布。</p>
 <p>因此，平台使用多種分析方法處理不同問題，而不是期待單一模型解決所有情況。</p>
 <h3 id="51-訊號預處理與特徵工程">5.1 訊號預處理與特徵工程</h3>
@@ -366,7 +366,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>這些方法可以互補，但實際組合仍須依設備與資料特性驗證。</p>
 <hr>
 <h2 id="6-backend-engineering讓資料模型與服務可維護">6. Backend Engineering：讓資料、模型與服務可維護</h2>
-<p><img alt="後端工程" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/06_backend_engineering.png"></p>
+<p><img alt="後端工程" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/06_backend_engineering.png"></p>
 <p>模型與感測器資料只是整個平台的一部分。要讓系統能持續運作，還需要身分驗證、資料存取、背景工作、狀態管理與錯誤處理。</p>
 <h3 id="61-flask-與-blueprint-模組化">6.1 Flask 與 Blueprint 模組化</h3>
 <p>後端使用 Flask 建立 REST API，並依業務領域拆分 Blueprint，例如：</p>
@@ -435,7 +435,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>這些項目應列入後續的維運驗證與可靠性改善工作。</p>
 <hr>
 <h2 id="7-ai-agent從自然語言查詢到可控的工程工具">7. AI Agent：從自然語言查詢到可控的工程工具</h2>
-<p><img alt="AI Agent 架構" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/07_ai_agent_architecture.png"></p>
+<p><img alt="AI Agent 架構" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/07_ai_agent_architecture.png"></p>
 <p>將 LLM 加入設備監控平台，真正的挑戰不只是讓模型能夠回答問題，而是讓它能在具備權限控制、資料可追溯與執行邊界的環境中使用系統能力。</p>
 <h3 id="71-為什麼需要-tool-calling">7.1 為什麼需要 Tool Calling？</h3>
 <p>假設工程師詢問：</p>
@@ -517,7 +517,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>若未來需要瀏覽器與伺服器進行頻繁的雙向即時互動，再評估 WebSocket 是否更合適。</p>
 <hr>
 <h2 id="8-部署與監控讓平台能在目標環境中運作">8. 部署與監控：讓平台能在目標環境中運作</h2>
-<p><img alt="部署與監控" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/08_deployment_monitoring.png"></p>
+<p><img alt="部署與監控" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/08_deployment_monitoring.png"></p>
 <p>一個可以在開發環境成功執行的系統，不一定能直接部署到另一台設備或伺服器。</p>
 <p>部署設計需要處理依賴、環境設定、持久化資料、背景工作與更新流程。</p>
 <h3 id="81-docker-compose-容器化部署">8.1 Docker Compose 容器化部署</h3>
@@ -582,7 +582,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>這些指標能幫助工程師區分設備異常、資料管線故障與應用服務故障，避免把所有問題都當成模型問題處理。</p>
 <hr>
 <h2 id="9-failure-handling--scalability從單機限制到橫向擴充">9. Failure Handling &amp; Scalability：從單機限制到橫向擴充</h2>
-<p><img alt="故障處理與擴展性" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/09_failure_scaling.png"></p>
+<p><img alt="故障處理與擴展性" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/09_failure_scaling.png"></p>
 <p>單機架構的優點是部署簡單、依賴少、維運成本較低。但隨著資料量與併發請求增加，原本的簡化設計也會逐漸出現限制。</p>
 <h3 id="91-有界佇列的容量與資料完整性">9.1 有界佇列的容量與資料完整性</h3>
 <p>目前資料流透過記憶體佇列吸收短暫突發流量，再批次寫入 SQLite。</p>
@@ -658,7 +658,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>如此一來，架構演進是由實際需求驅動，而不是因為某種技術流行就提前引入。</p>
 <hr>
 <h2 id="10-engineering-trade-offs技術選擇與架構演進">10. Engineering Trade-offs：技術選擇與架構演進</h2>
-<p><img alt="工程權衡" loading="lazy" src="/blog/posts/edge_ai_platform_ppt169/images/10_engineering_tradeoffs.png"></p>
+<p><img alt="工程權衡" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/10_engineering_tradeoffs.png"></p>
 <p>系統設計不只是選擇技術，也是在不同的限制之間取得平衡。</p>
 <p>對 Edge AI 平台而言，部署便利性、離線運作、資料完整性、效能與維運成本都可能互相影響。</p>
 <h3 id="101-現行方案與未來演進">10.1 現行方案與未來演進</h3>

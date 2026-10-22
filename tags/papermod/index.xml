@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Papermod on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/papermod/</link><description>Recent content in Papermod on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Tue, 20 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/papermod/index.xml" rel="self" type="application/rss+xml"/><item><title>這個部落格是怎麼長出來的：Hugo × PaperMod × GitHub Pages 建站日誌</title><link>https://jiejiefu.github.io/blog/posts/hugo_papermod_devlog/</link><pubDate>Tue, 20 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/hugo_papermod_devlog/</guid><description>從空資料夾到 push 就上線的雙語部落格。這篇記錄 Hugo 與 PaperMod 的選擇、GitHub Actions 部署、首頁改造、圖片管線，以及十幾個只有真的踩過才會知道的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Papermod on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/papermod/</link><description>Recent content in Papermod on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Tue, 20 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/papermod/index.xml" rel="self" type="application/rss+xml"/><item><title>這個部落格是怎麼長出來的：Hugo × PaperMod × GitHub Pages 建站日誌</title><link>https://jiejiefu.github.io/blog/posts/hugo-papermod-devlog/</link><pubDate>Tue, 20 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/hugo-papermod-devlog/</guid><description>從空資料夾到 push 就上線的雙語部落格。這篇記錄 Hugo 與 PaperMod 的選擇、GitHub Actions 部署、首頁改造、圖片管線，以及十幾個只有真的踩過才會知道的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <p><strong>這個部落格不是用 WordPress 或 Medium 蓋的</strong>，而是 Hugo（Go 寫的靜態網站生成器）＋ PaperMod 主題＋ GitHub Pages。整個流程只有三步：寫 Markdown、<code>git push</code>、GitHub Actions 幫你編譯並部署。</p>
 <p><strong>它不是一次完工，而是三個月內分了七次改版才長成現在的樣子。</strong> 這篇不是「Hugo 入門 30 分鐘」，而是一份真實的建站日誌：為什麼選這套、每一個決定換來什麼、以及那些文件不會告訴你、只有真的 build 下去才會炸出來的坑。</p>
@@ -241,8 +241,8 @@
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">contentDir</span><span class="p">:</span><span class="w"> </span><span class="l">content/en</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="m">2</span><span class="w">
 </span></span></span></code></pre></div><p>兩邊用<strong>相同的 slug</strong>，PaperMod 的語言切換就會自動把同一篇文章串起來：</p>
-<pre tabindex="0"><code>content/zh-tw/posts/hugo_papermod_devlog/index.md
-content/en/posts/hugo_papermod_devlog/index.md
+<pre tabindex="0"><code>content/zh-tw/posts/hugo-papermod-devlog/index.md
+content/en/posts/hugo-papermod-devlog/index.md
 </code></pre><p>介面文字則由 <code>i18n/</code> 覆寫。例如想把 <code>read_more</code> 固定成「閱讀全文」，就在 <code>i18n/zh-tw.yaml</code> 補：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">read_more</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">translation</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;閱讀全文&#34;</span><span class="w">
@@ -380,10 +380,10 @@ Branch: gh-pages / (root)
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">rm -rf public <span class="o">&amp;&amp;</span> hugo --minify
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="c1"># 以已發布的文章為例</span>
-</span></span><span class="line"><span class="cl">ls public/posts/rea_reverse_engineer_anything/index.html
+</span></span><span class="line"><span class="cl">ls public/posts/rea-reverse-engineer-anything/index.html
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="c1"># og:image 指向的檔案真的存在</span>
-</span></span><span class="line"><span class="cl">rg -o <span class="s1">&#39;og:image&#34; content=&#34;[^&#34;]+&#39;</span> public/posts/rea_reverse_engineer_anything/index.html
+</span></span><span class="line"><span class="cl">rg -o <span class="s1">&#39;og:image&#34; content=&#34;[^&#34;]+&#39;</span> public/posts/rea-reverse-engineer-anything/index.html
 </span></span></code></pre></div><h2 id="7-day-5把首頁從-papermod-預設改成實驗室">7. Day 5：把首頁從 PaperMod 預設改成「實驗室」</h2>
 <p>PaperMod 的首頁有三種模式：Regular、Home-Info、Profile。這個站一開始用 Home-Info，後來整頁重寫。原因不是 Home-Info 不好，而是它能做的事情就到那裡。</p>
 <h3 id="最重要的觀念layoutsindexhtml-會讓-homeinfoparams-完全失效">最重要的觀念：<code>layouts/index.html</code> 會讓 <code>homeInfoParams</code> 完全失效</h3>
@@ -474,7 +474,7 @@ Branch: gh-pages / (root)
 <h2 id="8-day-6內容與圖片管線">8. Day 6：內容與圖片管線</h2>
 <h3 id="page-bundle一篇文就是一個資料夾">Page bundle：一篇文就是一個資料夾</h3>
 <p>這個站的文章用 leaf bundle：</p>
-<pre tabindex="0"><code>content/zh-tw/posts/hugo_papermod_devlog/
+<pre tabindex="0"><code>content/zh-tw/posts/hugo-papermod-devlog/
 ├── index.md
 └── images/
     └── cover.jpg
@@ -527,7 +527,7 @@ Branch: gh-pages / (root)
 </span></span><span class="line"><span class="cl"><span class="c1"># 封面：1200px 寬、q85</span>
 </span></span><span class="line"><span class="cl">magick cover.png -resize 1200x -strip -quality <span class="m">85</span> cover.jpg
 </span></span></code></pre></div><p>做完之後，<code>content/</code> 從兩百多 MB 降到 15 MB 左右，<code>public/</code> 大約 9 MB。這個數字不是為了炫技，而是<strong>讀者第一次打開網站的等待時間</strong>。</p>
-<p><img alt="content/ 改版前後與 public/ 部署產物的體積比較" loading="lazy" src="/blog/posts/hugo_papermod_devlog/images/01_content_size.webp"></p>
+<p><img alt="content/ 改版前後與 public/ 部署產物的體積比較" loading="lazy" src="/blog/posts/hugo-papermod-devlog/images/01_content_size.webp"></p>
 <p><em>同一批資訊圖，只換編碼與尺寸；<code>public/</code> 是實際部署出去的產物。</em></p>
 <h3 id="坑-5草稿不要放進-content">坑 5：草稿不要放進 <code>content/</code></h3>
 <p>page bundle 裡任何 <code>.md</code> 都會被 Hugo 當成頁面渲染，並發佈成公開 URL。不是只有 <code>index.md</code>。</p>
@@ -570,7 +570,7 @@ Branch: gh-pages / (root)
 </span></span><span class="line"><span class="cl"><span class="nv">CH</span><span class="o">=</span><span class="s2">&#34;/Applications/Google Chrome.app/Contents/MacOS/Google Chrome&#34;</span>
 </span></span><span class="line"><span class="cl"><span class="s2">&#34;</span><span class="nv">$CH</span><span class="s2">&#34;</span> --headless<span class="o">=</span>new --disable-gpu --user-data-dir<span class="o">=</span><span class="s2">&#34;</span><span class="k">$(</span>mktemp -d<span class="k">)</span><span class="s2">&#34;</span> <span class="se">\
 </span></span></span><span class="line"><span class="cl">  --virtual-time-budget<span class="o">=</span><span class="m">60000</span> --dump-dom <span class="se">\
-</span></span></span><span class="line"><span class="cl">  <span class="s2">&#34;http://localhost:1313/blog/posts/mermaid_smoke_test/&#34;</span> &gt; /tmp/d.html
+</span></span></span><span class="line"><span class="cl">  <span class="s2">&#34;http://localhost:1313/blog/posts/mermaid-smoke-test/&#34;</span> &gt; /tmp/d.html
 </span></span></code></pre></div><p>然後數 <code>&lt;svg&gt;</code> 裡沒有 <code>viewBox</code> 的數量，必須是 0。</p>
 <h3 id="plotly不要讓每個頁面都付-15-mb">Plotly：不要讓每個頁面都付 1.5 MB</h3>
 <p>Plotly 的 Full bundle 是 4.83 MB min / 1.48 MB gzip，Basic 是 1.20 MB min / 398 KB gzip。這不是「載入一次就好」的成本，而是每個第一次進來的讀者都要付。</p>

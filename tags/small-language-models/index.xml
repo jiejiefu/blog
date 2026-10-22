@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Small-Language-Models on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/small-language-models/</link><description>Recent content in Small-Language-Models on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Thu, 22 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/small-language-models/index.xml" rel="self" type="application/rss+xml"/><item><title>模型不是大腦：0.8B 小型語言模型 × Pokémon Red 的 Harness 工程</title><link>https://jiejiefu.github.io/blog/posts/slm_pokemon_red_harness/</link><pubDate>Thu, 22 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/slm_pokemon_red_harness/</guid><description>用 0.8B 本地 SLM 玩 Pokémon Red，從 VLM 截圖的 1–2 秒延遲與幻覺，改用 RAM／TileMap 的 0.01 ms 觀測，再用三層 Agent Harness 把反射、記憶與導航從模型身上拆出去。這是一場把小型語言模型放對位置的工程實驗，不是模型評測。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Small-Language-Models on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/small-language-models/</link><description>Recent content in Small-Language-Models on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Thu, 22 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/small-language-models/index.xml" rel="self" type="application/rss+xml"/><item><title>小模型不像是大腦：0.8B 小型語言模型 × Pokémon Red 的 Harness 工程</title><link>https://jiejiefu.github.io/blog/posts/slm-pokemon-red-harness/</link><pubDate>Thu, 22 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/slm-pokemon-red-harness/</guid><description>用 0.8B 本地 SLM 玩 Pokémon Red，從 VLM 截圖的 1–2 秒延遲與幻覺，改用 RAM／TileMap 的 0.01 ms 觀測，再用三層 Agent Harness 把反射、記憶與導航從模型身上拆出去。這是一場把小型語言模型放對位置的工程實驗，不是模型評測。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <p><strong>0.8B 的價值，是在一個被整理好的世界裡做選擇。</strong></p>
 <p>我一開始把遊戲畫面丟給同一個 0.8B 模型，讓它看圖決定按鍵。結果跑了 22.5 分鐘、132 個 episode（平均每個約 10 秒），動作欄位只有一個值：<code>A</code>，畫面還停在標題。後來我沒換更大的模型；我把「看畫面」改成「讀 RAM」，把「記路」從模型手上拿走，它第一次自己走出了家門，抵達 Pallet Town（真新鎮）。</p>
@@ -470,9 +470,9 @@
 <li>錯誤代價高，需要更強的世界知識與判斷。</li>
 <li>你要處理的是「沒見過的問題」，不是「見過很多次的問題」。</li>
 </ul>
-<h2 id="9-結論模型不是大腦">9. 結論：模型不是大腦</h2>
+<h2 id="9-結論小模型不像是大腦">9. 結論：小模型不像是大腦</h2>
 <p>我以前會把 agent 想成「一個很聰明的大腦，加上一些手腳」。這次做完，比較準確的畫面是反過來：</p>
-<p><strong>模型不是大腦。它比較像整個系統裡最會說話的那一層。</strong></p>
+<p><strong>小模型不像是大腦。它比較像整個系統裡最會說話的那一層。</strong></p>
 <p>它負責在幾個被整理好的選項裡，選一個當下最合理的。讓 agent 變聰明的，是那個把世界整理成選項的 harness：可靠的觀測、會遺忘的記憶、能走路的導航、以及知道什麼時候不要問模型的反射層。</p>
 <p>如果你也在做 edge agent，可以先問自己一個問題：</p>
 <blockquote>
