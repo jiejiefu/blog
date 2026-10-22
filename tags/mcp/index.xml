@@ -61,7 +61,7 @@
 	<thead>
 			<tr>
 					<th>項目</th>
-					<th>數值（2026-10 快照）</th>
+					<th>數值</th>
 			</tr>
 	</thead>
 	<tbody>
@@ -71,7 +71,7 @@
 			</tr>
 			<tr>
 					<td>npm</td>
-					<td><code>rea-agents</code>，首版 2026-07-12，最新 <code>6.7.0</code>（2026-10-18）</td>
+					<td><code>rea-agents</code>，最新 <code>6.7.0</code></td>
 			</tr>
 			<tr>
 					<td>授權</td>
@@ -92,7 +92,7 @@
 	</tbody>
 </table>
 <p><img alt="REA 的 GitHub Stars 成長曲線" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/01_star_growth.webp"></p>
-<p><em>圖一：REA 的 stars 成長曲線（資料來源：GitHub Trending 追蹤與 GitHub API，2026-10-19）。數字會隨時間變動，此圖僅作為「社群關注度」的視覺錨點。</em></p>
+<p><em>圖一：REA 的 stars 成長曲線（資料來源：GitHub Trending 追蹤與 GitHub API）。數字會隨時間變動，此圖僅作為「社群關注度」的視覺錨點。</em></p>
 <hr>
 <h2 id="2-三股力量匯流才長出-rea-這個形狀">2. 三股力量匯流，才長出 REA 這個形狀</h2>
 <p>REA 站在三個已經成熟的趨勢交會點上；少掉任何一個，它都不會長成現在的樣子。</p>
@@ -224,6 +224,12 @@
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">npx -y rea-agents@latest analyze-javascript-application /absolute/path/to/app --json
 </span></span></code></pre></div><h3 id="41-官方案例notion-的剪貼簿-ipc-通道">4.1 官方案例：Notion 的剪貼簿 IPC 通道</h3>
 <p>官方案例分析的對象是 Notion Desktop 7.6.1 的 <code>app.asar</code>（8,903,750 bytes，檔案雜湊記錄在案例頁面）。REA 在<strong>沒有啟動任何原生引擎、也沒有執行 Notion</strong>的前提下，從 renderer 的 preload 找到 context bridge，沿著 IPC 追進 main process，讀出 <code>notion:clipboard:write</code> 這個通道名稱與自訂 MIME 型態。</p>
+<pre class="mermaid">flowchart LR
+    A[app.asar&lt;br/&gt;8,903,750 bytes] --&gt; B[renderer bundle]
+    B --&gt; C[preload 與 contextBridge]
+    C --&gt;|invoke| D[main process]
+    D --&gt;|notion:clipboard:write| E[系統剪貼簿]
+    D -.-&gt; F[其他呼叫端與完整路徑&lt;br/&gt;案例未涵蓋]</pre><p><em>圖二：Notion Desktop 7.6.1 的剪貼簿 IPC 追蹤路徑。實線是案例直接觀察到的範圍，虛線是案例明確聲明未涵蓋的部分——分析過程完全沒有啟動原生引擎，也沒有執行 Notion。</em></p>
 <p>案例頁面自己也說得明白：畫面上呈現的兩張結果面板是「可讀的投影」，<strong>不是完整、可重播的 Evidence 物件</strong>。那次追蹤的圖也沒有涵蓋整條剪貼簿路徑，所以案例只主張「直接觀察到的 API 與 invoke 來源範圍」，不把不完整的圖說成完整路線。</p>
 <p>這種「先說清楚自己沒證明什麼」的寫法，是 REA 文件最一致的特徵。</p>
 <hr>
@@ -320,6 +326,8 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <blockquote>
 <p>A green unit test cannot close a <code>packaged-process</code> obligation.</p>
 </blockquote>
+<p><img alt="權威可比性矩陣" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/03_authority_matrix.webp"></p>
+<p><em>圖三：哪種證據能核銷哪種主張。● 代表權威可比、可以關閉該筆項目；○ 代表權威不足，項目維持未關閉。推論（inference）在任何情況下都不能升格為觀察。資料來源：<code>docs/reconstruction-coverage.md</code>、<code>docs/reconstruction-obligation-ledgers.md</code>；此圖為依文件描述整理的概念示意，非官方等級表。</em></p>
 <p>這就是把它叫做「會計」而不是「評分」的原因。不是打個分數就好，而是<strong>每一筆核銷都要有對應等級的憑證</strong>。不方便，但這正是它比「LLM 說 OK」可信的地方。</p>
 <hr>
 <h2 id="8-不只是工具六個-mcp-prompt">8. 不只是工具：六個 MCP Prompt</h2>
@@ -375,6 +383,10 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <ul>
 <li><strong>症狀</strong>：<code>binary_overview</code> 對大型原生檔一直逾時，連線被中斷，工作流卡死。</li>
 <li><strong>原因</strong>：客戶端 SDK 的預設請求上限是 <strong>60 秒</strong>，但 REA 允許的 Ghidra 啟動上限是 <strong>330 秒</strong>（Hopper 是 120 秒）。引擎還在匯入與自動分析，客戶端就先把請求砍了。</li>
+</ul>
+<p><img alt="逾時預算對照" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/04_timeout_budget.webp"></p>
+<p><em>圖四：同一個請求，兩個計時器。客戶端 60 秒就放棄，Ghidra 卻被允許跑到 330 秒；文件示例可把上限調到 360 秒。資料來源：REA <code>docs/client-configuration.md</code>、<code>docs/installation.md</code>。</em></p>
+<ul>
 <li><strong>處方</strong>：把客戶端請求上限拉高，並視需要調整 REA 的啟動上限。</li>
 </ul>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="kr">const</span> <span class="nx">overview</span> <span class="o">=</span> <span class="kr">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">callTool</span><span class="p">(</span>
@@ -405,8 +417,8 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <li><strong>症狀</strong>：使用非第一方端點時，Claude Code 可能關閉 tool search，於是每次請求都帶著所有工具的定義，造成上下文反覆被填滿。</li>
 <li><strong>原因</strong>：REA 的工具數量不小，完整 schema 相當可觀。</li>
 </ul>
-<p><img alt="172 個工具的 schema 成本" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/02_schema_payload.webp"></p>
-<p><em>圖二：工具 schema 的傳輸成本（資料來源：REA 官方文件的量測，數字隨版本變動）。這張圖的重點不是精確數字，而是「工具定義本身也是一種上下文成本」。</em></p>
+<p><img alt="172 個工具的 schema 成本" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/05_schema_payload.webp"></p>
+<p><em>圖五：工具 schema 的傳輸成本（資料來源：REA 官方文件的量測，數字隨版本變動）。這張圖的重點不是精確數字，而是「工具定義本身也是一種上下文成本」。</em></p>
 <ul>
 <li><strong>處方</strong>：確認 schema profile 是 <code>compact</code>（新版本已是預設），或讓客戶端正確得知模型實際的上下文視窗大小。</li>
 </ul>
@@ -477,6 +489,8 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 </span></span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">pan</span><span class="p">;</span>          <span class="c1">// __ftol
 </span></span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>真正的重點不是這段 C 看起來多簡單，而是<strong>它被驗證到什麼程度</strong>：3,205 個行為案例全數通過（0–640 的每個整數位置 × 五種 pan scale），且用釘定的編譯器重建後，產出的 63 個位元組與原始函式完全一致。這正是「功能等價」比「看起來像」更硬的地方。</p>
+<p><img alt="DX-Ball 的驗證強度" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/06_dxball_verification.webp"></p>
+<p><em>圖六：DX-Ball 平移函式的驗證強度。左側是 641 個位置 × 5 種 pan scale 的行為案例，右側是重建後與原始函式的位元組長度。資料來源：<a href="https://rea.tools/showcase/dx-ball/">REA Showcase：DX-Ball</a>。</em></p>
 <hr>
 <h2 id="11-安全與法律邊界能力越強越需要寫清楚">11. 安全與法律邊界：能力越強，越需要寫清楚</h2>
 <p>REA 的 <code>DISCLAIMER.md</code> 把意圖寫得非常明確。它的合法用途是：安全研究、惡意程式與事件分析、漏洞研究與協調揭露、CTF 與教學、互通性、軟體保存，以及稽核你擁有或被授權檢查的軟體。</p>

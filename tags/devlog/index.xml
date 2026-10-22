@@ -774,6 +774,6 @@ Branch: gh-pages / (root)
 <li><a href="https://plotly.com/javascript/">Plotly JavaScript 文件</a></li>
 </ul>
 <blockquote>
-<p>本文的數字與指令以 2026-10 的 repo 狀態為準。Hugo、PaperMod 與 GitHub Actions 都持續更新，實際行為請以你安裝的版本與官方文件為準。</p>
+<p>本文的數字與指令以撰稿時的 repo 狀態為準。Hugo、PaperMod 與 GitHub Actions 都持續更新，實際行為請以你安裝的版本與官方文件為準。</p>
 </blockquote>
 ]]></content:encoded></item></channel></rss>

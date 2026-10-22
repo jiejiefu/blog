@@ -1,4 +1,433 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Open-Source on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/open-source/</link><description>Recent content in Open-Source on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Mon, 19 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/open-source/index.xml" rel="self" type="application/rss+xml"/><item><title>REA 深度解析：36 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位</title><link>https://jiejiefu.github.io/blog/posts/rea-reverse-engineer-anything/</link><pubDate>Mon, 19 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/rea-reverse-engineer-anything/</guid><description>REA（Reverse Engineer Anything）把 Hopper、Ghidra、IDA 這些重型反編譯引擎包成一個本地 MCP 閘道，讓 AI Agent 用自然語言對已編譯的軟體提問。本文拆解它的雙路徑架構、Evidence 模型與重建責任帳本，並整理實務維運會踩到的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Open-Source on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/open-source/</link><description>Recent content in Open-Source on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Thu, 22 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/open-source/index.xml" rel="self" type="application/rss+xml"/><item><title>PPT Master 深度解析：工程師不再親手做投影片</title><link>https://jiejiefu.github.io/blog/posts/ppt-master-svg-to-pptx/</link><pubDate>Thu, 22 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/ppt-master-svg-to-pptx/</guid><description>AI 如何從 SVG 編譯出原生 PPTX——拆解專案內的 SVG 中介語言、六條生成路線、品質閘門，以及 70 份公開範例背後沒說的事。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+  <p class="tldr__label">TL;DR</p>
+  <p><strong>PPT Master 不是「AI 排版工具」，它把簡報當成一個編譯目標。</strong> 專案內的 SVG 是中繼語言（IR），DrawingML 是目標碼，模型負責決定內容與版面，確定性的 Python 工具負責檢查、轉換與封裝。</p>
+<p><strong>它最反直覺的設計，是拒絕「任意 SVG 轉 PPTX」。</strong> 只有符合專案契約的 SVG 才會被接受；<code>spec_lock.md</code> 鎖住設計決策，品質閘門擋下編譯器無法對映的表達，最後再由 <code>[POSTFLIGHT]</code> 核對封裝結果。</p>
+<p>這篇文章會拆解：為什麼多數 AI 簡報最後還是截圖、SVG 為何適當中繼語言、六條入口怎麼選、單一 agent 如何扮演三個角色，以及它在哪裡仍然不是萬靈丹。</p>
+
+</aside>
+
+<h2 id="1-導論你花在不是內容的時間">1. 導論：你花在「不是內容」的時間</h2>
+<p>做一份簡報，真正花時間的通常不是想清楚要講什麼，而是把想清楚的東西<strong>手動搬進版面</strong>：標題要對齊、三張圖要等寬、表格要縮到不爆框、換一台電腦字型就跑了、主管說「這頁拿掉」你又得重排後面十頁。</p>
+<p>如果把簡報看成一份程式，這些工作其實是<strong>手工編譯</strong>：你用人眼解析內容，用手腕產生版面，再用 PowerPoint 當 linker，把文字、圖片、圖表黏成一個 <code>.pptx</code>。編譯一次可以，改需求再編譯一次就痛苦了。</p>
+<p>PPT Master 的切入點，是把這段流程拆成編譯器熟悉的形狀：</p>
+<ul>
+<li><strong>原始碼</strong>：PDF、DOCX、Markdown、網址、Excel，或直接貼上的主題文字。</li>
+<li><strong>中介語言</strong>：專案內一份一份的 SVG，但不是瀏覽器什麼都吃的 SVG，而是受契約約束的 project-canonical SVG。</li>
+<li><strong>目標碼</strong>：PowerPoint 原生的 DrawingML，文字、形狀、圖表都還是可編輯物件。</li>
+<li><strong>測試與閘門</strong>：<code>svg_quality_checker.py</code> 檢查 SVG，<code>svg_to_pptx.py</code> 驗證對映與封裝，最後輸出一份 postflight 報告。</li>
+</ul>
+<p>這個類比不是裝飾。它解釋了後面所有看起來「很工程」的設計：為什麼要有 lock file、為什麼要先產五頁再產剩下頁數、為什麼轉檔器不順便重跑完整檢查、為什麼「檔案產生了」不等於「可以交付」。</p>
+<h3 id="專案快照">專案快照</h3>
+<table>
+	<thead>
+			<tr>
+					<th>項目</th>
+					<th>數值</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>GitHub</td>
+					<td><a href="https://github.com/hugohe3/ppt-master"><code>hugohe3/ppt-master</code></a></td>
+			</tr>
+			<tr>
+					<td>版本</td>
+					<td><code>6.7.2</code></td>
+			</tr>
+			<tr>
+					<td>授權</td>
+					<td>MIT</td>
+			</tr>
+			<tr>
+					<td>星數</td>
+					<td>65,416（撰稿時 GitHub API 快照）</td>
+			</tr>
+			<tr>
+					<td>Repo 建立</td>
+					<td>2025-12-10</td>
+			</tr>
+			<tr>
+					<td>執行環境</td>
+					<td>Python 3.10+，需要能讀寫工作目錄、執行 shell 的 agent host</td>
+			</tr>
+			<tr>
+					<td>公開範例</td>
+					<td>70 份、987 頁、9 種畫布格式</td>
+			</tr>
+	</tbody>
+</table>
+<p>數字只提供量級感，<strong>它每天都在變</strong>。真正要判斷的是架構，不是 star 數。</p>
+<h2 id="2-為什麼多數ai-做-ppt最後還是截圖">2. 為什麼多數「AI 做 PPT」最後還是截圖</h2>
+<p>「AI 生成簡報」聽起來很簡單：給它一段文字，它吐一個 <code>.pptx</code>。但實際拆開，市面上常見的做法是三條替代路線，加上 PPT Master；它們各自把成本藏在不同的地方。</p>
+<p><a href="/blog/posts/ppt-master-svg-to-pptx/images/route-matrix.webp"><img alt="四種 AI 簡報做法的 2×2 定位圖" loading="lazy" src="/blog/posts/ppt-master-svg-to-pptx/images/route-matrix.webp"></a></p>
+<p><em>圖：依「版面自由度 × 可編輯性」做的質性定位，不是量測。截圖派最自由但最難改；<code>python-pptx</code> 反過來；PPT Master 想同時拿到兩邊，代價是來源材料與 review。（點圖放大）</em></p>
+<p>第三條替代路線「整頁圖片＋隱形文字」只是把截圖包裝成可編輯的假象：文字看起來能選，實際上仍是圖片或疊上去的裝飾，改一個字就破功。</p>
+<p>截圖路線的問題不只是「不能改」。它把簡報從<strong>結構化文件</strong>降級成<strong>圖片集</strong>：你不能再問「這頁有幾個文字框」、不能讓 PowerPoint 幫你重排、不能把圖表資料換成下一季的數字，也不能讓下游系統讀取講者備忘錄。</p>
+<p><code>python-pptx</code> 路線反過來，檔案很原生，但模型要直接面對座標系。叫 LLM 在 1280×720 的畫布上放十二個元素，它會給你一組「差不多」的數字；跑版不是例外，是常態。這不是模型不夠聰明，而是<strong>直接寫目標碼太難 debug</strong>。</p>
+<p>PPT Master 選了另一條路：先讓模型寫一種它比較擅長、又看得見結果的中間格式，再用確定性工具編譯成 PowerPoint。這個選擇幾乎決定了它所有的優點與限制。</p>
+<h2 id="3-核心設計svg-是中介語言不是成品">3. 核心設計：SVG 是中介語言，不是成品</h2>
+<h3 id="為什麼不直接生成-drawingml">為什麼不直接生成 DrawingML</h3>
+<p>DrawingML 是 <code>.pptx</code> 底層的 XML。它很精確，但非常囉嗦：一個圓角矩形可能要幾十行巢狀 XML，一個帶陰影與漸層的形狀更長。對 LLM 來說，這有兩個致命問題：</p>
+<ol>
+<li><strong>訓練資料少</strong>：模型看過的 SVG 遠多於 DrawingML，生成穩定度不是同一個量級。</li>
+<li><strong>肉眼難 debug</strong>：SVG 打開瀏覽器就知道哪裡錯；DrawingML 錯了，你只會看到一個打不開的檔案或一頁空白。</li>
+</ol>
+<p>官方文件把這件事講得很直白：直接生成 DrawingML 看似最短路徑，實際上輸出不可靠、除錯幾乎不可能。於是它選擇 SVG 當中繼語言，讓模型在一個有即時視覺回饋的格式裡工作。</p>
+<p>那為什麼不用 HTML／CSS？因為瀏覽器的版面引擎跟 PowerPoint 不是同一個。HTML 的 flex、grid、字型度量、換行規則，到了 PPTX 並沒有逐項對應；你可以用 Playwright 截出一張很漂亮的圖，但那個「漂亮」是瀏覽器算出來的，不是 PowerPoint 算出來的。要把它變成可編輯物件，最後還是得回到幾何與文字框，等於繞了一圈。</p>
+<h3 id="但也不是任何-svg-都收">但也不是「任何 SVG 都收」</h3>
+<p>這是文章最需要講清楚的一點：<strong>PPT Master 不是 SVG 轉檔器。</strong></p>
+<p><a href="/blog/posts/ppt-master-svg-to-pptx/images/svg-contract.webp"><img alt="任意 SVG、專案契約與 DrawingML 的邊界" loading="lazy" src="/blog/posts/ppt-master-svg-to-pptx/images/svg-contract.webp"></a></p>
+<p><em>圖：契約像海關。<code>&lt;text&gt;</code>、<code>&lt;rect&gt;</code>、<code>&lt;path&gt;</code>、<code>&lt;image&gt;</code> 這類可對映的元素放行；filter、mask、<code>foreignObject</code> 與複雜文字排版則會被擋下或正規化。（點圖放大）</em></p>
+<p>瀏覽器能畫的 SVG 是一個很大的集合，而 DrawingML 只覆蓋其中一部分。專案契約借用 SVG 的語法與二維繪圖模型，但把允許的元素、屬性、單位、metadata 與結構規則全部關起來。官方文件的一句話很準：</p>
+<blockquote>
+<p>SVG adapts to PPT Master; PPT Master does not expand to follow the entire SVG standard.</p>
+</blockquote>
+<p>換句話說，<strong>是 SVG 配合這個編譯器，不是編譯器去追整個 SVG 標準。</strong> 契約外的表達會在品質檢查階段被擋下，或在轉換時被正規化成支援的形式。這聽起來很嚴格，但這正是「可預測」的來源。</p>
+<h3 id="三個格式各自負責什麼">三個格式各自負責什麼</h3>
+<table>
+	<thead>
+			<tr>
+					<th>格式</th>
+					<th>角色</th>
+					<th>誰會用到</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>svg_output/</code></td>
+					<td>作者格式，也是唯一的頁面設計權威</td>
+					<td>Executor 撰寫、checker 檢查、converter 編譯</td>
+			</tr>
+			<tr>
+					<td><code>svg_final/</code></td>
+					<td>給人看的預覽，會把支援的圖片內嵌</td>
+					<td>瀏覽器、IDE、人工檢查</td>
+			</tr>
+			<tr>
+					<td><code>.pptx</code></td>
+					<td>目標碼，原生 DrawingML</td>
+					<td>使用者、PowerPoint、下游流程</td>
+			</tr>
+	</tbody>
+</table>
+<p>⚠️ <code>svg_final/</code> <strong>不是第二條匯出路徑</strong>。它只是把 <code>svg_output/</code> 處理成比較好預覽的形式；真正可編輯的形狀只會從 <code>svg_output/</code> 經由 converter 產生。這一點很多人會誤會，以為「final 資料夾裡的 SVG 可以直接丟進 PowerPoint 轉成物件」——不行。</p>
+<h2 id="4-編譯管線從一份-brief-到一個-pptx">4. 編譯管線：從一份 brief 到一個 <code>.pptx</code></h2>
+<p>把官方流程攤開，先把主線每段實際會用到的 script 標上去；分支與可選工具放在後面的表。大概是這樣：</p>
+<pre class="mermaid">%%{init: {&#34;flowchart&#34;: {&#34;wrappingWidth&#34;: 380, &#34;nodeSpacing&#34;: 18, &#34;rankSpacing&#34;: 26, &#34;diagramPadding&#34;: 6}}}%%
+flowchart TD
+    A[&#34;1 準備&lt;br/&gt;source_to_md.py&lt;br/&gt;project_manager.py&#34;] --&gt; B[&#34;2 規劃&lt;br/&gt;design_spec.md&lt;br/&gt;spec_lock.md&#34;]
+    B --&gt; C[&#34;3 方法樣本&lt;br/&gt;svg_output/P01–P05&lt;br/&gt;svg_quality_checker.py --stage early&#34;]
+    C --&gt;|0 errors| D[&#34;4 量產&lt;br/&gt;svg_output/P06–Pnn&lt;br/&gt;single agent 序列產出&#34;]
+    D --&gt; E[&#34;5 最終閘門&lt;br/&gt;svg_quality_checker.py --stage final&lt;br/&gt;0 errors 才放行&#34;]
+    E --&gt; F[&#34;6 後處理&lt;br/&gt;total_md_split.py 有 notes 才跑&lt;br/&gt;finalize_svg.py → svg_final/&#34;]
+    F --&gt; G[&#34;7 編譯&lt;br/&gt;svg_to_pptx.py&lt;br/&gt;mapping / ZIP / package 驗證&#34;]
+    G --&gt; H[&#34;exports/*.pptx&lt;br/&gt;validation/*.report.json&lt;br/&gt;backup/時間戳/&#34;]</pre><p>拆開來看，有幾個值得注意的決策。</p>
+<h3 id="41-先確認這份-deck-要解決什麼">4.1 先確認「這份 deck 要解決什麼」</h3>
+<p>Default Generate 的 Stage 1 不是先問「你要幾頁、什麼顏色」，而是先確認溝通契約：用途、受眾、閱讀情境、畫布格式，以及要用自由設計還是既有模板。Stage 2 才確認頁數、視覺系統、模板應用方式與生產選項。</p>
+<p>這個順序很重要。簡報的成敗通常不是配色，而是<strong>你到底在對誰、在哪個情境、完成什麼溝通任務</strong>。把這件事寫進 <code>design_spec.md</code>，後面的版面才有依據。</p>
+<p>在進入設計之前，還有一道「事實充足性」的檢查。<code>source_to_md.py</code> 會依檔案類型分派：PDF、DOCX、XLSX、PPTX、網址、Markdown 各有自己的轉換路徑；如果只有主題、沒有材料，或規劃所需的關鍵事實有缺口，流程會先進入 topic-research，補出帶 provenance 的 Markdown，再匯入專案。這一步很關鍵：<strong>簡報的幻覺通常不是排版錯，而是來源根本沒有那個數字。</strong></p>
+<h3 id="42-先做五頁再量產">4.2 先做五頁，再量產</h3>
+<p>Executor 不是一次把二十頁噴完。它先產出 P01–P05，跑一次 early gate，把這五頁當成<strong>方法樣本</strong>：確認字級、間距、圖表語言、頁面節奏與契約都對，再連續產出剩下的頁面，中間不再呼叫 checker，最後跑一次 final gate。</p>
+<p>這很像編譯器的 bootstrap：先用一小組測試把語法與規則釘住，再放大到完整程式。如果前五頁就有系統性錯誤，與其產完二十頁再回頭修，不如在第五頁就停下來。</p>
+<h3 id="43-為什麼不切成平行-sub-agent">4.3 為什麼不切成平行 sub-agent</h3>
+<p>長 deck 最容易壞的地方不是單頁，而是<strong>頁與頁之間的一致性</strong>：標題突然變大、強調色突然多一種、圖表突然換一套語言。平行生成會讓每個 agent 各自帶一份上下文，最後再靠人工對齊，等於把編譯問題變成 merge 問題。</p>
+<p>官方文件列出的失敗模式很具體：sub-agent context loss、page-batching drift、long-deck color/font drift、out-of-order execution。這些不是理論風險，是實際跑出來才會看到的漂移。例如第三頁的標題用 32px、第十二頁變成 28px；第一頁的強調色是 <code>#938BFF</code>、第八頁多了一個沒人記得的藍色。單頁看都合理，整套看就是不對。</p>
+<p>所以它選擇<strong>單一 agent、序列化階段、每階段吃上一個階段的產物</strong>，而不是開一堆 agent 搶同一份設計。序列化的代價是慢，但換來的是「第十頁還記得第一頁長什麼樣」。</p>
+<h3 id="44-後處理不是順手做的事">4.4 後處理不是「順手做的事」</h3>
+<p><code>finalize_svg.py</code> 負責把 <code>svg_output/</code> 轉成可預覽的 <code>svg_final/</code>，把支援的圖片內嵌，讓 EMF/WMF 之類的向量資產保持外連。<code>svg_to_pptx.py</code> 才是真正的編譯器：它驗證對映、正規化相容形式、檢查 ZIP 與投影片數量、封裝，最後產生 <code>.pptx</code> 與 postflight 報告。</p>
+<p>成功匯出後，預設流程還會把 <code>svg_output/</code> 備份到 <code>backup/時間戳/</code>。這是實務上很實用的設計：<strong>你不必重跑 LLM，就能從凍結的 SVG 重新匯出。</strong></p>
+<h3 id="45-如果你去翻-reposcripts-怎麼讀">4.5 如果你去翻 repo：<code>scripts/</code> 怎麼讀</h3>
+<p><code>scripts/</code> 底下有八十幾個 top-level 檔案，再加上子目錄，第一次看會以為這是一套龐大的 framework。其實主線只有少數幾個入口；其餘是分支、可選交付與維運。可以用這張表把噪音濾掉：</p>
+<table>
+	<thead>
+			<tr>
+					<th>區域／時機</th>
+					<th>主要 scripts</th>
+					<th>它解決什麼</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>主線<br>Default Generate</td>
+					<td><code>source_to_md.py</code><br><code>project_manager.py</code><br><code>svg_quality_checker.py</code><br><code>finalize_svg.py</code><br><code>svg_to_pptx.py</code></td>
+					<td>來源轉換、專案邊界、品質閘門、後處理、編譯</td>
+			</tr>
+			<tr>
+					<td>PPTX 進口<br>來源是 <code>.pptx</code>，或走 Beautify／Edit Native／Create Template</td>
+					<td><code>pptx_intake.py</code><br><code>pptx_to_svg.py</code></td>
+					<td><code>intake</code> 抽 identity 與 slide library；<code>pptx_to_svg</code> 把既有 deck 還原成可編輯 SVG</td>
+			</tr>
+			<tr>
+					<td>全域修改<br>已生成後要改主色或字體</td>
+					<td><code>update_spec.py</code><br><code>stamp_native_fallbacks.py</code></td>
+					<td>只支援 <code>colors.*</code> 與 universal <code>font_family</code>；改完同步 <code>spec_lock.md</code>，必要時重蓋 native fallback baseline</td>
+			</tr>
+			<tr>
+					<td>素材<br>有圖片、要搜圖、生圖、切圖或同步 icon</td>
+					<td><code>analyze_images.py</code><br><code>image_search.py</code><br><code>image_gen.py</code><br><code>image_treat.py</code><br><code>slice_images.py</code><br><code>icon_sync.py</code></td>
+					<td>量測幾何、搜尋與授權、AI 生成、裁切與切片、icon pool</td>
+			</tr>
+			<tr>
+					<td>旁白與動態<br>要 notes、旁白、動畫、轉場或影片</td>
+					<td><code>total_md_split.py</code><br><code>notes_to_audio.py</code><br><code>narration_sync.py</code><br><code>pptx_animations.py</code><br><code>pptx_transitions.py</code><br><code>powerpoint_video.py</code><br><code>video_sound_mix.py</code><br><code>video_subtitles.py</code></td>
+					<td>把靜態 deck 延伸成可播放的交付物</td>
+			</tr>
+			<tr>
+					<td>模板<br>走 Create Template，或要套用既有模板</td>
+					<td><code>pptx_template_import.py</code><br><code>svg_authoring_view.py</code><br><code>mirror_template_materialize.py</code><br><code>template_preview_pptx.py</code><br><code>apply_template.py</code><br><code>register_template.py</code></td>
+					<td>萃取 master／layout、建立 authoring tree、預覽、安裝與註冊模板</td>
+			</tr>
+			<tr>
+					<td>維運<br>除錯、批次檢查、交付前檢驗</td>
+					<td><code>workflow_transcript.py</code><br><code>workflow_log.py</code><br><code>batch_validate.py</code><br><code>pptx_delivery_check.py</code><br><code>error_helper.py</code></td>
+					<td>審計紀錄、批次驗證、交付檢查、標準化錯誤提示</td>
+			</tr>
+	</tbody>
+</table>
+<p>這張表刻意把「主線」與「分支」分開。最容易誤讀的是 <code>pptx_to_svg.py</code>：它是進口器，不是 Generate 的第一步。Generate 的方向是 <code>source_to_md → SVG → PPTX</code>；Edit Native 才是 <code>PPTX → SVG → PPTX</code>。同樣地，<code>finalize_svg.py</code> 產出的 <code>svg_final/</code> 只是預覽，真正把 SVG 編譯成原生 DrawingML 的是 <code>svg_to_pptx.py</code>。</p>
+<p>還有一個容易誤會的點：<code>workflow.log</code> 是 append-only 的審計證據，不是流程能否前進的依據。它不會幫你判斷品質，只幫你事後查帳。真正決定能不能放行的是 <code>svg_quality_checker.py</code> 的 final report，以及 <code>svg_to_pptx.py</code> 的 postflight。</p>
+<h2 id="5-六條入口三個頂層路線四個-generate-profile">5. 六條入口：三個頂層路線，四個 Generate profile</h2>
+<p>官方路由不是「一個按鈕打天下」。它先分三個頂層路線，Generate 底下再分四個 profile。加起來是六種常見入口：</p>
+<table>
+	<thead>
+			<tr>
+					<th>你的情境</th>
+					<th>入口</th>
+					<th>實際發生什麼</th>
+					<th>代價或限制</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>有材料、要做新 deck、想先確認方向</td>
+					<td>Generate（Default）</td>
+					<td>Stage 1／2 確認溝通契約與設計，產出 <code>design_spec.md</code> + <code>spec_lock.md</code>，再逐頁產 SVG</td>
+					<td>最慢，來回最多</td>
+			</tr>
+			<tr>
+					<td>有材料、不想被問</td>
+					<td>Generate（Quick）</td>
+					<td>跳過 Strategist、spec、lock，決策留在當前上下文，直接產 SVG 與 PPTX</td>
+					<td>速度快，但上下文一斷就不能續跑</td>
+			</tr>
+			<tr>
+					<td>只有頁面截圖，想拆成可編輯</td>
+					<td>Image-to-PPTX</td>
+					<td>把圖片正規化成頁面序列，還原文字、重建圖層</td>
+					<td><strong>目前只支援 Codex</strong>，且固定走 Quick；不接受整頁截圖當可編輯外殼</td>
+			</tr>
+			<tr>
+					<td>已有 deck，只想改設計、保留文字與頁數</td>
+					<td>Beautify PPTX</td>
+					<td>保留 wording 與頁面，重做版面</td>
+					<td>會依意圖選 Default 或 Quick</td>
+			</tr>
+			<tr>
+					<td>已有 deck，只想改幾頁</td>
+					<td>Edit Native PPTX</td>
+					<td>匯入 round-trip 工作區，未改頁面逐位元組還原，<code>page_plan.json</code> 可選頁、重排、重複或省略</td>
+					<td>只編輯計畫中的頁面</td>
+			</tr>
+			<tr>
+					<td>想建立可重用的品牌／版式</td>
+					<td>Create Template</td>
+					<td>從參考材料建立 Brand、Style、Layout 或 Deck 工作區</td>
+					<td>必須顯式要求，不是「給一份 pptx 就自動變模板」</td>
+			</tr>
+	</tbody>
+</table>
+<p>把選擇畫成決策樹，會更清楚：</p>
+<pre class="mermaid">flowchart TD
+    S[你手上有什麼?] --&gt; A{已有 .pptx?}
+    A --&gt;|是| B{這次要改什麼?}
+    B --&gt;|只改幾頁| E[Edit Native PPTX]
+    B --&gt;|只改設計| F[Beautify PPTX]
+    A --&gt;|否| C{有頁面截圖?}
+    C --&gt;|有| I[Image-to-PPTX&lt;br/&gt;Codex only]
+    C --&gt;|沒有| D{要來回確認方向?}
+    D --&gt;|要| G[Generate Default]
+    D --&gt;|不要| Q[Generate Quick]
+    S --&gt; T{要建立可重用模板?}
+    T --&gt;|要| CT[Create Template]</pre><p>這張表比「支援哪些功能」有用，因為它回答的是<strong>你該走哪條路</strong>。同一個 <code>.pptx</code>，你說是「套模板」還是「改設計」，走的是完全不同的流程；走錯不是效果差一點，而是產物壽命不一樣。</p>
+<p>最容易走錯的一條，是「我有一份現成 pptx，想拿它當模板，再塞新內容」。預設會進 Edit Native PPTX，因為你的直覺是「沿用這份 deck 的頁面」；但如果你要的是<strong>先萃取可重用的設計系統，再生成一份新 deck</strong>，必須明確說出 Create Template。前者保留原頁面，後者重建工作區，兩者的產物不能互換。</p>
+<h2 id="6-三個角色其實是一個-agent">6. 三個角色，其實是一個 agent</h2>
+<p>文件裡會看到 Strategist、Image_Generator、Executor 三個名字，很容易以為這是三個平行 agent。不是。</p>
+<p>它們是同一隻 agent 在不同階段載入的 <strong>instruction scope</strong>：</p>
+<ul>
+<li><strong>Strategist</strong>：負責溝通契約、設計方向、<code>design_spec.md</code> 與 <code>spec_lock.md</code>。它決定「這份 deck 長什麼樣、為什麼」。</li>
+<li><strong>Image_Generator</strong>：只有在資源列需要 AI 生圖、網路搜尋或切片時才載入。它處理的是素材，不是版面。</li>
+<li><strong>Executor</strong>：照著 lock 撰寫 SVG，開即時預覽，跑早期與最終品質檢查。</li>
+</ul>
+<p>為什麼要拆成角色，卻不拆成 agent？因為角色邊界是<strong>責任邊界</strong>，不是<strong>平行單位</strong>。每個階段都吃上一個階段的產物，產物有明確的消費者與驗收條件；拆成 agent 只會讓 Context 被切碎，最後沒人記得整體設計長什麼樣。</p>
+<p>這種載入方式還有一個實際好處：<strong>上下文可以縮小到當前工作</strong>。寫 SVG 的 Executor 不需要在腦中同時掛著「來源 PDF 第三段在講什麼」；它只需要 lock、當前頁的內容與該頁的資源。Image_Generator 也只在真的需要生圖或切片時才出現，不會讓一整份圖庫佔滿每一次推理。</p>
+<p>用作業系統比喻：模型是 CPU，workflow 是 scheduler，Python 工具是 syscall。你不會為了跑一個程式，開四個 kernel。</p>
+<h2 id="7-契約與閘門對抗看起來差不多">7. 契約與閘門：對抗「看起來差不多」</h2>
+<p>AI 產出最危險的地方，不是明顯的錯，而是<strong>看起來差不多</strong>。字級差 2px、顏色差一階、圖表資料對不上、頁面順序怪怪的——這些都不會讓檔案壞掉，但會讓簡報失去可信度。</p>
+<p>PPT Master 用三層東西來擋：</p>
+<h3 id="71-spec_lockmd把設計決策變成契約">7.1 <code>spec_lock.md</code>：把設計決策變成契約</h3>
+<p><code>spec_lock.md</code> 不是設計文件，是執行契約。它鎖住 global 顏色與字體、<code>page_rhythm</code>（anchor／dense／breathing）、<code>page_visualizations</code>（這頁用哪個 chart／table 家族）、圖片列的放置與裁切、<code>mode</code>／<code>visual_style</code>，以及模板重用範圍。</p>
+<p>Executor 每一頁都要重讀 lock。這件事聽起來很笨，但它解決的是 LLM 最常見的漂移：寫到第十頁時，早就忘了第一頁的強調色是哪一個。</p>
+<h3 id="72-兩段式品質閘門">7.2 兩段式品質閘門</h3>
+<ul>
+<li><strong>Early gate</strong>：P01–P05 之後跑。目的是抓系統性錯誤，不是抓錯字。</li>
+<li><strong>Final gate</strong>：全部頁面完成後跑，<strong>必須 0 errors</strong>；warnings 不阻擋，但會記錄。</li>
+</ul>
+<p>這個設計把「錯誤」與「風格建議」分開。Blocking error 會讓流程停下來，要求 Executor 重寫；warning 則是提醒，不會自動改寫你的設計。這個界線很重要，否則模型會為了消 warning 把版面改得四不像。</p>
+<h3 id="73-postflight檔案存在不等於可以交付">7.3 <code>[POSTFLIGHT]</code>：檔案存在，不等於可以交付</h3>
+<p><code>svg_to_pptx.py</code> 不會重跑完整的 SVG checker。它做的是另一件事：驗證自己的對映與封裝，並且<strong>要求一份與當前 SVG 來源 fingerprint 相符的最終品質報告</strong>。沒有報告、報告過期、報告有 blocking error，正式匯出就會被拒絕。</p>
+<p>匯出後，postflight 會檢查 ZIP 與 package 結構、投影片數量、關係檔、轉場與動畫，並在終端機印出一張 <code>[POSTFLIGHT]</code> receipt，包含 status、counts、未解析的 token、外部圖片、只有泛用字型的字型堆疊。</p>
+<p>它甚至會核對實際的 ZIP part 數量，而不是只看「檔案大小不是 0」。這聽起來很偏執，但簡報檔的壞法通常不是完全打不開，而是「開得起來，某幾頁的圖不見了」或「轉場被吃掉」。這些問題不會讓匯出失敗，只會讓你在客戶面前才發現。</p>
+<p>這張 receipt 不是裝飾。它是「檔案產生了」與「release gate 過了」之間的差別。</p>
+<h2 id="8-原生-pptx-的邊界哪些是真的哪些不是">8. 原生 PPTX 的邊界：哪些是真的，哪些不是</h2>
+<p>「原生」這個詞很容易被過度使用。比較準確的說法是：</p>
+<table>
+	<thead>
+			<tr>
+					<th>內容</th>
+					<th>匯出後是什麼</th>
+					<th>可以改嗎</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>文字</td>
+					<td>DrawingML text run</td>
+					<td>可以，字型、字級、顏色、段落都能改</td>
+			</tr>
+			<tr>
+					<td>向量形狀</td>
+					<td>DrawingML shape（含 187 個 Office preset、Boolean、connector、freeform）</td>
+					<td>可以，拉節點、改填色、改線條</td>
+			</tr>
+			<tr>
+					<td>圖表／表格</td>
+					<td>原生 chart／table（走 native 變體時）</td>
+					<td>可以，資料可換</td>
+			</tr>
+			<tr>
+					<td>照片／插畫</td>
+					<td>PPT picture media</td>
+					<td>可以換圖、裁切，但不是向量</td>
+			</tr>
+			<tr>
+					<td>濾鏡／遮罩／複雜 SVG 表達</td>
+					<td>契約內的正規化結果，或直接被擋下</td>
+					<td>不保證一對一</td>
+			</tr>
+	</tbody>
+</table>
+<p>所以它有三個必須說清楚的限制：</p>
+<ol>
+<li><strong>它不是「任何 SVG 都能無損轉換」</strong>。專案契約外的東西，要嘛被正規化，要嘛在檢查階段就失敗。這不是 bug，是設計選擇。</li>
+<li><strong>它產出的是高品質可編輯草稿，不是密封的最終 deck</strong>。官方自己就寫了 &ldquo;high-quality editable PowerPoint draft, not a sealed final deck&rdquo;。最後一哩的判斷——這頁要不要留、這句話對不對、這個圖表會不會誤導——仍然是人的工作。</li>
+<li><strong>模板重用有範圍之分</strong>。只有 Layout／Deck 這類 scope 會保留 Master、Layout 與 slot 結構，編譯成可重用的原生結構；Brand／Style 與自由設計走 flat，不會幫你生出母片。想要「原生模板感」，不是隨便丟一份 pptx 就有。</li>
+</ol>
+<p>還有一個不在工具控制內的邊界：<strong>模型品質仍然決定上限</strong>。工作流能保證格式、契約與封裝，但不能保證策略選得對、文案寫得好、圖表挑得準。它把下限拉高，不會把上限拉高。</p>
+<p>把這些講清楚，反而讓它更可信。真正工程師會在意邊界，不會在意「什麼都能」。</p>
+<h2 id="9-70-份範例當測試集不是型錄">9. 70 份範例：當測試集，不是型錄</h2>
+<p>我不建議把 70 份範例當成「70 套模板」。更準確的讀法是：<strong>同一套編譯器，在不同設計系統與內容型態下的測試集。</strong></p>
+<p><a href="/blog/posts/ppt-master-svg-to-pptx/images/examples-distribution.webp"><img alt="70 份公開範例的頁數與畫布分布" loading="lazy" src="/blog/posts/ppt-master-svg-to-pptx/images/examples-distribution.webp"></a></p>
+<p><em>圖：70 份範例合計 987 頁，頁數 6–31、中位數 14；55 份是 16:9，其餘 15 份分散在 8 種畫布格式。（點圖放大）</em></p>
+<p>這個分布說明它不是只會做「十五頁商務簡報」：15 頁確實是最常見的長度，但同一條流程也能編譯 6 頁的短 deck、31 頁的長 deck，以及 A4、故事卡、小紅書、微信橫幅與方形貼文。</p>
+<p>若你也是軟體工程師，這幾份特別值得打開來看：</p>
+<table>
+	<thead>
+			<tr>
+					<th>範例</th>
+					<th>視覺語言</th>
+					<th>為什麼適合工程師</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>Kubernetes Blueprint 2026</strong>（13 頁）</td>
+					<td>深藍網格、青色等距方塊，control plane 與 nodes 畫成 3D 堆疊</td>
+					<td>系統架構、分散式系統內訓、K8s 教學</td>
+			</tr>
+			<tr>
+					<td><strong>uv</strong>（14 頁）</td>
+					<td>終端機視窗當主角，等寬字、巨大倍數、深色底</td>
+					<td>開發工具發表、CLI 產品介紹</td>
+			</tr>
+			<tr>
+					<td><strong>WebGPU 是什麼</strong>（12 頁）</td>
+					<td>instructional dark-tech；32 個 preset shapes、19 個 icon、7 個可編輯 code block、36 個入場動畫、3 組 Morph</td>
+					<td>API 概覽、code-heavy 技術分享、工程入門教材</td>
+			</tr>
+			<tr>
+					<td><strong>Attention Is All You Need</strong>（15 頁）</td>
+					<td>深藍工程紙、橘色單一強調、論文圖解</td>
+					<td>Paper reading、ML 技術分享</td>
+			</tr>
+			<tr>
+					<td><strong>Swiss Grid Systems</strong>（14 頁）</td>
+					<td>純白紙面、可見網格、Helvetica、瑞士紅圓</td>
+					<td>架構原則、設計素養、less-is-more 主題</td>
+			</tr>
+			<tr>
+					<td><strong>Cloudflare Outage Postmortem</strong>（15 頁）</td>
+					<td>無彩編輯風、紅色只代表 severity、時間軸與表格原生</td>
+					<td>Incident review、postmortem、SRE 報告</td>
+			</tr>
+	</tbody>
+</table>
+<p>這些 deck 的差別不是「模板換皮」，而是設計系統、頁面節奏與內容結構都不同。你可以從 <a href="https://hugohe3.github.io/ppt-master-examples/">官方 gallery</a> 下載 <code>.pptx</code>，直接進 PowerPoint 看原生形狀、圖表與轉場——這比看截圖更能判斷它到底是不是你要的工具。</p>
+<h2 id="10-什麼時候值得用什麼時候不值得">10. 什麼時候值得用，什麼時候不值得</h2>
+<table>
+	<thead>
+			<tr>
+					<th>適合</th>
+					<th>不適合</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>你已經有 PDF、文件、資料或明確主題</td>
+					<td>你只有一句「幫我做一份 AI 簡報」</td>
+			</tr>
+			<tr>
+					<td>簡報需要可編輯、可套品牌、可交接</td>
+					<td>你只要一張漂亮圖片，不在乎能不能改</td>
+			</tr>
+			<tr>
+					<td>內容包含程式碼、架構圖、圖表、表格</td>
+					<td>內容需要複雜 3D、影片或大量自由手繪</td>
+			</tr>
+			<tr>
+					<td>你願意花時間 review 方向與事實</td>
+					<td>你期待一鍵產出、不必檢查就能寄給客戶</td>
+			</tr>
+			<tr>
+					<td>長 deck 需要一致的視覺系統</td>
+					<td>只有一頁，手工做更快</td>
+			</tr>
+	</tbody>
+</table>
+<p>如果要用一句話總結：<strong>它自動化的是「內容 → 版面」的搬運，不是「決定要講什麼」的判斷。</strong></p>
+<p>如果你想試，最小路徑不是先研究 70 個範例，而是：</p>
+<ol>
+<li>準備一份真的來源材料，想清楚用途、受眾與閱讀情境。</li>
+<li>走一次 Default Generate，把 Stage 1／2 的確認當成需求訪談，不要急著跳過。</li>
+<li>打開 <code>exports/*.pptx</code>，逐頁點文字、形狀、圖表，確認它們真的是原生物件；不滿意就從 <code>svg_output/</code> 改，重新匯出，不必重跑 LLM。</li>
+</ol>
+<p>先跑一份你熟悉的內容，比跑十份別人的範例更能看出它適不適合你。</p>
+<h2 id="結論工具消失的那一天">結論：工具消失的那一天</h2>
+<p>編譯器的價值，不是讓你不用寫程式，而是讓你不用手動組譯。PPT Master 的價值也不是讓你不用想簡報，而是讓你不用把同一份內容，手動排版三次。</p>
+<p>它最值得學習的地方，甚至不是 SVG 或 DrawingML，而是那個<strong>把簡報當系統設計</strong>的態度：先定義格式，再定義契約；先做小樣本，再放大產量；先讓錯誤擋在閘門前，再談交付。這些原則跟寫後端、做資料管線、維運服務沒有本質差別。</p>
+<p>所以下一次做簡報，也許可以先問自己一個問題：</p>
+<blockquote>
+<p>這是內容問題，還是編譯問題？</p>
+</blockquote>
+<p>如果答案是後者，那就讓編譯器去做。</p>
+<h2 id="參考資料">參考資料</h2>
+<ul>
+<li><a href="https://github.com/hugohe3/ppt-master">PPT Master（GitHub）</a></li>
+<li><a href="https://github.com/hugohe3/ppt-master/blob/main/docs/technical-design.md">Technical Design</a></li>
+<li><a href="https://github.com/hugohe3/ppt-master/blob/main/docs/why-ppt-master.md">Why PPT Master</a></li>
+<li><a href="https://github.com/hugohe3/ppt-master/blob/main/docs/zh/getting-started.md">Getting Started（中文）</a></li>
+<li><a href="https://hugohe3.github.io/ppt-master-examples/">公開範例 Gallery</a></li>
+</ul>
+]]></content:encoded></item><item><title>REA 深度解析：36 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位</title><link>https://jiejiefu.github.io/blog/posts/rea-reverse-engineer-anything/</link><pubDate>Mon, 19 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/rea-reverse-engineer-anything/</guid><description>REA（Reverse Engineer Anything）把 Hopper、Ghidra、IDA 這些重型反編譯引擎包成一個本地 MCP 閘道，讓 AI Agent 用自然語言對已編譯的軟體提問。本文拆解它的雙路徑架構、Evidence 模型與重建責任帳本，並整理實務維運會踩到的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <p><strong>REA（Reverse Engineer Anything）是一個本地執行的 MCP 伺服器</strong>，把 Hopper、Ghidra、IDA 等反編譯引擎，以及 JavaScript／Electron、.NET、Go、Rust、WASM、SQLite 等靜態解析能力，統一包成 AI Agent 可以呼叫的工具。</p>
 <p><strong>它的核心不是「幫你反編譯」，而是「幫你把證據整理成 Agent 能消化的形式」</strong>：每一筆結論都帶著來源、涵蓋範圍與限制，還有明確標記的「未知」，避免 LLM 用流暢的語氣編出違反二進位事實的假設。</p>
@@ -61,7 +490,7 @@
 	<thead>
 			<tr>
 					<th>項目</th>
-					<th>數值（2026-10 快照）</th>
+					<th>數值</th>
 			</tr>
 	</thead>
 	<tbody>
@@ -71,7 +500,7 @@
 			</tr>
 			<tr>
 					<td>npm</td>
-					<td><code>rea-agents</code>，首版 2026-07-12，最新 <code>6.7.0</code>（2026-10-18）</td>
+					<td><code>rea-agents</code>，最新 <code>6.7.0</code></td>
 			</tr>
 			<tr>
 					<td>授權</td>
@@ -92,7 +521,7 @@
 	</tbody>
 </table>
 <p><img alt="REA 的 GitHub Stars 成長曲線" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/01_star_growth.webp"></p>
-<p><em>圖一：REA 的 stars 成長曲線（資料來源：GitHub Trending 追蹤與 GitHub API，2026-10-19）。數字會隨時間變動，此圖僅作為「社群關注度」的視覺錨點。</em></p>
+<p><em>圖一：REA 的 stars 成長曲線（資料來源：GitHub Trending 追蹤與 GitHub API）。數字會隨時間變動，此圖僅作為「社群關注度」的視覺錨點。</em></p>
 <hr>
 <h2 id="2-三股力量匯流才長出-rea-這個形狀">2. 三股力量匯流，才長出 REA 這個形狀</h2>
 <p>REA 站在三個已經成熟的趨勢交會點上；少掉任何一個，它都不會長成現在的樣子。</p>
@@ -224,6 +653,12 @@
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">npx -y rea-agents@latest analyze-javascript-application /absolute/path/to/app --json
 </span></span></code></pre></div><h3 id="41-官方案例notion-的剪貼簿-ipc-通道">4.1 官方案例：Notion 的剪貼簿 IPC 通道</h3>
 <p>官方案例分析的對象是 Notion Desktop 7.6.1 的 <code>app.asar</code>（8,903,750 bytes，檔案雜湊記錄在案例頁面）。REA 在<strong>沒有啟動任何原生引擎、也沒有執行 Notion</strong>的前提下，從 renderer 的 preload 找到 context bridge，沿著 IPC 追進 main process，讀出 <code>notion:clipboard:write</code> 這個通道名稱與自訂 MIME 型態。</p>
+<pre class="mermaid">flowchart LR
+    A[app.asar&lt;br/&gt;8,903,750 bytes] --&gt; B[renderer bundle]
+    B --&gt; C[preload 與 contextBridge]
+    C --&gt;|invoke| D[main process]
+    D --&gt;|notion:clipboard:write| E[系統剪貼簿]
+    D -.-&gt; F[其他呼叫端與完整路徑&lt;br/&gt;案例未涵蓋]</pre><p><em>圖二：Notion Desktop 7.6.1 的剪貼簿 IPC 追蹤路徑。實線是案例直接觀察到的範圍，虛線是案例明確聲明未涵蓋的部分——分析過程完全沒有啟動原生引擎，也沒有執行 Notion。</em></p>
 <p>案例頁面自己也說得明白：畫面上呈現的兩張結果面板是「可讀的投影」，<strong>不是完整、可重播的 Evidence 物件</strong>。那次追蹤的圖也沒有涵蓋整條剪貼簿路徑，所以案例只主張「直接觀察到的 API 與 invoke 來源範圍」，不把不完整的圖說成完整路線。</p>
 <p>這種「先說清楚自己沒證明什麼」的寫法，是 REA 文件最一致的特徵。</p>
 <hr>
@@ -320,6 +755,8 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <blockquote>
 <p>A green unit test cannot close a <code>packaged-process</code> obligation.</p>
 </blockquote>
+<p><img alt="權威可比性矩陣" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/03_authority_matrix.webp"></p>
+<p><em>圖三：哪種證據能核銷哪種主張。● 代表權威可比、可以關閉該筆項目；○ 代表權威不足，項目維持未關閉。推論（inference）在任何情況下都不能升格為觀察。資料來源：<code>docs/reconstruction-coverage.md</code>、<code>docs/reconstruction-obligation-ledgers.md</code>；此圖為依文件描述整理的概念示意，非官方等級表。</em></p>
 <p>這就是把它叫做「會計」而不是「評分」的原因。不是打個分數就好，而是<strong>每一筆核銷都要有對應等級的憑證</strong>。不方便，但這正是它比「LLM 說 OK」可信的地方。</p>
 <hr>
 <h2 id="8-不只是工具六個-mcp-prompt">8. 不只是工具：六個 MCP Prompt</h2>
@@ -375,6 +812,10 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <ul>
 <li><strong>症狀</strong>：<code>binary_overview</code> 對大型原生檔一直逾時，連線被中斷，工作流卡死。</li>
 <li><strong>原因</strong>：客戶端 SDK 的預設請求上限是 <strong>60 秒</strong>，但 REA 允許的 Ghidra 啟動上限是 <strong>330 秒</strong>（Hopper 是 120 秒）。引擎還在匯入與自動分析，客戶端就先把請求砍了。</li>
+</ul>
+<p><img alt="逾時預算對照" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/04_timeout_budget.webp"></p>
+<p><em>圖四：同一個請求，兩個計時器。客戶端 60 秒就放棄，Ghidra 卻被允許跑到 330 秒；文件示例可把上限調到 360 秒。資料來源：REA <code>docs/client-configuration.md</code>、<code>docs/installation.md</code>。</em></p>
+<ul>
 <li><strong>處方</strong>：把客戶端請求上限拉高，並視需要調整 REA 的啟動上限。</li>
 </ul>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="kr">const</span> <span class="nx">overview</span> <span class="o">=</span> <span class="kr">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">callTool</span><span class="p">(</span>
@@ -405,8 +846,8 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <li><strong>症狀</strong>：使用非第一方端點時，Claude Code 可能關閉 tool search，於是每次請求都帶著所有工具的定義，造成上下文反覆被填滿。</li>
 <li><strong>原因</strong>：REA 的工具數量不小，完整 schema 相當可觀。</li>
 </ul>
-<p><img alt="172 個工具的 schema 成本" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/02_schema_payload.webp"></p>
-<p><em>圖二：工具 schema 的傳輸成本（資料來源：REA 官方文件的量測，數字隨版本變動）。這張圖的重點不是精確數字，而是「工具定義本身也是一種上下文成本」。</em></p>
+<p><img alt="172 個工具的 schema 成本" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/05_schema_payload.webp"></p>
+<p><em>圖五：工具 schema 的傳輸成本（資料來源：REA 官方文件的量測，數字隨版本變動）。這張圖的重點不是精確數字，而是「工具定義本身也是一種上下文成本」。</em></p>
 <ul>
 <li><strong>處方</strong>：確認 schema profile 是 <code>compact</code>（新版本已是預設），或讓客戶端正確得知模型實際的上下文視窗大小。</li>
 </ul>
@@ -477,6 +918,8 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 </span></span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">pan</span><span class="p">;</span>          <span class="c1">// __ftol
 </span></span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>真正的重點不是這段 C 看起來多簡單，而是<strong>它被驗證到什麼程度</strong>：3,205 個行為案例全數通過（0–640 的每個整數位置 × 五種 pan scale），且用釘定的編譯器重建後，產出的 63 個位元組與原始函式完全一致。這正是「功能等價」比「看起來像」更硬的地方。</p>
+<p><img alt="DX-Ball 的驗證強度" loading="lazy" src="/blog/posts/rea-reverse-engineer-anything/images/06_dxball_verification.webp"></p>
+<p><em>圖六：DX-Ball 平移函式的驗證強度。左側是 641 個位置 × 5 種 pan scale 的行為案例，右側是重建後與原始函式的位元組長度。資料來源：<a href="https://rea.tools/showcase/dx-ball/">REA Showcase：DX-Ball</a>。</em></p>
 <hr>
 <h2 id="11-安全與法律邊界能力越強越需要寫清楚">11. 安全與法律邊界：能力越強，越需要寫清楚</h2>
 <p>REA 的 <code>DISCLAIMER.md</code> 把意圖寫得非常明確。它的合法用途是：安全研究、惡意程式與事件分析、漏洞研究與協調揭露、CTF 與教學、互通性、軟體保存，以及稽核你擁有或被授權檢查的軟體。</p>
