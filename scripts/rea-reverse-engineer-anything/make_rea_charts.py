@@ -1,11 +1,13 @@
-"""Generate the two charts used in the REA post.
+"""Generate the five charts used in the REA post.
 
 Usage:
     python3 scripts/rea-reverse-engineer-anything/make_rea_charts.py
 
-Writes 1600x900 and 1600x840 WebP files directly into the post's page
-bundle. The PNG intermediates stay in a temporary directory and are never
-published.
+Writes 1600px-wide WebP files directly into the post's page bundle. The PNG
+intermediates stay in a temporary directory and are never published.
+
+Figure numbering follows document order; 圖二 is a Mermaid diagram in the
+post, so there is no 02_* image file.
 """
 
 import sys
@@ -14,6 +16,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import numpy as np
 from matplotlib.ticker import FuncFormatter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -120,7 +123,176 @@ fig.text(0.012, 0.018,
          "資料來源：REA docs/client-configuration.md（main @ 04089d5be，172 tools）。",
          fontsize=7.2, color=MUTED)
 fig.subplots_adjust(left=0.16, right=0.965, top=0.78, bottom=0.17, wspace=0.28)
-out = OUT_DIR / "02_schema_payload.webp"
+out = OUT_DIR / "05_schema_payload.webp"
+save_figure_webp(fig, out, facecolor=PAPER)
+plt.close(fig)
+print(out)
+
+# --- 04_timeout_budget -------------------------------------------------------
+fig, ax = plt.subplots(figsize=(8, 4.5), dpi=200)
+fig.patch.set_facecolor(PAPER)
+ax.set_facecolor(PAPER)
+
+budget_labels = [
+    "客戶端 SDK 預設",
+    "Hopper 冷啟動上限",
+    "Ghidra 冷啟動上限",
+    "可調高的 Ghidra 上限",
+]
+budget_values = [60, 120, 330, 360]
+budget_colors = [MUTED, "#C7D2FE", ACCENT, "#A5B4FC"]
+budget_y = [3, 2, 1, 0]
+
+bars = ax.barh(budget_y, budget_values, height=0.5, color=budget_colors,
+               edgecolor="none", zorder=3)
+for b, v in zip(bars, budget_values):
+    ax.text(v + 6, b.get_y() + b.get_height() / 2, f"{v}s",
+            va="center", ha="left", fontsize=10.5, color=INK, fontweight="600")
+
+ax.axvline(60, color=INK, linestyle=(0, (4, 3)), linewidth=1.2, zorder=4)
+ax.text(60, 3.62, "  客戶端在這裡放棄", fontsize=9, color=INK, va="bottom", ha="left")
+
+ax.set_yticks(budget_y)
+ax.set_yticklabels(budget_labels, fontsize=9.5, color=INK)
+ax.set_xlim(0, 400)
+ax.set_ylim(-0.6, 3.75)
+ax.set_xlabel("秒", color=MUTED, fontsize=9.5, labelpad=6)
+ax.grid(axis="x", color=GRID, linewidth=1)
+ax.set_axisbelow(True)
+for spine in ["top", "right", "left", "bottom"]:
+    ax.spines[spine].set_visible(False)
+ax.tick_params(axis="both", colors=MUTED, labelsize=9, length=0)
+
+ax.set_title("同一個請求，兩個計時器", loc="left", fontsize=15,
+             color=INK, fontweight="700", pad=26)
+fig.text(0.012, 0.845,
+         "引擎還在匯入與自動分析，客戶端就已經把請求砍了。",
+         fontsize=9.2, color=MUTED)
+fig.text(0.012, 0.018,
+         "資料來源：REA docs/client-configuration.md 與 docs/installation.md；360s 為文件示例的 REA_GHIDRA_STARTUP_TIMEOUT_MS。",
+         fontsize=7.2, color=MUTED)
+fig.subplots_adjust(left=0.20, right=0.975, top=0.80, bottom=0.16)
+out = OUT_DIR / "04_timeout_budget.webp"
+save_figure_webp(fig, out, facecolor=PAPER)
+plt.close(fig)
+print(out)
+
+# --- 03_authority_matrix ----------------------------------------------------
+rows = [
+    "shipped-artifact\n出貨產物",
+    "controlled-replay\n受控重播",
+    "live-observation\n實際觀察",
+    "external\n外部服務",
+]
+cols = [
+    "shipped-\nartifact",
+    "controlled-\nreplay",
+    "external-\nservice",
+    "inference\n（推論）",
+]
+# ● 可核銷（同級或更高的可比權威）、○ 不可核銷
+grid = [
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 1, 1, 0],
+    [0, 0, 1, 0],
+]
+
+fig, ax = plt.subplots(figsize=(8, 4.5), dpi=200)
+fig.patch.set_facecolor(PAPER)
+ax.set_facecolor(PAPER)
+
+for i, row in enumerate(grid):
+    for j, ok in enumerate(row):
+        face = ACCENT_LIGHT if ok else "#F9FAFB"
+        ax.add_patch(plt.Rectangle((j, i), 1, 1, facecolor=face,
+                                   edgecolor=PAPER, linewidth=3))
+        ax.text(j + 0.5, i + 0.5, "●" if ok else "○",
+                ha="center", va="center", fontsize=19,
+                color=ACCENT if ok else "#9CA3AF")
+
+ax.set_xlim(0, len(cols))
+ax.set_ylim(0, len(rows))
+ax.invert_yaxis()
+ax.set_xticks([j + 0.5 for j in range(len(cols))])
+ax.set_xticklabels(cols, fontsize=9, color=INK)
+ax.set_yticks([i + 0.5 for i in range(len(rows))])
+ax.set_yticklabels(rows, fontsize=9, color=INK)
+ax.xaxis.tick_top()
+ax.tick_params(axis="both", length=0)
+for spine in ax.spines.values():
+    spine.set_visible(False)
+
+fig.suptitle("權威可比性：哪種證據能核銷哪種主張", x=0.012, ha="left",
+             fontsize=15, color=INK, fontweight="700", y=0.975)
+fig.text(0.012, 0.885,
+         "● 可比，可關閉該筆項目；○ 權威不足，維持未關閉。推論永遠不能升格為觀察。",
+         fontsize=9.2, color=MUTED)
+fig.text(0.012, 0.018,
+         "資料來源：docs/reconstruction-coverage.md、docs/reconstruction-obligation-ledgers.md。此為依文件描述整理的概念示意，非官方等級表。",
+         fontsize=7.2, color=MUTED)
+fig.subplots_adjust(left=0.20, right=0.975, top=0.755, bottom=0.14)
+out = OUT_DIR / "03_authority_matrix.webp"
+save_figure_webp(fig, out, facecolor=PAPER)
+plt.close(fig)
+print(out)
+
+# --- 06_dxball_verification -------------------------------------------------
+fig, axes = plt.subplots(1, 2, figsize=(8, 4.5), dpi=200,
+                         gridspec_kw={"width_ratios": [2.15, 1.0]})
+fig.patch.set_facecolor(PAPER)
+
+scales = ["1.0x", "1.5x", "2.0x", "2.5x", "3.0x"]
+y = list(range(len(scales)))
+
+ax = axes[0]
+ax.set_facecolor(PAPER)
+ax.barh(y, [641] * len(scales), height=0.5, color=GRID, edgecolor="none", zorder=2)
+ax.barh(y, [641] * len(scales), height=0.5, color=ACCENT, edgecolor="none", zorder=3)
+ax.set_yticks(y)
+ax.set_yticklabels(scales, fontsize=9, color=INK)
+ax.set_xlim(0, 760)
+ax.set_ylim(-0.6, len(scales) - 0.4)
+ax.set_xlabel("位置 0–640，每個尺度 641 個案例（灰色為上限，實心為通過）",
+              color=MUTED, fontsize=8.2, labelpad=6)
+ax.grid(axis="x", color=GRID, linewidth=1)
+ax.set_axisbelow(True)
+for spine in ["top", "right", "left", "bottom"]:
+    ax.spines[spine].set_visible(False)
+ax.tick_params(axis="both", colors=MUTED, labelsize=8.5, length=0)
+ax.set_title("行為等價：3,205 / 3,205 通過，0 失敗", loc="left", fontsize=10.5,
+             color=INK, fontweight="600", pad=10)
+
+ax = axes[1]
+ax.set_facecolor(PAPER)
+ax.barh([1], [63], height=0.5, color="#C7D2FE", edgecolor="none", zorder=3)
+ax.barh([0], [63], height=0.5, color=ACCENT, edgecolor="none", zorder=3)
+for yy in (1, 0):
+    ax.text(65, yy, "63 B", va="center", ha="left", fontsize=9.5,
+            color=INK, fontweight="600")
+ax.set_yticks([1, 0])
+ax.set_yticklabels(["原始", "重建"], fontsize=9, color=INK)
+ax.set_xlim(0, 86)
+ax.set_ylim(-0.65, 1.65)
+ax.set_xlabel("函式長度（bytes）", color=MUTED, fontsize=8.5, labelpad=6)
+ax.grid(axis="x", color=GRID, linewidth=1)
+ax.set_axisbelow(True)
+for spine in ["top", "right", "left", "bottom"]:
+    ax.spines[spine].set_visible(False)
+ax.tick_params(axis="both", colors=MUTED, labelsize=8.5, length=0)
+ax.set_title("位元組等價：63 / 63", loc="left", fontsize=10.5,
+             color=INK, fontweight="600", pad=10)
+
+fig.suptitle("驗證強度：從「看起來像」到「逐位元組全等」", x=0.012, ha="left",
+             fontsize=15, color=INK, fontweight="700", y=0.975)
+fig.text(0.012, 0.885,
+         "DX-Ball 的左右聲道平移函式：0x406400–0x40643e，23 條指令。",
+         fontsize=9.2, color=MUTED)
+fig.text(0.012, 0.018,
+         "資料來源：https://rea.tools/showcase/dx-ball/（數字綁定該案例記錄的版本）。",
+         fontsize=7.2, color=MUTED)
+fig.subplots_adjust(left=0.065, right=0.965, top=0.77, bottom=0.19, wspace=0.30)
+out = OUT_DIR / "06_dxball_verification.webp"
 save_figure_webp(fig, out, facecolor=PAPER)
 plt.close(fig)
 print(out)

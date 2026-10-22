@@ -51,10 +51,10 @@ REA 想換掉的就是這段：**把「編譯後的黑盒」變成「Agent 可�
 
 以下數字只提供量級感。REA 每天都在變動，**寫死的數字隔幾天就失準**，請直接看官方 repo：
 
-| 項目 | 數值（2026-10 快照） |
+| 項目 | 數值 |
 |---|---|
 | GitHub | `morluto/rea`，約 36 萬 stars、9 萬 forks |
-| npm | `rea-agents`，首版 2026-07-12，最新 `6.7.0`（2026-10-18） |
+| npm | `rea-agents`，最新 `6.7.0` |
 | 授權 | MIT |
 | 語言 | TypeScript |
 | Node.js 需求 | 22.x（≥22.19）、24.x（≥24.11）或 26+ |
@@ -62,7 +62,7 @@ REA 想換掉的就是這段：**把「編譯後的黑盒」變成「Agent 可�
 
 ![REA 的 GitHub Stars 成長曲線](images/01_star_growth.webp)
 
-*圖一：REA 的 stars 成長曲線（資料來源：GitHub Trending 追蹤與 GitHub API，2026-10-19）。數字會隨時間變動，此圖僅作為「社群關注度」的視覺錨點。*
+*圖一：REA 的 stars 成長曲線（資料來源：GitHub Trending 追蹤與 GitHub API）。數字會隨時間變動，此圖僅作為「社群關注度」的視覺錨點。*
 
 ---
 
@@ -180,6 +180,17 @@ npx -y rea-agents@latest analyze-javascript-application /absolute/path/to/app --
 ### 4.1 官方案例：Notion 的剪貼簿 IPC 通道
 
 官方案例分析的對象是 Notion Desktop 7.6.1 的 `app.asar`（8,903,750 bytes，檔案雜湊記錄在案例頁面）。REA 在**沒有啟動任何原生引擎、也沒有執行 Notion**的前提下，從 renderer 的 preload 找到 context bridge，沿著 IPC 追進 main process，讀出 `notion:clipboard:write` 這個通道名稱與自訂 MIME 型態。
+
+```mermaid
+flowchart LR
+    A[app.asar<br/>8,903,750 bytes] --> B[renderer bundle]
+    B --> C[preload 與 contextBridge]
+    C -->|invoke| D[main process]
+    D -->|notion:clipboard:write| E[系統剪貼簿]
+    D -.-> F[其他呼叫端與完整路徑<br/>案例未涵蓋]
+```
+
+*圖二：Notion Desktop 7.6.1 的剪貼簿 IPC 追蹤路徑。實線是案例直接觀察到的範圍，虛線是案例明確聲明未涵蓋的部分——分析過程完全沒有啟動原生引擎，也沒有執行 Notion。*
 
 案例頁面自己也說得明白：畫面上呈現的兩張結果面板是「可讀的投影」，**不是完整、可重播的 Evidence 物件**。那次追蹤的圖也沒有涵蓋整條剪貼簿路徑，所以案例只主張「直接觀察到的 API 與 invoke 來源範圍」，不把不完整的圖說成完整路線。
 
@@ -325,6 +336,10 @@ flowchart TD
 
 > A green unit test cannot close a `packaged-process` obligation.
 
+![權威可比性矩陣](images/03_authority_matrix.webp)
+
+*圖三：哪種證據能核銷哪種主張。● 代表權威可比、可以關閉該筆項目；○ 代表權威不足，項目維持未關閉。推論（inference）在任何情況下都不能升格為觀察。資料來源：`docs/reconstruction-coverage.md`、`docs/reconstruction-obligation-ledgers.md`；此圖為依文件描述整理的概念示意，非官方等級表。*
+
 這就是把它叫做「會計」而不是「評分」的原因。不是打個分數就好，而是**每一筆核銷都要有對應等級的憑證**。不方便，但這正是它比「LLM 說 OK」可信的地方。
 
 ---
@@ -370,6 +385,11 @@ flowchart TD
 
 - **症狀**：`binary_overview` 對大型原生檔一直逾時，連線被中斷，工作流卡死。
 - **原因**：客戶端 SDK 的預設請求上限是 **60 秒**，但 REA 允許的 Ghidra 啟動上限是 **330 秒**（Hopper 是 120 秒）。引擎還在匯入與自動分析，客戶端就先把請求砍了。
+
+![逾時預算對照](images/04_timeout_budget.webp)
+
+*圖四：同一個請求，兩個計時器。客戶端 60 秒就放棄，Ghidra 卻被允許跑到 330 秒；文件示例可把上限調到 360 秒。資料來源：REA `docs/client-configuration.md`、`docs/installation.md`。*
+
 - **處方**：把客戶端請求上限拉高，並視需要調整 REA 的啟動上限。
 
 ```js
@@ -410,9 +430,9 @@ export REA_ANALYSIS_PROVIDER=ghidra
 - **症狀**：使用非第一方端點時，Claude Code 可能關閉 tool search，於是每次請求都帶著所有工具的定義，造成上下文反覆被填滿。
 - **原因**：REA 的工具數量不小，完整 schema 相當可觀。
 
-![172 個工具的 schema 成本](images/02_schema_payload.webp)
+![172 個工具的 schema 成本](images/05_schema_payload.webp)
 
-*圖二：工具 schema 的傳輸成本（資料來源：REA 官方文件的量測，數字隨版本變動）。這張圖的重點不是精確數字，而是「工具定義本身也是一種上下文成本」。*
+*圖五：工具 schema 的傳輸成本（資料來源：REA 官方文件的量測，數字隨版本變動）。這張圖的重點不是精確數字，而是「工具定義本身也是一種上下文成本」。*
 
 - **處方**：確認 schema profile 是 `compact`（新版本已是預設），或讓客戶端正確得知模型實際的上下文視窗大小。
 
@@ -475,6 +495,10 @@ int dxball_screen_pan(int x) {
 ```
 
 真正的重點不是這段 C 看起來多簡單，而是**它被驗證到什麼程度**：3,205 個行為案例全數通過（0–640 的每個整數位置 × 五種 pan scale），且用釘定的編譯器重建後，產出的 63 個位元組與原始函式完全一致。這正是「功能等價」比「看起來像」更硬的地方。
+
+![DX-Ball 的驗證強度](images/06_dxball_verification.webp)
+
+*圖六：DX-Ball 平移函式的驗證強度。左側是 641 個位置 × 5 種 pan scale 的行為案例，右側是重建後與原始函式的位元組長度。資料來源：[REA Showcase：DX-Ball](https://rea.tools/showcase/dx-ball/)。*
 
 ---
 
