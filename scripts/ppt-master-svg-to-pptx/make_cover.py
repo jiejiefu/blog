@@ -122,7 +122,7 @@ def build_svg():
 
     parts.append(chip(104, 530, "v6.7.2", width=76, accent=True))
     parts.append(chip(192, 530, "MIT", width=58))
-    parts.append(chip(262, 530, "34 EXAMPLES", width=116))
+    parts.append(chip(262, 530, "70 EXAMPLES", width=116))
     parts.append(chip(390, 530, "PYTHON 3.10+", width=122))
 
     # Divider
