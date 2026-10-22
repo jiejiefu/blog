@@ -254,6 +254,8 @@ if (nx, ny) not in known_warps:
 
 BFS 現在追的是「還沒探索」的格子，已知的門直接排除。
 
+BFS 排除 warp 只保證它不會把樓梯當目標，不能保證模型不會自己走過去。所以我在給模型的路況摘要裡把走過的 warp 入口標成 `[B]`，新出口才是 `[D]`。Prompt 直接寫明 `[B]` 是來時路，當前區域沒走完就不要踩。
+
 ### 6.2 四個方向都 blocked
 
 第二個卡點更荒謬。Log 長這樣：
@@ -388,6 +390,10 @@ Action: DOWN 2
 
 Lee 與 Berg-Kirkpatrick 的研究則提醒我：該動的是**介面**，不是語言。我一開始也犯過類似的錯，以為 prompt 寫得更短、更口語，0.8B 就會更聰明。後來發現，把世界整理成四個方向、一個互動鍵、一份碰撞記憶，比寫一段更友善的 prompt 有用得多。
 
+Whidden 的 Pokémon Red RL 實驗很容易被拿來對照。他用 PPO 開大量平行模擬器，reward 包含探索新格子、重複停留的懲罰、事件旗標與徽章。這類來回彈跳在訓練裡會被重複停留的負 reward 壓下去，最後變成 policy 的一部分。
+
+這套方法不能直接搬到 0.8B。LLM 是 inference，決策時不會更新權重；不可能像 RL 那樣跑大量 episode 再回頭改模型。但 reward 的形狀可以借：新格子加分、重複停留扣分、剛走過的 warp 扣分。我沒有把 RL 放進這個專案，也不是說兩者等價。RL 用訓練時間換 policy；這裡用 harness 把問題縮小。
+
 所以，什麼時候該用 SLM？
 
 - 動作空間是結構化的（按鍵、API、工具呼叫）。
@@ -430,6 +436,7 @@ Lee 與 Berg-Kirkpatrick 的研究則提醒我：該動的是**介面**，不是
 - Lee & Berg-Kirkpatrick, *Readability ≠ Learnability: Rethinking the Role of Simplicity in Training Small Language Models*, arXiv:2510.13915. <https://arxiv.org/abs/2510.13915>
 - DataCrystal, *Pokémon Red and Blue RAM map*. <https://datacrystal.tcrf.net/wiki/Pok%C3%A9mon_Red_and_Blue/RAM_map>
 - PyBoy, Game Boy emulator for Python. <https://github.com/Baekalfen/PyBoy>
+- Whidden, P. *PokemonRedExperiments: Playing Pokémon Red with Reinforcement Learning*. GitHub. <https://github.com/PWhiddy/PokemonRedExperiments>
 - Ollama, local LLM runtime. <https://ollama.com>
 
 > 本文的程式碼、log 與記憶檔來自本地專案；ROM 未隨文章散布。遊戲與相關商標權利屬於原權利人。
