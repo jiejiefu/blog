@@ -50,7 +50,7 @@
 			</tr>
 	</tbody>
 </table>
-<p>The AI agent is an assistance layer, not an autonomous replacement for engineering judgment. Decisions that can affect production equipment should remain subject to appropriate validation and human oversight.</p>
+<p>The AI agent is an assistance layer, not an autonomous replacement for engineering judgment. Decisions that can affect production equipment should stay subject to validation and human oversight.</p>
 <h2 id="2-why-edge-ai">2. Why Edge AI?</h2>
 <p><img alt="Why an Edge AI Platform" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/02_why.png"></p>
 <p>A model is only one part of a production system. The surrounding data path, deployment process, integration points, and operational controls often determine whether an AI solution is useful in practice.</p>
@@ -86,7 +86,7 @@
 			</tr>
 	</tbody>
 </table>
-<p>The project materials include illustrative figures such as a deployment cycle reduced from 28 days to 1 day, an 85% reduction in integration code, and 100% synchronization of data lineage within the measured scope. These numbers should be published as verified results only if their definitions, measurement periods, and comparison baselines can be documented. Otherwise, label them as internal estimates or targets.</p>
+<p>The project materials include illustrative figures: a deployment cycle shortened from 28 days to 1 day, an 85% reduction in integration code, and 100% lineage synchronization within the measured scope. Read them only alongside their definitions, measurement periods, and comparison baselines; without those, they are internal estimates rather than verified results.</p>
 <h2 id="3-system-architecture">3. System Architecture</h2>
 <p><img alt="System assembly and architecture design" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/03_system_architecture.png"></p>
 <p>The platform can be understood as five cooperating layers: presentation, API services, analytics, edge execution, and persistence.</p>
@@ -128,7 +128,7 @@
 <p>The frontend should focus on user interaction and presentation. It should not become the source of truth for model execution, access control, or data integrity.</p>
 <h3 id="32-api-and-application-layer">3.2 API and application layer</h3>
 <p>The Flask backend exposes REST APIs and coordinates application-level operations, such as authentication, analysis requests, data retrieval, and report generation.</p>
-<p>Keeping these responsibilities behind a stable API allows the frontend, analysis modules, and edge processes to evolve without requiring every component to know the implementation details of the others.</p>
+<p>Keeping these responsibilities behind a stable API allows the frontend, analysis modules, and edge processes to evolve without every component needing to know the implementation details of the others.</p>
 <h3 id="33-analytics-layer">3.3 Analytics layer</h3>
 <p>This layer contains signal processing, feature extraction, anomaly detection, health scoring, and data-drift analysis. It should expose well-defined inputs and outputs so that algorithms can be tested independently from the web application.</p>
 <h3 id="34-edge-execution-layer">3.4 Edge execution layer</h3>
@@ -235,15 +235,15 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
 			</tr>
 	</tbody>
 </table>
-<p>A robust PHM workflow combines these methods with engineering context, historical evidence, and validation.</p>
+<p>A practical PHM workflow combines these methods with engineering context, historical evidence, and validation.</p>
 <h2 id="6-backend-design">6. Backend Design</h2>
 <p><img alt="Backend engineering" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/06_backend_engineering.png"></p>
 <h3 id="61-flask-application-structure">6.1 Flask application structure</h3>
 <p>Flask Blueprints can separate API areas by responsibility — for example, authentication, equipment data, analysis, reports, and agent operations. This makes the application easier to test and maintain than a single large route module.</p>
 <p>The backend should validate request parameters, enforce authorization, handle errors consistently, and return predictable response formats. Long-running analysis should be treated differently from short synchronous API requests.</p>
 <h3 id="62-authentication-and-authorization">6.2 Authentication and authorization</h3>
-<p>The platform uses LDAP / Active Directory integration for organizational identity and JWTs for authenticated requests, according to the implementation design.</p>
-<p>These mechanisms serve different purposes: directory authentication verifies a user&rsquo;s identity, while a token can carry authenticated-session claims to subsequent API calls. Authorization still needs to be checked for each protected operation. Tokens should have appropriate expiry and signing configuration, and secrets must not be hard-coded into source code or container images.</p>
+<p>The platform uses LDAP / Active Directory integration for organizational identity and JWTs for authenticated requests.</p>
+<p>These mechanisms serve different purposes: directory authentication verifies a user&rsquo;s identity, while a token carries authenticated-session claims to subsequent API calls. Authorization is still checked for each protected operation. Tokens need appropriate expiry and signing configuration, and secrets must never be hard-coded into source code or container images.</p>
 <pre class="mermaid">flowchart LR
     A[&#34;User Login&#34;] --&gt; B[&#34;LDAP / AD Authentication&#34;]
     B --&gt; C[&#34;Issue JWT Access Token&#34;]
@@ -258,7 +258,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
 <p>SQLite is suitable for many local deployments. If concurrent writes or multi-node access become substantial, a client-server database such as PostgreSQL may be a more appropriate next step.</p>
 <h3 id="64-scheduled-tasks-and-model-history">6.4 Scheduled tasks and model history</h3>
 <p>APScheduler can run periodic jobs such as drift checks, report generation, or maintenance summaries. The job should be designed to tolerate retries, failures, and partial completion.</p>
-<p>One important deployment detail: starting the scheduler in multiple web-worker processes can cause the same job to run more than once unless scheduling is coordinated. For multi-process deployments, consider a dedicated scheduler process or another mechanism that ensures a single active job owner.</p>
+<p>Starting the scheduler in multiple web-worker processes can cause the same job to run more than once unless scheduling is coordinated. For multi-process deployments, consider a dedicated scheduler process or another mechanism that ensures a single active job owner.</p>
 <p>Model-build history should record enough metadata to reproduce an analysis, such as model version, training-data reference, configuration, creation time, and evaluation results. The exact fields depend on the platform&rsquo;s traceability requirements.</p>
 <p>A build also needs explicit states, so that a failed run is distinguishable from one that never started:</p>
 <pre class="mermaid">stateDiagram-v2
@@ -312,7 +312,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
 			</tr>
 	</tbody>
 </table>
-<p>Tool names are illustrative; document only tools that are implemented and available in the deployed version.</p>
+<p>Tool names are illustrative; only tools that are actually implemented are available in the deployed version.</p>
 <h3 id="72-tool-governance-and-safety">7.2 Tool governance and safety</h3>
 <p>The model should propose an action, but the backend should enforce the rules. At minimum:</p>
 <ul>
@@ -337,7 +337,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance between two points. Constraints 
 <p>Docker Compose can package the web application and its supporting services for repeatable deployment on a single host. It helps standardize runtime dependencies, ports, environment variables, volumes, and startup relationships.</p>
 <p>A container being healthy does not guarantee that the whole application is functioning correctly. Readiness checks should verify the dependencies that matter, and persistent data should be stored in appropriate volumes rather than only in a container&rsquo;s writable layer.</p>
 <h3 id="82-runtime-frontend-configuration">8.2 Runtime frontend configuration</h3>
-<p>If the frontend needs to be deployed as a static bundle whose backend URL can change by environment, a runtime configuration file such as <code>env.js</code> can expose a value through <code>window.ENV</code>. This avoids rebuilding the frontend bundle for every deployment environment.</p>
+<p>When the frontend is deployed as a static bundle and its backend URL varies by environment, a runtime configuration file such as <code>env.js</code> can expose the value through <code>window.ENV</code>. This avoids rebuilding the bundle for every environment.</p>
 <p>The runtime configuration must be loaded before application code reads it, validated at startup, and treated as public configuration. Do not put passwords, API secrets, or other credentials in browser-visible variables.</p>
 <pre class="mermaid">flowchart LR
     A[&#34;Docker Image&#34;] --&gt; B[&#34;Container Entrypoint&#34;]

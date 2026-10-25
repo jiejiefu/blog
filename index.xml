@@ -631,7 +631,107 @@ flowchart TD
 </span></span><span class="line"><span class="cl">    <span class="s2">&#34;x&#34;</span><span class="p">:</span> <span class="n">u8</span><span class="p">(</span><span class="mh">0xD362</span><span class="p">),</span>
 </span></span><span class="line"><span class="cl">    <span class="s2">&#34;facing&#34;</span><span class="p">:</span> <span class="n">u8</span><span class="p">(</span><span class="mh">0xC109</span><span class="p">),</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>搭配 Game Boy 的 charmap 解碼，<code>wTileMap</code> 可以直接還原對話框、選單項目與游標位置。這些字元是遊戲自己寫進記憶體的事實，不需要 OCR 猜。</p>
+</span></span></code></pre></div><p>上面是簡化版。實際專案裡，這層還有 16-bit big-endian、BCD 金額與 event bit 三種讀法：</p>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">pokemon_reverse.py · RAM 讀取原語</span>
+    <span class="code-fold__meta">python · 20 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">read_byte</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyboy</span><span class="o">.</span><span class="n">memory</span><span class="p">[</span><span class="n">addr</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">read_event_bit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">bit_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Reads an individual event bit formatted like 0xD74B-idx where idx 0 is MSB.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_byte</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">val</span><span class="si">:</span><span class="s2">08b</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">[</span><span class="n">bit_idx</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&#34;1&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">read_word_be</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">addr</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Big-endian 16-bit word.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pyboy</span><span class="o">.</span><span class="n">memory</span><span class="p">[</span><span class="n">addr</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span><span class="p">)</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyboy</span><span class="o">.</span><span class="n">memory</span><span class="p">[</span><span class="n">addr</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">read_bcd_money</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Reads 3-byte BCD money at 0xD347-0xD349.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">def</span> <span class="nf">bcd</span><span class="p">(</span><span class="n">b</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="p">((</span><span class="n">b</span> <span class="o">&gt;&gt;</span> <span class="mi">4</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">b</span> <span class="o">&amp;</span> <span class="mh">0x0F</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">b2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_byte</span><span class="p">(</span><span class="mh">0xD347</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">b1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_byte</span><span class="p">(</span><span class="mh">0xD348</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">b0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_byte</span><span class="p">(</span><span class="mh">0xD349</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">bcd</span><span class="p">(</span><span class="n">b2</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10000</span> <span class="o">+</span> <span class="n">bcd</span><span class="p">(</span><span class="n">b1</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">+</span> <span class="n">bcd</span><span class="p">(</span><span class="n">b0</span><span class="p">)</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
+<p>搭配 Game Boy 的 charmap 解碼，<code>wTileMap</code> 可以直接還原對話框、選單項目與游標位置。這些字元是遊戲自己寫進記憶體的事實，不需要 OCR 猜。</p>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">pokemon_reverse.py · decode_text_bytes &#43; extract_screen_tilemap</span>
+    <span class="code-fold__meta">python · 57 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">decode_text_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">byte_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Converts raw Pokemon Red encoding bytes into a readable string.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">chars</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">byte_list</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="n">b</span> <span class="o">==</span> <span class="mh">0x50</span><span class="p">:</span>  <span class="c1"># string terminator</span>
+</span></span><span class="line"><span class="cl">                <span class="k">break</span>
+</span></span><span class="line"><span class="cl">            <span class="n">ch</span> <span class="o">=</span> <span class="n">POKEMON_CHAR_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="s2">&#34;&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">chars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="s2">&#34;&#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chars</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">extract_screen_tilemap</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Reads the 20x18 Game Boy TileMap from wTileMap (0xC3A0 - 0xC507).
+</span></span></span><span class="line"><span class="cl"><span class="s2">
+</span></span></span><span class="line"><span class="cl"><span class="s2">        Returns:
+</span></span></span><span class="line"><span class="cl"><span class="s2">            (all_text_lines, menu_items, selected_menu_item, dialogue_text)
+</span></span></span><span class="line"><span class="cl"><span class="s2">        &#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">all_lines</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="n">dialogue_lines</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="n">menu_items</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="n">selected_menu_item</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">18</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="n">row_bytes</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">read_byte</span><span class="p">(</span><span class="mh">0xC3A0</span> <span class="o">+</span> <span class="n">row</span> <span class="o">*</span> <span class="mi">20</span> <span class="o">+</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">            <span class="n">decoded_row</span> <span class="o">=</span> <span class="s2">&#34;&#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">POKEMON_CHAR_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="s2">&#34; &#34;</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">row_bytes</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">cleaned</span> <span class="o">=</span> <span class="n">decoded_row</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="n">cleaned</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">all_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cleaned</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                <span class="c1"># Check for menu cursor ▶</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="s2">&#34;▶&#34;</span> <span class="ow">in</span> <span class="n">cleaned</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="n">parts</span> <span class="o">=</span> <span class="n">cleaned</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&#34;▶&#34;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                    <span class="n">item_name</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&#34;Option&#34;</span>
+</span></span><span class="line"><span class="cl">                    <span class="n">selected_menu_item</span> <span class="o">=</span> <span class="n">item_name</span>
+</span></span><span class="line"><span class="cl">                    <span class="n">menu_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;▶</span><span class="si">{</span><span class="n">item_name</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="k">elif</span> <span class="n">row</span> <span class="o">&lt;</span> <span class="mi">12</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">keyword</span> <span class="ow">in</span> <span class="n">cleaned</span> <span class="k">for</span> <span class="n">keyword</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&#34;PKMN&#34;</span><span class="p">,</span> <span class="s2">&#34;ITEM&#34;</span><span class="p">,</span> <span class="s2">&#34;RUN&#34;</span><span class="p">,</span> <span class="s2">&#34;SAVE&#34;</span><span class="p">,</span> <span class="s2">&#34;OPTION&#34;</span><span class="p">,</span> <span class="s2">&#34;EXIT&#34;</span><span class="p">,</span> <span class="s2">&#34;YES&#34;</span><span class="p">,</span> <span class="s2">&#34;NO&#34;</span><span class="p">]):</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">cleaned</span><span class="o">.</span><span class="n">split</span><span class="p">():</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">if</span> <span class="n">w</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">w</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">menu_items</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                            <span class="n">menu_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Check if lower screen has a true Game Boy dialogue box frame (Row 12: 0x79 0x7A...)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">r12_b0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_byte</span><span class="p">(</span><span class="mh">0xC3A0</span> <span class="o">+</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">20</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">r12_b1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_byte</span><span class="p">(</span><span class="mh">0xC3A0</span> <span class="o">+</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">20</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">has_dialogue_frame</span> <span class="o">=</span> <span class="p">(</span><span class="n">r12_b0</span> <span class="o">==</span> <span class="mh">0x79</span> <span class="ow">and</span> <span class="n">r12_b1</span> <span class="o">==</span> <span class="mh">0x7A</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">has_dialogue_frame</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">13</span><span class="p">,</span> <span class="mi">17</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">                <span class="n">row_bytes</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">read_byte</span><span class="p">(</span><span class="mh">0xC3A0</span> <span class="o">+</span> <span class="n">row</span> <span class="o">*</span> <span class="mi">20</span> <span class="o">+</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">19</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">                <span class="n">line_str</span> <span class="o">=</span> <span class="s2">&#34;&#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">POKEMON_CHAR_MAP</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="s2">&#34; &#34;</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">row_bytes</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">                <span class="n">line_str</span> <span class="o">=</span> <span class="n">line_str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&#34;▶&#34;</span><span class="p">,</span> <span class="s2">&#34;&#34;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&#34;▼&#34;</span><span class="p">,</span> <span class="s2">&#34;&#34;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="n">line_str</span> <span class="ow">and</span> <span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">isalpha</span><span class="p">()</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">line_str</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">kw</span> <span class="ow">in</span> <span class="n">line_str</span> <span class="k">for</span> <span class="n">kw</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&#34;FIGHT&#34;</span><span class="p">,</span> <span class="s2">&#34;PKMN&#34;</span><span class="p">,</span> <span class="s2">&#34;ITEM&#34;</span><span class="p">,</span> <span class="s2">&#34;RUN&#34;</span><span class="p">,</span> <span class="s2">&#34;EXIT&#34;</span><span class="p">,</span> <span class="s2">&#34;SAVE&#34;</span><span class="p">,</span> <span class="s2">&#34;OPTION&#34;</span><span class="p">]):</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">if</span> <span class="n">line_str</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dialogue_lines</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                            <span class="n">dialogue_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line_str</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">dialogue_text</span> <span class="o">=</span> <span class="s2">&#34; &#34;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dialogue_lines</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">all_lines</span><span class="p">,</span> <span class="n">menu_items</span><span class="p">,</span> <span class="n">selected_menu_item</span><span class="p">,</span> <span class="n">dialogue_text</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
 <p>依專案 README 的自測值，這一層的讀取延遲小於 <code>0.01 ms</code>。這是專案自測，量測方式也很土：在同樣的 Python 迴圈裡連續讀幾次，抓個大概。但它和「1–2 秒的截圖推論」差了好幾個量級。</p>
 <p>前後對照大概是這樣：</p>
 <table>
@@ -708,9 +808,137 @@ flowchart TD
 <li><code>discovered_warps</code>：走過的門、樓梯、入口。</li>
 </ul>
 <p>然後用 BFS（廣度優先搜尋）找最近的未探索 frontier，或走到已知出口。這層完全不需要語言模型。它要的是全域路徑、碰撞檢查與一致性。</p>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">memory_system.py · find_frontier_exploration_step</span>
+    <span class="code-fold__meta">python · 55 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">find_frontier_exploration_step</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">map_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">start_pos</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">        <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">80</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Finds the closest unvisited coordinate (frontier tile) and returns the first step direction.
+</span></span></span><span class="line"><span class="cl"><span class="s2">
+</span></span></span><span class="line"><span class="cl"><span class="s2">        CRITICAL FIX: Known warps and locked entry stairs are NEVER treated as frontier exploration targets!
+</span></span></span><span class="line"><span class="cl"><span class="s2">        &#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sx</span><span class="p">,</span> <span class="n">sy</span> <span class="o">=</span> <span class="n">start_pos</span>
+</span></span><span class="line"><span class="cl">        <span class="n">known_warps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_known_warps</span><span class="p">(</span><span class="n">map_id</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">queue</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="n">visited</span> <span class="o">=</span> <span class="p">{</span><span class="n">start_pos</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="n">dir_name</span><span class="p">,</span> <span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span> <span class="ow">in</span> <span class="n">DIR_VECTORS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span></span><span class="line"><span class="cl">            <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span> <span class="o">=</span> <span class="n">sx</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">sy</span> <span class="o">+</span> <span class="n">dy</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">map_id</span><span class="p">,</span> <span class="n">sx</span><span class="p">,</span> <span class="n">sy</span><span class="p">,</span> <span class="n">dir_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">blocked_moves</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">            <span class="c1"># If entry warp is on cooldown, cannot step directly onto it</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_warp_cooldown_active</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_entry_warps</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">map_id</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">seen_coords</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="c1"># Discovered warps are portals, NOT unexplored floor frontiers!</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">known_warps</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">return</span> <span class="n">dir_name</span>
+</span></span><span class="line"><span class="cl">            <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">            <span class="n">queue</span><span class="o">.</span><span class="n">append</span><span class="p">(((</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">),</span> <span class="n">dir_name</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">steps</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">        <span class="k">while</span> <span class="n">queue</span> <span class="ow">and</span> <span class="n">steps</span> <span class="o">&lt;</span> <span class="n">max_depth</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">steps</span> <span class="o">+=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">            <span class="p">(</span><span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">),</span> <span class="n">first_dir</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="k">for</span> <span class="n">dir_name</span><span class="p">,</span> <span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">)</span> <span class="ow">in</span> <span class="n">DIR_VECTORS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span></span><span class="line"><span class="cl">                <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span> <span class="o">=</span> <span class="n">cx</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">cy</span> <span class="o">+</span> <span class="n">dy</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="p">(</span><span class="n">map_id</span><span class="p">,</span> <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">,</span> <span class="n">dir_name</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">blocked_moves</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">nx</span> <span class="o">&lt;=</span> <span class="mi">80</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">ny</span> <span class="o">&lt;=</span> <span class="mi">80</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">                <span class="c1"># Do not path through active cooldown entry warps</span>
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_warp_cooldown_active</span><span class="p">()</span> <span class="ow">and</span> <span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_entry_warps</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                <span class="k">if</span> <span class="p">(</span><span class="n">map_id</span><span class="p">,</span> <span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">seen_coords</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="c1"># Ignore warps as frontier targets</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">if</span> <span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">known_warps</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                        <span class="k">return</span> <span class="n">first_dir</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">                <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">                <span class="n">queue</span><span class="o">.</span><span class="n">append</span><span class="p">(((</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">),</span> <span class="n">first_dir</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="kc">None</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
 <h3 id="layer-208b-的策略">Layer 2：0.8B 的策略</h3>
 <p>模型拿到的是整理過的狀態：地圖名稱、座標、可行方向、障礙方向、NPC 線索、frontier 方向、上一個動作。模型的輸出是一個動作（方向或互動鍵），必要時附帶 1–3 步的步數。</p>
 <p>依 README 的自測值，文字模式推論約 <code>10–50 ms</code>。這個數字同樣是專案自測，不是獨立 benchmark；但至少說明，當輸入是結構化狀態時，0.8B 不需要很長的思考時間。（這次 log 的 <code>latency</code> 欄位量的是 Ollama HTTP 往返，包含排隊與網路層，不是這個數字；兩者邊界不同。）</p>
+<p>模型收到的 prompt 長這樣：</p>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">ollama_brain.py · build_prompt</span>
+    <span class="code-fold__meta">python · 50 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">build_prompt</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">state</span><span class="p">:</span> <span class="n">GameState</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">last_action</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&#34;NONE&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">stuck_detected</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">memory_context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Builds a rich, spatial-aware prompt for the language model.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">context_text</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">to_prompt_text</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">guidance</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">memory_context</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">guidance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">memory_context</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">stuck_detected</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">guidance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&#34;CRITICAL ALERT: Player coordinates did not change on last attempt! Choose an alternate open direction.&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">elif</span> <span class="n">state</span><span class="o">.</span><span class="n">screen_type</span> <span class="o">==</span> <span class="s2">&#34;dialogue&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">guidance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&#34;ACTION HINT: Dialogue box active. Output &#39;A&#39; to continue conversation.&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">elif</span> <span class="n">state</span><span class="o">.</span><span class="n">screen_type</span> <span class="o">==</span> <span class="s2">&#34;menu&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">guidance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&#34;ACTION HINT: Menu is currently open. Output &#39;A&#39; to select, &#39;B&#39; to close, or &#39;UP&#39;/&#39;DOWN&#39; to navigate.&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">elif</span> <span class="n">state</span><span class="o">.</span><span class="n">screen_type</span> <span class="o">==</span> <span class="s2">&#34;battle&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">guidance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&#34;ACTION HINT: In Pokemon Battle! Select &#39;A&#39; to attack or choose fight commands.&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">guidance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;ACTION HINT: Overworld navigation.</span><span class="se">\n</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;- Check the 2D Radar: (.) is walkable, (#) is wall, (D) is forward exit, (B) is entry stairs (LOCKED, DO NOT ENTER), (?) is unexplored.</span><span class="se">\n</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;- CRITICAL: DO NOT backtrack into the stairs or door you just exited (marked B). Walk towards unexplored tiles (?) or talk to NPCs.</span><span class="se">\n</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;- Houses/rooms: explore the room first; the exit door to outside is usually to the south (DOWN).</span><span class="se">\n</span><span class="s2">&#34;</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;- Choose a movement direction (DOWN, UP, LEFT, RIGHT) to walk, or press &#39;A&#39; if interacting with an NPC in front.&#34;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">prompt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&#34;&#34;&#34;You are an autonomous AI playing Pokemon Red (Game Boy).
+</span></span></span><span class="line"><span class="cl"><span class="s2">Your goal is to explore maps, advance dialogues, discover exits, and progress through Kanto.
+</span></span></span><span class="line"><span class="cl"><span class="s2">
+</span></span></span><span class="line"><span class="cl"><span class="si">{</span><span class="n">context_text</span><span class="si">}</span><span class="s2">
+</span></span></span><span class="line"><span class="cl"><span class="s2">Previous Action: </span><span class="si">{</span><span class="n">last_action</span><span class="si">}</span><span class="s2">
+</span></span></span><span class="line"><span class="cl"><span class="si">{</span><span class="nb">chr</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">guidance</span><span class="p">)</span><span class="si">}</span><span class="s2">
+</span></span></span><span class="line"><span class="cl"><span class="s2">
+</span></span></span><span class="line"><span class="cl"><span class="s2">[VALID ACTIONS]
+</span></span></span><span class="line"><span class="cl"><span class="s2">Movement: DOWN, UP, LEFT, RIGHT [optional steps: 1-3]
+</span></span></span><span class="line"><span class="cl"><span class="s2">Interact / Confirm: A
+</span></span></span><span class="line"><span class="cl"><span class="s2">Cancel / Back: B
+</span></span></span><span class="line"><span class="cl"><span class="s2">Menu: START
+</span></span></span><span class="line"><span class="cl"><span class="s2">
+</span></span></span><span class="line"><span class="cl"><span class="s2">[OUTPUT FORMAT]
+</span></span></span><span class="line"><span class="cl"><span class="s2">Output exactly one line:
+</span></span></span><span class="line"><span class="cl"><span class="s2">Action: &lt;BUTTON&gt; [steps]
+</span></span></span><span class="line"><span class="cl"><span class="s2">Example: Action: DOWN 2
+</span></span></span><span class="line"><span class="cl"><span class="s2">Action:&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">prompt</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
 <h3 id="非同步讓慢的層不要擋住快的層">非同步：讓慢的層不要擋住快的層</h3>
 <pre class="mermaid">sequenceDiagram
     participant M as PyBoy 主迴圈
@@ -720,7 +948,104 @@ flowchart TD
     Q-&gt;&gt;W: state + prompt
     W--&gt;&gt;M: action
     M-&gt;&gt;M: 下一幀</pre><p>主迴圈維持 30–60 FPS，模型在背景執行緒跑。<code>Queue(maxsize=1)</code> 是刻意的：寧可丟掉排隊中的舊狀態，也不要讓模型追著歷史跑。但這樣只能丟掉排隊中的狀態，不能保證回傳的 action 對應最新狀態；要做到「只採用最新」，每個狀態得帶一個遞增的 sequence number，模型回來時比對，舊的就丟掉。</p>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">async_agent.py · ollama_worker</span>
+    <span class="code-fold__meta">python · 49 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">ollama_worker</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="n">task_queue</span><span class="p">:</span> <span class="n">queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">result_box</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">brain</span><span class="p">:</span> <span class="n">OllamaBrain</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">min_interval</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="n">stop_event</span><span class="p">:</span> <span class="n">threading</span><span class="o">.</span><span class="n">Event</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Background worker thread that queries Ollama without blocking PyBoy.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">last_inference_time</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="ow">not</span> <span class="n">stop_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+</span></span><span class="line"><span class="cl">        <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">task</span> <span class="o">=</span> <span class="n">task_queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">except</span> <span class="n">queue</span><span class="o">.</span><span class="n">Empty</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">continue</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">break</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">state</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">last_action</span><span class="p">,</span> <span class="n">is_stuck</span><span class="p">,</span> <span class="n">memory_context</span> <span class="o">=</span> <span class="n">task</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">now</span> <span class="o">-</span> <span class="n">last_inference_time</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">elapsed</span> <span class="o">&lt;</span> <span class="n">min_interval</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">min_interval</span> <span class="o">-</span> <span class="n">elapsed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">try</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">action</span><span class="p">,</span> <span class="n">steps</span><span class="p">,</span> <span class="n">latency</span><span class="p">,</span> <span class="n">raw_text</span> <span class="o">=</span> <span class="n">brain</span><span class="o">.</span><span class="n">decide_action</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">                <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">last_action</span><span class="o">=</span><span class="n">last_action</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">stuck_detected</span><span class="o">=</span><span class="n">is_stuck</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">memory_context</span><span class="o">=</span><span class="n">memory_context</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;action&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="n">action</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;steps&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="n">steps</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;latency&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="n">latency</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;raw_text&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw_text</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;ready&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+</span></span><span class="line"><span class="cl">            <span class="n">last_inference_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Inference worker error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;action&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&#34;A&#34;</span> <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">screen_type</span> <span class="o">==</span> <span class="s2">&#34;dialogue&#34;</span> <span class="k">else</span> <span class="s2">&#34;DOWN&#34;</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;steps&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;latency&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;raw_text&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&#34;FALLBACK&#34;</span>
+</span></span><span class="line"><span class="cl">            <span class="n">result_box</span><span class="p">[</span><span class="s2">&#34;ready&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+</span></span><span class="line"><span class="cl">        <span class="k">finally</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">task_queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
 <p>按鍵也有時序校正，單位是 Game Boy 的 60 Hz 幀：方向鍵按住 12 幀、放開 12 幀，總共 24 幀；A/B 這類非方向鍵是按住 8 幀、放開 10 幀。按太快，遊戲只會轉向不會走；按太慢，一個 tile 的移動會拖成兩步。</p>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">emulator.py · press（幀數校正）</span>
+    <span class="code-fold__meta">python · 26 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">press</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">button</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">hold_frames</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">release_frames</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Executes a clean button press and release cycle calibrated to Game Boy physics.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">btn</span> <span class="o">=</span> <span class="n">button</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">btn</span> <span class="o">==</span> <span class="s2">&#34;none&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="bp">self</span><span class="o">.</span><span class="n">tick</span><span class="p">(</span><span class="mi">24</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">valid_buttons</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&#34;up&#34;</span><span class="p">,</span> <span class="s2">&#34;down&#34;</span><span class="p">,</span> <span class="s2">&#34;left&#34;</span><span class="p">,</span> <span class="s2">&#34;right&#34;</span><span class="p">,</span> <span class="s2">&#34;a&#34;</span><span class="p">,</span> <span class="s2">&#34;b&#34;</span><span class="p">,</span> <span class="s2">&#34;start&#34;</span><span class="p">,</span> <span class="s2">&#34;select&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">btn</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_buttons</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="bp">self</span><span class="o">.</span><span class="n">tick</span><span class="p">(</span><span class="mi">24</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">is_directional</span> <span class="o">=</span> <span class="n">btn</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&#34;up&#34;</span><span class="p">,</span> <span class="s2">&#34;down&#34;</span><span class="p">,</span> <span class="s2">&#34;left&#34;</span><span class="p">,</span> <span class="s2">&#34;right&#34;</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">hold_frames</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="c1"># 12 frames hold ensures direction change + full tile-step trigger in Pokemon Red</span>
+</span></span><span class="line"><span class="cl">            <span class="n">hold_frames</span> <span class="o">=</span> <span class="mi">12</span> <span class="k">if</span> <span class="n">is_directional</span> <span class="k">else</span> <span class="mi">8</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">release_frames</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="c1"># 12 frames release ensures full completion of the 24-tick Game Boy step animation</span>
+</span></span><span class="line"><span class="cl">            <span class="n">release_frames</span> <span class="o">=</span> <span class="mi">12</span> <span class="k">if</span> <span class="n">is_directional</span> <span class="k">else</span> <span class="mi">10</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Press</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">pyboy</span><span class="o">.</span><span class="n">button_press</span><span class="p">(</span><span class="n">btn</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">tick</span><span class="p">(</span><span class="n">hold_frames</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="c1"># Release</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">pyboy</span><span class="o">.</span><span class="n">button_release</span><span class="p">(</span><span class="n">btn</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">tick</span><span class="p">(</span><span class="n">release_frames</span><span class="p">)</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
 <p>這種分層在機器人學裡很常見：<strong>慢速 planner + 快速 controller</strong>。在這裡，planner 是一顆 0.8B 的語言模型，controller 是 BFS 與反射規則。</p>
 <h2 id="6-四個卡點">6. 四個卡點</h2>
 <h3 id="61-warp-不是-frontier">6.1 Warp 不是 frontier</h3>
@@ -732,10 +1057,75 @@ flowchart TD
 <li>記錄 <code>current_entry_warps</code>，剛進來的那個入口要冷卻。</li>
 <li>一般冷卻 25 步；偵測到嚴重來回震盪時鎖 60 步。</li>
 </ul>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="c1"># 已知的 warp 是傳送門，不是未探索的地板</span>
-</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">known_warps</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">    <span class="o">...</span>
-</span></span></code></pre></div><p>BFS 現在追的是「還沒探索」的格子，已知的門直接排除。</p>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">memory_system.py · warp 冷卻與 ping-pong 偵測</span>
+    <span class="code-fold__meta">python · 57 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">is_warp_cooldown_active</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Returns True if the agent recently entered this map and should avoid backtracking.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">map_step_count</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">warp_cooldown_target</span> <span class="ow">and</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_entry_warps</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">get_known_warps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">map_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Set</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Returns all known warp coordinates on a given map.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">warps</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">discovered_warps</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">map_id</span><span class="p">,</span> <span class="p">[]):</span>
+</span></span><span class="line"><span class="cl">            <span class="n">warps</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">w</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&#34;x&#34;</span><span class="p">),</span> <span class="n">w</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&#34;y&#34;</span><span class="p">)))</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span> <span class="o">==</span> <span class="n">map_id</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">warps</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_entry_warps</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">warps</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1"># --- Warp / Map Transition Detection ---</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span> <span class="o">!=</span> <span class="n">curr_map</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">old_x</span><span class="p">,</span> <span class="n">old_y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_coords</span>
+</span></span><span class="line"><span class="cl">        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;[Spatial Discovery] Warp discovered: Map </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">old_x</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">old_y</span><span class="si">}</span><span class="s2">) -&gt; Map </span><span class="si">{</span><span class="n">curr_map</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">map_name</span><span class="si">}</span><span class="s2">)&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">attempt_counts</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">discovered_warps</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="bp">self</span><span class="o">.</span><span class="n">discovered_warps</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">already_known</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">w</span><span class="p">[</span><span class="s2">&#34;x&#34;</span><span class="p">]</span> <span class="o">==</span> <span class="n">old_x</span> <span class="ow">and</span> <span class="n">w</span><span class="p">[</span><span class="s2">&#34;y&#34;</span><span class="p">]</span> <span class="o">==</span> <span class="n">old_y</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">discovered_warps</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">        <span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="ow">not</span> <span class="n">already_known</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="bp">self</span><span class="o">.</span><span class="n">discovered_warps</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;x&#34;</span><span class="p">:</span> <span class="n">old_x</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;y&#34;</span><span class="p">:</span> <span class="n">old_y</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="s2">&#34;desc&#34;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&#34;Warp to </span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">map_name</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="p">})</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Check Ping-Pong oscillation between maps (e.g. A -&gt; B -&gt; A -&gt; B)</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">map_history</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span><span class="p">,</span> <span class="n">curr_map</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="n">is_ping_pong</span> <span class="o">=</span> <span class="kc">False</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">map_history</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">h</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">map_history</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="n">h</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">h</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="ow">and</span> <span class="n">h</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="n">h</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">]:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">is_ping_pong</span> <span class="o">=</span> <span class="kc">True</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Register entry warp zone on arrival map</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">current_entry_warps</span> <span class="o">=</span> <span class="p">{</span><span class="n">curr_pos</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="c1"># Also include any known warp on curr_map close to arrival point (stairs/landing)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">discovered_warps</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">curr_map</span><span class="p">,</span> <span class="p">[]):</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="s2">&#34;x&#34;</span><span class="p">]</span> <span class="o">-</span> <span class="n">curr_pos</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="nb">abs</span><span class="p">(</span><span class="n">w</span><span class="p">[</span><span class="s2">&#34;y&#34;</span><span class="p">]</span> <span class="o">-</span> <span class="n">curr_pos</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="bp">self</span><span class="o">.</span><span class="n">current_entry_warps</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">w</span><span class="p">[</span><span class="s2">&#34;x&#34;</span><span class="p">],</span> <span class="n">w</span><span class="p">[</span><span class="s2">&#34;y&#34;</span><span class="p">]))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Reset step count on new map and set cooldown</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">map_step_count</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">is_ping_pong</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="bp">self</span><span class="o">.</span><span class="n">warp_cooldown_target</span> <span class="o">=</span> <span class="mi">60</span>
+</span></span><span class="line"><span class="cl">            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;[Anti-Ping-Pong] Severe map oscillation detected between Map </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">last_map_id</span><span class="si">}</span><span class="s2"> and </span><span class="si">{</span><span class="n">curr_map</span><span class="si">}</span><span class="s2">! Locking entry warp for 60 steps.&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="bp">self</span><span class="o">.</span><span class="n">warp_cooldown_target</span> <span class="o">=</span> <span class="mi">25</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">add_quest_log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;Entered new area: </span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">map_name</span><span class="si">}</span><span class="s2">!&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">stuck_step_count</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
+<p>BFS 現在追的是「還沒探索」的格子，已知的門直接排除。</p>
 <p>BFS 排除 warp 只保證它不會把樓梯當目標，不能保證模型不會自己走過去。所以我在給模型的路況摘要裡把走過的 warp 入口標成 <code>[B]</code>，新出口才是 <code>[D]</code>。Prompt 直接寫明 <code>[B]</code> 是來時路，當前區域沒走完就不要踩。</p>
 <h3 id="62-四個方向都-blocked">6.2 四個方向都 blocked</h3>
 <p>第二個卡點更荒謬。Log 長這樣：</p>
@@ -747,6 +1137,49 @@ flowchart TD
 <li><code>get_movement_options</code> 偵測四個方向全 blocked 時，自動衰減，必要時清除這個位置的區域障礙。</li>
 <li>Smart Unstick 在真的卡住時，從可行方向隨機挑一個，重新取狀態。</li>
 </ul>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">memory_system.py / async_agent.py · 死鎖解除與 Smart Unstick</span>
+    <span class="code-fold__meta">python · 32 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">get_movement_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">map_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">pos</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+</span></span><span class="line"><span class="cl">        <span class="s2">&#34;&#34;&#34;Returns (open_directions, blocked_directions) for the current position.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">        <span class="n">open_dirs</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="n">blocked_dirs</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&#34;UP&#34;</span><span class="p">,</span> <span class="s2">&#34;DOWN&#34;</span><span class="p">,</span> <span class="s2">&#34;LEFT&#34;</span><span class="p">,</span> <span class="s2">&#34;RIGHT&#34;</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="p">(</span><span class="n">map_id</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">d</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">blocked_moves</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">blocked_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">open_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Anti-deadlock: If ALL 4 directions are marked blocked at current position, auto-decay and unblock!</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">blocked_dirs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;[Collision Anti-Lock] All 4 directions blocked at Map </span><span class="si">{</span><span class="n">map_id</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">)! Resetting local obstacles...&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&#34;UP&#34;</span><span class="p">,</span> <span class="s2">&#34;DOWN&#34;</span><span class="p">,</span> <span class="s2">&#34;LEFT&#34;</span><span class="p">,</span> <span class="s2">&#34;RIGHT&#34;</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">                <span class="bp">self</span><span class="o">.</span><span class="n">blocked_moves</span><span class="o">.</span><span class="n">discard</span><span class="p">((</span><span class="n">map_id</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">d</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">            <span class="n">open_dirs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&#34;UP&#34;</span><span class="p">,</span> <span class="s2">&#34;DOWN&#34;</span><span class="p">,</span> <span class="s2">&#34;LEFT&#34;</span><span class="p">,</span> <span class="s2">&#34;RIGHT&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">            <span class="n">blocked_dirs</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">open_dirs</span><span class="p">,</span> <span class="n">blocked_dirs</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1"># Smart Unstick Routine</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="n">is_stuck</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;[Step </span><span class="si">{</span><span class="n">step</span><span class="si">}</span><span class="s2">] Stagnation detected at (</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">player_x</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">player_y</span><span class="si">}</span><span class="s2">)! Resetting obstacles and escaping...&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">stuck_detector</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="n">active_plan</span><span class="p">[</span><span class="s2">&#34;steps_left&#34;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># Ensure 4-way block is reset</span>
+</span></span><span class="line"><span class="cl">        <span class="n">open_dirs</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cog_memory</span><span class="o">.</span><span class="n">get_movement_options</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">map_id</span><span class="p">,</span> <span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">player_x</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">player_y</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="n">alt_dir</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">open_dirs</span><span class="p">)</span> <span class="k">if</span> <span class="n">open_dirs</span> <span class="k">else</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">([</span><span class="s2">&#34;DOWN&#34;</span><span class="p">,</span> <span class="s2">&#34;RIGHT&#34;</span><span class="p">,</span> <span class="s2">&#34;LEFT&#34;</span><span class="p">,</span> <span class="s2">&#34;UP&#34;</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">emulator</span><span class="o">.</span><span class="n">press</span><span class="p">(</span><span class="n">alt_dir</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reverse</span><span class="o">.</span><span class="n">extract_state</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">cog_memory</span><span class="o">.</span><span class="n">update_spatial_position</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">last_action</span><span class="o">=</span><span class="n">alt_dir</span><span class="p">)</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
 <h3 id="63-壞掉的碰撞網格被存下來">6.3 壞掉的碰撞網格被存下來</h3>
 <p>第三個卡點更難查。Agent 不動了，但 stuck detector 沒有觸發。重開程式，還是在原地按 <code>B</code>。</p>
 <p>因為壞掉的碰撞網格被持久化到磁碟了。程式重跑，讀回同一份「四面都是牆」的記憶，於是永遠找不到路。更糟的是，卡死檢測只看座標有沒有變。如果當下 <code>screen_type</code> 是選單或對話，它會刻意忽略停滯，避免把「按 A 翻頁」誤判成卡住。兩個機制疊在一起，就變成一個不會自己結束的迴圈。</p>
@@ -771,6 +1204,55 @@ flowchart TD
 <li>只給四個方向與互動鍵，不給開放式指令。</li>
 <li>讓 Layer 1 在模型選到 blocked 方向時直接覆蓋。</li>
 </ul>
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">async_agent.py / memory_system.py · 停滯偵測與動作歷史</span>
+    <span class="code-fold__meta">python · 38 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">class</span> <span class="nc">StuckDetector</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;&#34;&#34;Tracks position and dialogue changes to identify when the agent is stuck.&#34;&#34;&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">history_len</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="n">history_len</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">GameState</span><span class="p">,</span> <span class="n">action</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">state</span><span class="o">.</span><span class="n">map_id</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">player_x</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">player_y</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">screen_type</span><span class="p">,</span> <span class="n">action</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">maxlen</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="kc">False</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># In dialogue, battle, cutscene or joypad lock, we are not geographically stuck</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">screen_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&#34;dialogue&#34;</span><span class="p">,</span> <span class="s2">&#34;battle&#34;</span><span class="p">,</span> <span class="s2">&#34;cutscene&#34;</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="s2">&#34;joy_ignore&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="kc">False</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1"># If coordinates and map are identical across all recent steps in overworld</span>
+</span></span><span class="line"><span class="cl">        <span class="n">first_entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">        <span class="n">all_same_coords</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">h</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">first_entry</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">h</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">first_entry</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="n">h</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="n">first_entry</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">            <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span>
+</span></span><span class="line"><span class="cl">        <span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">all_same_coords</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># memory_system.py — 動作環形緩衝</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="n">last_action</span> <span class="o">!=</span> <span class="s2">&#34;NONE&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="bp">self</span><span class="o">.</span><span class="n">recent_actions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">last_action</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">recent_actions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">8</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="bp">self</span><span class="o">.</span><span class="n">recent_actions</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># memory_system.py — 選方向時對走爛的格子扣分</span>
+</span></span><span class="line"><span class="cl"><span class="n">score</span> <span class="o">=</span> <span class="o">-</span><span class="n">visits</span> <span class="o">*</span> <span class="mi">10</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_warp_cooldown_active</span><span class="p">()</span> <span class="ow">and</span> <span class="n">target_pos</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_entry_warps</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">score</span> <span class="o">-=</span> <span class="mi">5000</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">recent_actions</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">recent_actions</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">d</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">score</span> <span class="o">+=</span> <span class="mi">5</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
 <h2 id="7-實驗從-title-screen-到-pallet-town">7. 實驗：從 title screen 到 Pallet Town</h2>
 <p>先看舊管線的紀錄：</p>
 <table>
@@ -867,7 +1349,7 @@ flowchart TD
 <p>按鍵時序是固定的物理下限：方向鍵按住 12 幀、放開 12 幀，總共 24 幀（400 ms）；A/B 是 8+10 幀（300 ms）。模型回得多快，都還是要等這段時間。</p>
 <p>上面這張圖不是「三種決策路徑」的量級比較，而是這次實際跑出來的分佈。舊的 VLM 1–2 秒是設計觀察，RAM 讀取 &lt;0.01 ms 是專案自測；把它們放在同一條 log 軸上，會把不同量測邊界混在一起。</p>
 <figure class="plotly-figure">
-  <div class="plotly-chart" id="plotly-6" data-plotly-bundle="basic" style="height: 420px" role="img" aria-label="595 個 episode 的累計探索格數。顏色是當前地圖；菱形是 16 次地圖切換，星號是第 535 步第一次抵達 Pallet Town。曲線由 episode log 重建，終點 71 格；記憶檔另記 72 格（多一格 (5,5) 未出現在 log）。"></div>
+  <div class="plotly-chart" id="plotly-15" data-plotly-bundle="basic" style="height: 420px" role="img" aria-label="595 個 episode 的累計探索格數。顏色是當前地圖；菱形是 16 次地圖切換，星號是第 535 步第一次抵達 Pallet Town。曲線由 episode log 重建，終點 71 格；記憶檔另記 72 格（多一格 (5,5) 未出現在 log）。"></div>
   <script type="application/json" class="plotly-chart__spec">{"config":{"displayModeBar":false,"responsive":true},"data":[{"customdata":[[1,"Red's House 2F",3,6,"UP"],[2,"Red's House 2F",3,6,"UP"],[3,"Red's House 2F",3,6,"DOWN"],[4,"Red's House 2F",3,7,"UP"],[5,"Red's House 2F",3,6,"LEFT"],[6,"Red's House 2F",2,6,"UP"],[7,"Red's House 2F",2,5,"UP"],[8,"Red's House 2F",2,4,"UP"],[9,"Red's House 2F",2,3,"UP"],[10,"Red's House 2F",2,2,"UP"],[11,"Red's House 2F",2,2,"UP"],[12,"Red's House 2F",2,2,"LEFT"],[13,"Red's House 2F",1,2,"UP"],[14,"Red's House 2F",1,2,"LEFT"],[15,"Red's House 2F",0,2,"UP"],[16,"Red's House 2F",0,2,"UP"],[17,"Red's House 2F",0,2,"DOWN"],[18,"Red's House 2F",0,3,"UP"],[19,"Red's House 2F",0,2,"LEFT"],[20,"Red's House 2F",0,2,"LEFT"],[21,"Red's House 2F",3,6,"RIGHT"],[22,"Red's House 2F",4,6,"RIGHT"],[23,"Red's House 2F",5,6,"UP"],[24,"Red's House 2F",5,5,"RIGHT"],[25,"Red's House 2F",6,5,"UP"],[26,"Red's House 2F",6,4,"RIGHT"],[27,"Red's House 2F",7,4,"UP"],[28,"Red's House 2F",7,3,"UP"],[29,"Red's House 2F",7,2,"UP"],[30,"Red's House 1F",7,1,"UP"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 2F","line":{"color":"#5b4bff","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 2F","showlegend":true,"type":"scatter","x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30],"y":[1,1,1,2,2,3,4,5,6,7,7,7,8,8,9,9,9,10,10,10,10,11,12,13,14,15,16,17,18,19]},{"customdata":[[30,"Red's House 1F",7,1,"UP"],[31,"Red's House 1F",7,1,"UP"],[32,"Red's House 1F",7,1,"DOWN"],[33,"Red's House 1F",7,2,"UP"],[34,"Red's House 2F",7,1,"UP"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 1F","line":{"color":"#14b8a6","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 1F","showlegend":true,"type":"scatter","x":[30,31,32,33,34],"y":[19,19,19,20,21]},{"customdata":[[34,"Red's House 2F",7,1,"UP"],[35,"Red's House 2F",7,1,"UP"],[36,"Red's House 2F",7,1,"LEFT"],[37,"Red's House 2F",6,1,"UP"],[38,"Red's House 2F",6,1,"LEFT"],[39,"Red's House 2F",5,1,"UP"],[40,"Red's House 2F",5,1,"LEFT"],[41,"Red's House 2F",4,1,"UP"],[42,"Red's House 2F",4,1,"LEFT"],[43,"Red's House 2F",3,1,"UP"],[44,"Red's House 2F",3,1,"LEFT"],[45,"Red's House 2F",3,1,"UP"],[46,"Red's House 2F",4,1,"LEFT"],[47,"Red's House 2F",3,1,"DOWN"],[48,"Red's House 2F",3,2,"LEFT"],[49,"Red's House 2F",2,2,"DOWN"],[50,"Red's House 2F",2,3,"LEFT"],[51,"Red's House 2F",1,3,"UP"],[52,"Red's House 2F",1,2,"LEFT"],[53,"Red's House 2F",0,2,"DOWN"],[54,"Red's House 2F",0,3,"LEFT"],[55,"Red's House 2F",0,3,"UP"],[56,"Red's House 2F",0,2,"DOWN"],[57,"Red's House 2F",0,3,"UP"],[58,"Red's House 2F",0,2,"DOWN"],[59,"Red's House 2F",0,3,"UP"],[60,"Red's House 2F",0,2,"DOWN"],[61,"Red's House 2F",0,3,"UP"],[62,"Red's House 2F",0,2,"DOWN"],[63,"Red's House 2F",0,3,"UP"],[64,"Red's House 2F",0,2,"DOWN"],[65,"Red's House 2F",0,3,"UP"],[66,"Red's House 2F",0,2,"DOWN"],[67,"Red's House 2F",0,3,"UP"],[68,"Red's House 2F",0,2,"DOWN"],[69,"Red's House 2F",0,3,"UP"],[70,"Red's House 2F",0,2,"DOWN"],[71,"Red's House 2F",0,3,"UP"],[72,"Red's House 2F",0,2,"DOWN"],[73,"Red's House 2F",0,3,"UP"],[74,"Red's House 2F",0,2,"DOWN"],[75,"Red's House 2F",0,3,"UP"],[76,"Red's House 2F",0,2,"DOWN"],[77,"Red's House 2F",0,3,"UP"],[78,"Red's House 2F",0,2,"DOWN"],[79,"Red's House 2F",0,3,"UP"],[80,"Red's House 2F",0,2,"DOWN"],[81,"Red's House 2F",0,3,"UP"],[82,"Red's House 2F",0,2,"DOWN"],[83,"Red's House 2F",0,3,"UP"],[84,"Red's House 2F",0,2,"DOWN"],[85,"Red's House 2F",0,3,"UP"],[86,"Red's House 2F",0,2,"DOWN"],[87,"Red's House 2F",0,3,"UP"],[88,"Red's House 2F",0,2,"DOWN"],[89,"Red's House 2F",0,3,"UP"],[90,"Red's House 2F",0,2,"DOWN"],[91,"Red's House 2F",0,3,"UP"],[92,"Red's House 2F",0,2,"DOWN"],[93,"Red's House 2F",0,3,"UP"],[94,"Red's House 2F",0,2,"DOWN"],[95,"Red's House 2F",3,6,"DOWN"],[96,"Red's House 2F",3,7,"UP"],[97,"Red's House 2F",3,6,"DOWN"],[98,"Red's House 2F",3,7,"UP"],[99,"Red's House 2F",3,6,"DOWN"],[100,"Red's House 2F",3,7,"UP"],[101,"Red's House 2F",3,6,"DOWN"],[102,"Red's House 2F",3,7,"UP"],[103,"Red's House 2F",3,6,"DOWN"],[104,"Red's House 2F",3,7,"UP"],[105,"Red's House 2F",3,6,"DOWN"],[106,"Red's House 2F",3,7,"UP"],[107,"Red's House 2F",3,6,"DOWN"],[108,"Red's House 2F",3,7,"UP"],[109,"Red's House 2F",3,6,"DOWN"],[110,"Red's House 2F",3,7,"UP"],[111,"Red's House 2F",3,6,"DOWN"],[112,"Red's House 2F",3,7,"UP"],[113,"Red's House 2F",3,6,"DOWN"],[114,"Red's House 2F",3,7,"UP"],[115,"Red's House 2F",3,6,"DOWN"],[116,"Red's House 2F",3,7,"UP"],[117,"Red's House 2F",3,6,"DOWN"],[118,"Red's House 2F",3,7,"UP"],[119,"Red's House 2F",3,6,"DOWN"],[120,"Red's House 2F",3,6,"UP"],[121,"Red's House 2F",3,6,"UP"],[122,"Red's House 2F",3,6,"DOWN"],[123,"Red's House 2F",3,7,"UP"],[124,"Red's House 2F",3,6,"LEFT"],[125,"Red's House 2F",2,6,"UP"],[126,"Red's House 2F",2,5,"LEFT"],[127,"Red's House 2F",1,5,"UP"],[128,"Red's House 2F",1,4,"UP"],[129,"Red's House 2F",1,3,"UP"],[130,"Red's House 2F",1,2,"UP"],[131,"Red's House 2F",1,2,"UP"],[132,"Red's House 2F",1,2,"LEFT"],[133,"Red's House 2F",0,2,"UP"],[134,"Red's House 2F",0,2,"LEFT"],[135,"Red's House 2F",0,2,"UP"],[136,"Red's House 2F",0,2,"DOWN"],[137,"Red's House 2F",0,3,"UP"],[138,"Red's House 2F",0,2,"DOWN"],[139,"Red's House 2F",0,3,"UP"],[140,"Red's House 2F",0,2,"DOWN"],[141,"Red's House 2F",0,3,"UP"],[142,"Red's House 2F",0,2,"DOWN"],[143,"Red's House 2F",0,3,"UP"],[144,"Red's House 2F",0,2,"DOWN"],[145,"Red's House 2F",0,3,"UP"],[146,"Red's House 2F",0,2,"DOWN"],[147,"Red's House 2F",0,3,"UP"],[148,"Red's House 2F",0,2,"DOWN"],[149,"Red's House 2F",0,3,"UP"],[150,"Red's House 2F",0,2,"DOWN"],[151,"Red's House 2F",0,3,"UP"],[152,"Red's House 2F",0,2,"DOWN"],[153,"Red's House 2F",0,3,"UP"],[154,"Red's House 2F",0,2,"DOWN"],[155,"Red's House 2F",0,3,"UP"],[156,"Red's House 2F",0,2,"DOWN"],[157,"Red's House 2F",0,3,"UP"],[158,"Red's House 2F",3,6,"RIGHT"],[159,"Red's House 2F",4,6,"RIGHT"],[160,"Red's House 2F",5,6,"RIGHT"],[161,"Red's House 2F",5,6,"RIGHT"],[162,"Red's House 2F",5,6,"UP"],[163,"Red's House 2F",5,5,"RIGHT"],[164,"Red's House 2F",6,5,"UP"],[165,"Red's House 2F",6,4,"RIGHT"],[166,"Red's House 2F",7,4,"UP"],[167,"Red's House 2F",7,3,"RIGHT"],[168,"Red's House 2F",7,3,"UP"],[169,"Red's House 2F",7,2,"RIGHT"],[170,"Red's House 2F",7,2,"UP"],[171,"Red's House 1F",7,1,"RIGHT"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 2F","line":{"color":"#5b4bff","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 2F","showlegend":false,"type":"scatter","x":[34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171],"y":[21,21,21,22,22,23,23,24,24,25,25,25,25,25,26,26,26,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,27,28,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29]},{"customdata":[[171,"Red's House 1F",7,1,"RIGHT"],[172,"Red's House 1F",7,1,"UP"],[173,"Red's House 1F",7,1,"UP"],[174,"Red's House 1F",6,1,"UP"],[175,"Red's House 1F",6,1,"UP"],[176,"Red's House 1F",6,1,"DOWN"],[177,"Red's House 1F",6,2,"UP"],[178,"Red's House 1F",6,1,"LEFT"],[179,"Red's House 1F",5,1,"UP"],[180,"Red's House 1F",5,1,"LEFT"],[181,"Red's House 1F",4,1,"UP"],[182,"Red's House 1F",4,1,"UP"],[183,"Red's House 1F",4,1,"DOWN"],[184,"Red's House 1F",4,2,"UP"],[185,"Red's House 1F",4,1,"LEFT"],[186,"Red's House 1F",4,1,"LEFT"],[187,"Red's House 1F",4,1,"DOWN"],[188,"Red's House 1F",4,2,"LEFT"],[189,"Red's House 1F",3,2,"UP"],[190,"Red's House 1F",3,2,"UP"],[191,"Red's House 1F",3,2,"DOWN"],[192,"Red's House 1F",3,3,"UP"],[193,"Red's House 1F",3,2,"LEFT"],[194,"Red's House 1F",2,2,"UP"],[195,"Red's House 1F",2,1,"UP"],[196,"Red's House 1F",2,1,"UP"],[197,"Red's House 1F",2,1,"LEFT"],[198,"Red's House 1F",2,1,"RIGHT"],[199,"Red's House 1F",2,1,"RIGHT"],[200,"Red's House 1F",2,1,"DOWN"],[201,"Red's House 1F",2,2,"RIGHT"],[202,"Red's House 1F",3,2,"DOWN"],[203,"Red's House 1F",3,3,"RIGHT"],[204,"Red's House 1F",4,3,"UP"],[205,"Red's House 1F",4,2,"RIGHT"],[206,"Red's House 1F",5,2,"UP"],[207,"Red's House 1F",5,1,"RIGHT"],[208,"Red's House 1F",6,1,"DOWN"],[209,"Red's House 1F",6,2,"RIGHT"],[210,"Red's House 1F",7,2,"UP"],[211,"Red's House 2F",7,1,"RIGHT"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 1F","line":{"color":"#14b8a6","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 1F","showlegend":false,"type":"scatter","x":[171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211],"y":[29,29,29,30,30,30,31,31,32,32,33,33,33,34,34,34,34,34,35,35,35,36,36,37,38,38,38,38,38,38,38,38,38,39,39,40,40,40,40,40,40]},{"customdata":[[211,"Red's House 2F",7,1,"RIGHT"],[212,"Red's House 2F",7,1,"UP"],[213,"Red's House 2F",7,1,"RIGHT"],[214,"Red's House 2F",7,2,"UP"],[215,"Red's House 1F",7,1,"RIGHT"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 2F","line":{"color":"#5b4bff","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 2F","showlegend":false,"type":"scatter","x":[211,212,213,214,215],"y":[40,40,40,40,40]},{"customdata":[[215,"Red's House 1F",7,1,"RIGHT"],[216,"Red's House 1F",7,1,"RIGHT"],[217,"Red's House 1F",7,1,"DOWN"],[218,"Red's House 1F",7,2,"RIGHT"],[219,"Red's House 1F",7,2,"UP"],[220,"Red's House 2F",7,1,"UP"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 1F","line":{"color":"#14b8a6","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 1F","showlegend":false,"type":"scatter","x":[215,216,217,218,219,220],"y":[40,40,40,40,40,40]},{"customdata":[[220,"Red's House 2F",7,1,"UP"],[221,"Red's House 2F",7,1,"UP"],[222,"Red's House 2F",7,1,"LEFT"],[223,"Red's House 2F",6,1,"UP"],[224,"Red's House 2F",6,1,"LEFT"],[225,"Red's House 2F",5,1,"UP"],[226,"Red's House 2F",5,1,"UP"],[227,"Red's House 2F",5,1,"DOWN"],[228,"Red's House 2F",5,2,"UP"],[229,"Red's House 2F",5,1,"LEFT"],[230,"Red's House 2F",4,1,"UP"],[231,"Red's House 2F",4,1,"LEFT"],[232,"Red's House 2F",3,1,"UP"],[233,"Red's House 2F",3,1,"UP"],[234,"Red's House 2F",3,1,"DOWN"],[235,"Red's House 2F",3,2,"UP"],[236,"Red's House 2F",3,1,"LEFT"],[237,"Red's House 2F",3,1,"LEFT"],[238,"Red's House 2F",3,1,"DOWN"],[239,"Red's House 2F",3,2,"LEFT"],[240,"Red's House 2F",2,2,"UP"],[241,"Red's House 2F",2,2,"UP"],[242,"Red's House 2F",2,2,"DOWN"],[243,"Red's House 2F",2,3,"UP"],[244,"Red's House 2F",2,2,"DOWN"],[245,"Red's House 2F",2,3,"UP"],[246,"Red's House 2F",2,2,"DOWN"],[247,"Red's House 2F",2,3,"UP"],[248,"Red's House 2F",2,2,"DOWN"],[249,"Red's House 2F",2,3,"UP"],[250,"Red's House 2F",3,6,"DOWN"],[251,"Red's House 2F",3,7,"DOWN"],[252,"Red's House 2F",3,7,"DOWN"],[253,"Red's House 2F",3,7,"RIGHT"],[254,"Red's House 2F",4,7,"RIGHT"],[255,"Red's House 2F",5,7,"DOWN"],[256,"Red's House 2F",5,7,"RIGHT"],[257,"Red's House 2F",5,7,"DOWN"],[258,"Red's House 2F",5,6,"UP"],[259,"Red's House 2F",5,5,"RIGHT"],[260,"Red's House 2F",6,5,"DOWN"],[261,"Red's House 2F",6,5,"UP"],[262,"Red's House 2F",6,4,"UP"],[263,"Red's House 2F",6,3,"RIGHT"],[264,"Red's House 2F",7,3,"RIGHT"],[265,"Red's House 2F",7,3,"UP"],[266,"Red's House 2F",7,2,"LEFT"],[267,"Red's House 2F",6,2,"RIGHT"],[268,"Red's House 2F",7,2,"RIGHT"],[269,"Red's House 2F",7,2,"UP"],[270,"Red's House 1F",7,1,"DOWN"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 2F","line":{"color":"#5b4bff","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 2F","showlegend":false,"type":"scatter","x":[220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270],"y":[40,40,40,40,40,40,40,40,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,42,43,43,43,43,43,43,43,43,44,44,44,44,45,45,45,45]},{"customdata":[[270,"Red's House 1F",7,1,"DOWN"],[271,"Red's House 1F",7,2,"RIGHT"],[272,"Red's House 1F",7,2,"DOWN"],[273,"Red's House 1F",7,3,"UP"],[274,"Red's House 1F",7,2,"RIGHT"],[275,"Red's House 1F",7,2,"UP"],[276,"Red's House 2F",7,1,"DOWN"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 1F","line":{"color":"#14b8a6","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 1F","showlegend":false,"type":"scatter","x":[270,271,272,273,274,275,276],"y":[45,45,45,46,46,46,46]},{"customdata":[[276,"Red's House 2F",7,1,"DOWN"],[277,"Red's House 2F",7,2,"UP"],[278,"Red's House 1F",7,1,"DOWN"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 2F","line":{"color":"#5b4bff","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 2F","showlegend":false,"type":"scatter","x":[276,277,278],"y":[46,46,46]},{"customdata":[[278,"Red's House 1F",7,1,"DOWN"],[279,"Red's House 1F",7,2,"DOWN"],[280,"Red's House 1F",7,3,"DOWN"],[281,"Red's House 1F",7,4,"UP"],[282,"Red's House 1F",7,3,"LEFT"],[283,"Red's House 1F",6,3,"UP"],[284,"Red's House 1F",6,2,"DOWN"],[285,"Red's House 1F",6,3,"UP"],[286,"Red's House 1F",6,2,"DOWN"],[287,"Red's House 1F",6,3,"UP"],[288,"Red's House 1F",6,2,"UP"],[289,"Red's House 1F",6,1,"LEFT"],[290,"Red's House 1F",5,1,"UP"],[291,"Red's House 1F",5,1,"LEFT"],[292,"Red's House 1F",4,1,"RIGHT"],[293,"Red's House 1F",5,1,"UP"],[294,"Red's House 1F",5,1,"DOWN"],[295,"Red's House 1F",5,2,"RIGHT"],[296,"Red's House 1F",6,2,"DOWN"],[297,"Red's House 1F",6,3,"RIGHT"],[298,"Red's House 1F",7,3,"RIGHT"],[299,"Red's House 1F",7,3,"RIGHT"],[300,"Red's House 1F",7,3,"DOWN"],[301,"Red's House 1F",7,4,"RIGHT"],[302,"Red's House 1F",7,4,"DOWN"],[303,"Red's House 1F",7,5,"UP"],[304,"Red's House 1F",7,4,"LEFT"],[305,"Red's House 1F",6,4,"UP"],[306,"Red's House 1F",6,3,"LEFT"],[307,"Red's House 1F",5,3,"UP"],[308,"Red's House 1F",5,2,"DOWN"],[309,"Red's House 1F",5,3,"UP"],[310,"Red's House 1F",5,2,"DOWN"],[311,"Red's House 1F",5,3,"UP"],[312,"Red's House 1F",5,2,"UP"],[313,"Red's House 1F",5,1,"DOWN"],[314,"Red's House 1F",5,2,"DOWN"],[315,"Red's House 1F",5,3,"RIGHT"],[316,"Red's House 1F",6,3,"DOWN"],[317,"Red's House 1F",6,4,"UP"],[318,"Red's House 1F",6,3,"DOWN"],[319,"Red's House 1F",6,4,"UP"],[320,"Red's House 1F",6,3,"DOWN"],[321,"Red's House 1F",6,4,"UP"],[322,"Red's House 1F",6,3,"UP"],[323,"Red's House 1F",6,2,"UP"],[324,"Red's House 1F",6,1,"DOWN"],[325,"Red's House 1F",6,2,"UP"],[326,"Red's House 1F",6,1,"DOWN"],[327,"Red's House 1F",6,2,"UP"],[328,"Red's House 1F",6,1,"RIGHT"],[329,"Red's House 2F",7,1,"DOWN"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 1F","line":{"color":"#14b8a6","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 1F","showlegend":false,"type":"scatter","x":[278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299,300,301,302,303,304,305,306,307,308,309,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329],"y":[46,46,46,47,47,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,48,49,49,50,50,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51]},{"customdata":[[329,"Red's House 2F",7,1,"DOWN"],[330,"Red's House 2F",7,2,"RIGHT"],[331,"Red's House 2F",7,2,"RIGHT"],[332,"Red's House 2F",7,2,"DOWN"],[333,"Red's House 2F",7,3,"UP"],[334,"Red's House 2F",7,2,"DOWN"],[335,"Red's House 2F",7,3,"UP"],[336,"Red's House 2F",7,2,"DOWN"],[337,"Red's House 2F",7,3,"UP"],[338,"Red's House 2F",7,2,"UP"],[339,"Red's House 1F",7,1,"DOWN"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 2F","line":{"color":"#5b4bff","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 2F","showlegend":false,"type":"scatter","x":[329,330,331,332,333,334,335,336,337,338,339],"y":[51,51,51,51,51,51,51,51,51,51,51]},{"customdata":[[339,"Red's House 1F",7,1,"DOWN"],[340,"Red's House 1F",7,2,"DOWN"],[341,"Red's House 1F",7,3,"UP"],[342,"Red's House 1F",7,2,"DOWN"],[343,"Red's House 1F",7,3,"UP"],[344,"Red's House 1F",7,2,"DOWN"],[345,"Red's House 1F",7,3,"UP"],[346,"Red's House 1F",7,2,"UP"],[347,"Red's House 2F",7,1,"LEFT"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 1F","line":{"color":"#14b8a6","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 1F","showlegend":false,"type":"scatter","x":[339,340,341,342,343,344,345,346,347],"y":[51,51,51,51,51,51,51,51,51]},{"customdata":[[347,"Red's House 2F",7,1,"LEFT"],[348,"Red's House 2F",6,1,"UP"],[349,"Red's House 2F",3,6,"DOWN"],[350,"Red's House 2F",3,7,"LEFT"],[351,"Red's House 2F",2,7,"UP"],[352,"Red's House 2F",2,6,"UP"],[353,"Red's House 2F",2,5,"UP"],[354,"Red's House 2F",2,4,"UP"],[355,"Red's House 2F",2,3,"UP"],[356,"Red's House 2F",2,2,"DOWN"],[357,"Red's House 2F",2,3,"UP"],[358,"Red's House 2F",2,2,"DOWN"],[359,"Red's House 2F",2,3,"UP"],[360,"Red's House 2F",2,2,"DOWN"],[361,"Red's House 2F",2,3,"UP"],[362,"Red's House 2F",2,2,"DOWN"],[363,"Red's House 2F",2,3,"UP"],[364,"Red's House 2F",2,2,"DOWN"],[365,"Red's House 2F",2,3,"UP"],[366,"Red's House 2F",2,2,"DOWN"],[367,"Red's House 2F",2,3,"UP"],[368,"Red's House 2F",2,2,"DOWN"],[369,"Red's House 2F",2,3,"UP"],[370,"Red's House 2F",2,2,"DOWN"],[371,"Red's House 2F",2,3,"UP"],[372,"Red's House 2F",2,2,"DOWN"],[373,"Red's House 2F",2,3,"UP"],[374,"Red's House 2F",2,2,"DOWN"],[375,"Red's House 2F",2,3,"UP"],[376,"Red's House 2F",2,2,"DOWN"],[377,"Red's House 2F",2,3,"UP"],[378,"Red's House 2F",2,2,"DOWN"],[379,"Red's House 2F",2,3,"UP"],[380,"Red's House 2F",2,2,"DOWN"],[381,"Red's House 2F",2,3,"UP"],[382,"Red's House 2F",2,2,"DOWN"],[383,"Red's House 2F",2,3,"UP"],[384,"Red's House 2F",2,2,"DOWN"],[385,"Red's House 2F",2,3,"UP"],[386,"Red's House 2F",2,2,"DOWN"],[387,"Red's House 2F",2,3,"UP"],[388,"Red's House 2F",2,2,"DOWN"],[389,"Red's House 2F",2,3,"UP"],[390,"Red's House 2F",2,2,"RIGHT"],[391,"Red's House 2F",3,2,"UP"],[392,"Red's House 2F",3,1,"RIGHT"],[393,"Red's House 2F",4,1,"UP"],[394,"Red's House 2F",4,1,"RIGHT"],[395,"Red's House 2F",5,1,"DOWN"],[396,"Red's House 2F",5,2,"RIGHT"],[397,"Red's House 2F",6,2,"UP"],[398,"Red's House 2F",6,1,"RIGHT"],[399,"Red's House 1F",7,1,"DOWN"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 2F","line":{"color":"#5b4bff","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 2F","showlegend":false,"type":"scatter","x":[347,348,349,350,351,352,353,354,355,356,357,358,359,360,361,362,363,364,365,366,367,368,369,370,371,372,373,374,375,376,377,378,379,380,381,382,383,384,385,386,387,388,389,390,391,392,393,394,395,396,397,398,399],"y":[51,51,51,51,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52]},{"customdata":[[399,"Red's House 1F",7,1,"DOWN"],[400,"Red's House 1F",7,2,"DOWN"],[401,"Red's House 1F",7,3,"DOWN"],[402,"Red's House 1F",7,4,"UP"],[403,"Red's House 1F",7,3,"DOWN"],[404,"Red's House 1F",7,4,"UP"],[405,"Red's House 1F",7,3,"DOWN"],[406,"Red's House 1F",7,4,"UP"],[407,"Red's House 1F",7,3,"DOWN"],[408,"Red's House 1F",7,4,"UP"],[409,"Red's House 1F",7,3,"DOWN"],[410,"Red's House 1F",7,4,"UP"],[411,"Red's House 1F",7,3,"DOWN"],[412,"Red's House 1F",7,4,"UP"],[413,"Red's House 1F",7,3,"DOWN"],[414,"Red's House 1F",7,4,"UP"],[415,"Red's House 1F",7,3,"DOWN"],[416,"Red's House 1F",7,4,"UP"],[417,"Red's House 1F",7,3,"DOWN"],[418,"Red's House 1F",7,4,"UP"],[419,"Red's House 1F",7,3,"DOWN"],[420,"Red's House 1F",7,4,"UP"],[421,"Red's House 1F",7,3,"DOWN"],[422,"Red's House 1F",7,4,"UP"],[423,"Red's House 1F",7,3,"UP"],[424,"Red's House 1F",7,2,"UP"],[425,"Red's House 2F",7,1,"DOWN"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 1F","line":{"color":"#14b8a6","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 1F","showlegend":false,"type":"scatter","x":[399,400,401,402,403,404,405,406,407,408,409,410,411,412,413,414,415,416,417,418,419,420,421,422,423,424,425],"y":[52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52]},{"customdata":[[425,"Red's House 2F",7,1,"DOWN"],[426,"Red's House 2F",7,2,"DOWN"],[427,"Red's House 2F",7,3,"RIGHT"],[428,"Red's House 2F",7,3,"RIGHT"],[429,"Red's House 2F",7,3,"DOWN"],[430,"Red's House 2F",7,4,"RIGHT"],[431,"Red's House 2F",7,4,"UP"],[432,"Red's House 2F",7,3,"DOWN"],[433,"Red's House 2F",7,4,"UP"],[434,"Red's House 2F",7,3,"DOWN"],[435,"Red's House 2F",7,4,"UP"],[436,"Red's House 2F",7,3,"DOWN"],[437,"Red's House 2F",7,4,"UP"],[438,"Red's House 2F",7,3,"DOWN"],[439,"Red's House 2F",7,4,"UP"],[440,"Red's House 2F",7,3,"DOWN"],[441,"Red's House 2F",7,4,"UP"],[442,"Red's House 2F",7,3,"DOWN"],[443,"Red's House 2F",7,4,"UP"],[444,"Red's House 2F",7,3,"DOWN"],[445,"Red's House 2F",7,4,"UP"],[446,"Red's House 2F",7,3,"DOWN"],[447,"Red's House 2F",7,4,"UP"],[448,"Red's House 2F",7,3,"DOWN"],[449,"Red's House 2F",7,4,"UP"],[450,"Red's House 2F",7,3,"UP"],[451,"Red's House 2F",7,2,"UP"],[452,"Red's House 1F",7,1,"LEFT"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 2F","line":{"color":"#5b4bff","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 2F","showlegend":false,"type":"scatter","x":[425,426,427,428,429,430,431,432,433,434,435,436,437,438,439,440,441,442,443,444,445,446,447,448,449,450,451,452],"y":[52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52]},{"customdata":[[452,"Red's House 1F",7,1,"LEFT"],[453,"Red's House 1F",6,1,"DOWN"],[454,"Red's House 1F",6,2,"LEFT"],[455,"Red's House 1F",5,2,"UP"],[456,"Red's House 1F",5,1,"LEFT"],[457,"Red's House 1F",4,1,"DOWN"],[458,"Red's House 1F",4,2,"LEFT"],[459,"Red's House 1F",3,2,"DOWN"],[460,"Red's House 1F",3,3,"LEFT"],[461,"Red's House 1F",2,3,"UP"],[462,"Red's House 1F",2,2,"LEFT"],[463,"Red's House 1F",1,2,"UP"],[464,"Red's House 1F",1,2,"LEFT"],[465,"Red's House 1F",0,2,"UP"],[466,"Red's House 1F",0,2,"LEFT"],[467,"Red's House 1F",0,2,"UP"],[468,"Red's House 1F",1,2,"LEFT"],[469,"Red's House 1F",0,2,"DOWN"],[470,"Red's House 1F",0,3,"LEFT"],[471,"Red's House 1F",0,3,"UP"],[472,"Red's House 1F",0,2,"LEFT"],[473,"Red's House 1F",0,2,"DOWN"],[474,"Red's House 1F",0,3,"LEFT"],[475,"Red's House 1F",0,3,"UP"],[476,"Red's House 1F",0,2,"DOWN"],[477,"Red's House 1F",0,3,"UP"],[478,"Red's House 1F",0,2,"DOWN"],[479,"Red's House 1F",0,3,"UP"],[480,"Red's House 1F",0,2,"DOWN"],[481,"Red's House 1F",0,3,"UP"],[482,"Red's House 1F",0,2,"DOWN"],[483,"Red's House 1F",0,3,"UP"],[484,"Red's House 1F",0,2,"DOWN"],[485,"Red's House 1F",0,3,"UP"],[486,"Red's House 1F",0,2,"DOWN"],[487,"Red's House 1F",0,3,"UP"],[488,"Red's House 1F",0,2,"DOWN"],[489,"Red's House 1F",0,3,"UP"],[490,"Red's House 1F",0,2,"DOWN"],[491,"Red's House 1F",0,3,"UP"],[492,"Red's House 1F",0,2,"DOWN"],[493,"Red's House 1F",0,3,"UP"],[494,"Red's House 1F",0,2,"DOWN"],[495,"Red's House 1F",0,3,"UP"],[496,"Red's House 1F",0,2,"DOWN"],[497,"Red's House 1F",0,3,"UP"],[498,"Red's House 1F",0,2,"DOWN"],[499,"Red's House 1F",0,3,"UP"],[500,"Red's House 1F",0,2,"DOWN"],[501,"Red's House 1F",0,3,"UP"],[502,"Red's House 1F",0,2,"DOWN"],[503,"Red's House 1F",0,3,"UP"],[504,"Red's House 1F",0,2,"DOWN"],[505,"Red's House 1F",0,3,"UP"],[506,"Red's House 1F",0,2,"DOWN"],[507,"Red's House 1F",0,3,"UP"],[508,"Red's House 1F",0,2,"DOWN"],[509,"Red's House 1F",0,3,"UP"],[510,"Red's House 1F",0,2,"DOWN"],[511,"Red's House 1F",0,3,"UP"],[512,"Red's House 1F",0,2,"DOWN"],[513,"Red's House 1F",0,3,"UP"],[514,"Red's House 1F",0,2,"DOWN"],[515,"Red's House 1F",0,3,"UP"],[516,"Red's House 1F",0,2,"DOWN"],[517,"Red's House 1F",0,3,"UP"],[518,"Red's House 1F",0,2,"DOWN"],[519,"Red's House 1F",0,3,"UP"],[520,"Red's House 1F",0,4,"UP"],[521,"Red's House 1F",0,4,"UP"],[522,"Red's House 1F",0,3,"UP"],[523,"Red's House 1F",0,3,"UP"],[524,"Red's House 1F",0,3,"RIGHT"],[525,"Red's House 1F",1,3,"UP"],[526,"Red's House 1F",1,2,"RIGHT"],[527,"Red's House 1F",2,2,"UP"],[528,"Red's House 1F",2,1,"DOWN"],[529,"Red's House 1F",2,2,"UP"],[530,"Red's House 1F",2,1,"DOWN"],[531,"Red's House 1F",2,2,"UP"],[532,"Red's House 1F",2,1,"DOWN"],[533,"Red's House 1F",2,4,"UP"],[534,"Red's House 1F",2,6,"UP"],[535,"Pallet Town",5,6,"DOWN"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Red's House 1F","line":{"color":"#14b8a6","shape":"hv","width":2.8},"mode":"lines","name":"Red's House 1F","showlegend":false,"type":"scatter","x":[452,453,454,455,456,457,458,459,460,461,462,463,464,465,466,467,468,469,470,471,472,473,474,475,476,477,478,479,480,481,482,483,484,485,486,487,488,489,490,491,492,493,494,495,496,497,498,499,500,501,502,503,504,505,506,507,508,509,510,511,512,513,514,515,516,517,518,519,520,521,522,523,524,525,526,527,528,529,530,531,532,533,534,535],"y":[52,52,52,52,52,52,52,52,52,53,53,54,54,55,55,55,55,55,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,57,57,57,57,57,58,58,58,58,58,58,58,58,59,60,61]},{"customdata":[[535,"Pallet Town",5,6,"DOWN"],[536,"Pallet Town",5,7,"UP"],[537,"Pallet Town",5,6,"LEFT"],[538,"Pallet Town",4,6,"UP"],[539,"Pallet Town",4,6,"LEFT"],[540,"Pallet Town",3,6,"UP"],[541,"Pallet Town",3,6,"LEFT"],[542,"Pallet Town",2,6,"UP"],[543,"Pallet Town",2,5,"UP"],[544,"Pallet Town",2,4,"UP"],[545,"Pallet Town",2,3,"UP"],[546,"Pallet Town",2,2,"UP"],[547,"Pallet Town",2,2,"UP"],[548,"Pallet Town",2,2,"LEFT"],[549,"Pallet Town",1,2,"UP"],[550,"Pallet Town",1,2,"UP"],[551,"Pallet Town",1,2,"DOWN"],[552,"Pallet Town",1,3,"UP"],[553,"Pallet Town",1,2,"LEFT"],[554,"Pallet Town",1,2,"LEFT"],[555,"Pallet Town",1,2,"DOWN"],[556,"Pallet Town",1,3,"LEFT"],[557,"Pallet Town",1,3,"UP"],[558,"Pallet Town",1,2,"DOWN"],[559,"Pallet Town",1,3,"UP"],[560,"Pallet Town",1,2,"DOWN"],[561,"Pallet Town",1,3,"UP"],[562,"Pallet Town",1,2,"DOWN"],[563,"Pallet Town",1,3,"UP"],[564,"Pallet Town",1,2,"DOWN"],[565,"Pallet Town",1,3,"UP"],[566,"Pallet Town",1,2,"DOWN"],[567,"Pallet Town",1,3,"UP"],[568,"Pallet Town",1,2,"DOWN"],[569,"Pallet Town",1,3,"UP"],[570,"Pallet Town",1,2,"DOWN"],[571,"Pallet Town",1,3,"UP"],[572,"Pallet Town",1,2,"DOWN"],[573,"Pallet Town",1,3,"UP"],[574,"Pallet Town",1,2,"DOWN"],[575,"Pallet Town",1,3,"UP"],[576,"Pallet Town",1,2,"DOWN"],[577,"Pallet Town",1,3,"UP"],[578,"Pallet Town",1,2,"DOWN"],[579,"Pallet Town",1,3,"UP"],[580,"Pallet Town",1,2,"DOWN"],[581,"Pallet Town",1,3,"UP"],[582,"Pallet Town",1,2,"DOWN"],[583,"Pallet Town",1,3,"UP"],[584,"Pallet Town",1,2,"DOWN"],[585,"Pallet Town",1,3,"UP"],[586,"Pallet Town",1,2,"DOWN"],[587,"Pallet Town",1,3,"UP"],[588,"Pallet Town",1,2,"DOWN"],[589,"Pallet Town",1,3,"UP"],[590,"Pallet Town",1,2,"DOWN"],[591,"Pallet Town",1,3,"UP"],[592,"Pallet Town",1,2,"DOWN"],[593,"Pallet Town",1,3,"UP"],[594,"Pallet Town",1,2,"DOWN"],[595,"Pallet Town",1,3,"UP"]],"hovertemplate":"Step %{customdata[0]}\u003cbr\u003e%{customdata[1]}\u003cbr\u003e座標 (%{customdata[2]}, %{customdata[3]})\u003cbr\u003e動作：%{customdata[4]}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","legendgroup":"Pallet Town","line":{"color":"#22c55e","shape":"hv","width":2.8},"mode":"lines","name":"Pallet Town","showlegend":true,"type":"scatter","x":[535,536,537,538,539,540,541,542,543,544,545,546,547,548,549,550,551,552,553,554,555,556,557,558,559,560,561,562,563,564,565,566,567,568,569,570,571,572,573,574,575,576,577,578,579,580,581,582,583,584,585,586,587,588,589,590,591,592,593,594,595],"y":[61,62,62,63,63,64,64,65,66,67,68,69,69,69,70,70,70,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71,71]},{"hovertemplate":"Step %{x}\u003cbr\u003e%{text}\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","marker":{"color":"#f59e0b","line":{"color":"white","width":1},"size":9,"symbol":"diamond"},"mode":"markers","name":"地圖切換","showlegend":false,"text":["Red's House 2F → Red's House 1F","Red's House 1F → Red's House 2F","Red's House 2F → Red's House 1F","Red's House 1F → Red's House 2F","Red's House 2F → Red's House 1F","Red's House 1F → Red's House 2F","Red's House 2F → Red's House 1F","Red's House 1F → Red's House 2F","Red's House 2F → Red's House 1F","Red's House 1F → Red's House 2F","Red's House 2F → Red's House 1F","Red's House 1F → Red's House 2F","Red's House 2F → Red's House 1F","Red's House 1F → Red's House 2F","Red's House 2F → Red's House 1F","Red's House 1F → Pallet Town"],"type":"scatter","x":[30,34,171,211,215,220,270,276,278,329,339,347,399,425,452,535],"y":[19,21,29,40,40,40,45,46,46,51,51,51,52,52,52,61]},{"hovertemplate":"Step %{x}\u003cbr\u003e第一次抵達 Pallet Town\u003cbr\u003e累計 %{y} 格\u003cextra\u003e\u003c/extra\u003e","marker":{"color":"#22c55e","line":{"color":"white","width":1.2},"size":17,"symbol":"star"},"mode":"markers","name":"第一次抵達 Pallet Town","showlegend":false,"type":"scatter","x":[535],"y":[61]}],"layout":{"annotations":[{"align":"left","font":{"size":9},"showarrow":false,"text":"中斷 28 分鐘","x":348.5,"xanchor":"left","y":74.5}],"font":{"family":"system-ui, sans-serif","size":13},"hoverlabel":{"font":{"size":12}},"hovermode":"x unified","legend":{"bgcolor":"rgba(0,0,0,0)","font":{"size":11},"orientation":"h","x":0,"xanchor":"left","y":1.16,"yanchor":"top"},"margin":{"b":64,"l":84,"r":24,"t":76},"paper_bgcolor":"rgba(0,0,0,0)","plot_bgcolor":"rgba(0,0,0,0)","shapes":[{"layer":"below","line":{"color":"rgba(107,107,118,0.35)","dash":"dot","width":1},"type":"line","x0":348.5,"x1":348.5,"y0":0,"y1":76}],"xaxis":{"automargin":true,"gridcolor":"rgba(128,128,128,0.15)","range":[0,600],"showline":false,"title":{"standoff":10,"text":"Episode（依執行順序）"},"zeroline":false},"yaxis":{"automargin":true,"gridcolor":"rgba(128,128,128,0.15)","range":[0,76],"showline":false,"title":{"standoff":10,"text":"累計走過的格子"},"zeroline":false}}}</script>
   <figcaption>595 個 episode 的累計探索格數。顏色是當前地圖；菱形是 16 次地圖切換，星號是第 535 步第一次抵達 Pallet Town。曲線由 episode log 重建，終點 71 格；記憶檔另記 72 格（多一格 (5,5) 未出現在 log）。</figcaption>
 </figure>
@@ -2290,8 +2772,8 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 
 <h2 id="前言">前言</h2>
 <p>在半導體製造環境中，設備會持續產生振動、溫度與其他感測器資料。如何將這些資料轉化為可用的健康度指標、異常警報與維護建議，並進一步整合到實際的工程工作流程，是設備智慧化的重要課題。</p>
-<p>這篇文章介紹我參與開發的 <strong>Edge AI／PHM（Prognostics and Health Management，故障預測與健康管理）平台</strong>。平台整合感測器資料處理、機器學習、設備端推論、健康度監控、後端服務與生成式 AI Agent，目標是將原本分散的資料分析與模型應用流程，整合成一套可操作、可追蹤且能持續演進的工程系統。</p>
-<p>本文不會只列出使用了哪些技術，而是沿著實際的系統設計脈絡，回答幾個更重要的問題：</p>
+<p>這篇文章介紹我參與開發的 <strong>Edge AI／PHM（Prognostics and Health Management，故障預測與健康管理）平台</strong>。平台涵蓋感測器資料處理、機器學習、設備端推論、健康度監控、後端服務與生成式 AI Agent，目標是把原本分散的資料分析與模型應用，收攏成一套可操作、可追蹤且能持續演進的工程系統。</p>
+<p>本文不會只列出使用了哪些技術，而是沿著實際的系統設計脈絡，回答幾個問題：</p>
 <ul>
 <li>為什麼需要整合 Edge AI 平台？</li>
 <li>如何設計從感測器到模型推論的端到端資料流？</li>
@@ -2300,7 +2782,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <li>為什麼現階段選擇 Flask、SQLite 與 Docker Compose，而不是一開始就採用完整的分散式架構？</li>
 <li>當資料量與併發需求增加時，系統應該如何演進？</li>
 </ul>
-<p>文章也會討論目前架構的限制與可能的改善方向。對我而言，理解一套系統的瓶頸、設計選擇與演進路線，與完成當下的功能同樣重要。</p>
+<p>文章也會討論目前架構的限制與可能的改善方向。對我而言，理解系統的瓶頸、設計選擇與演進路線，與把當下功能做好同樣重要。</p>
 <blockquote>
 <p><strong>專案說明：</strong> 本文為個人技術展示與面試簡報的延伸版本。涉及公司、客戶及內部專案的識別資訊均已移除，相關資料與情境亦經去識別化或虛擬化處理。文中的架構描述不應被解讀為特定客戶或生產環境的完整規格。</p>
 </blockquote>
@@ -2357,11 +2839,11 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 			</tr>
 	</tbody>
 </table>
-<p>平台使用 React 建立操作介面，Flask 提供後端 API，SQLite 負責資料持久化，Docker Compose 管理容器化服務，並透過 AI Agent 將傳統資料分析能力延伸至自然語言互動。</p>
+<p>平台使用 React 建立操作介面，Flask 提供後端 API，SQLite 負責資料持久化，Docker Compose 管理容器化服務，並透過 AI Agent 把資料分析延伸到自然語言互動。</p>
 <h3 id="13-設計原則">1.3 設計原則</h3>
 <p>整體設計遵循一個原則：</p>
 <p><strong>先滿足當前部署限制，再為未來擴充保留清楚的演進路徑。</strong></p>
-<p>Edge AI 系統不一定需要一開始就採用微服務、訊息佇列叢集與大型資料庫。真正重要的是理解設備端的運算資源、網路條件、資料流量、維運能力與可靠性要求，再選擇合適的架構。</p>
+<p>Edge AI 系統不必一開始就採用微服務、訊息佇列叢集與大型資料庫。真正重要的是理解設備端的運算資源、網路條件、資料流量、維運能力與可靠性要求，再選擇合適的架構。</p>
 <hr>
 <h2 id="2-為什麼需要-edge-ai-平台">2. 為什麼需要 Edge AI 平台？</h2>
 <p><img alt="為什麼需要 Edge AI 平台" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/02_why.png"></p>
@@ -2376,26 +2858,21 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <li>設備端執行檔負責實際推論。</li>
 <li>Web Dashboard 負責呈現監控結果。</li>
 </ul>
-<p>這些工具各自都能完成任務，但工具之間仍然需要人工操作、格式轉換與額外的整合程式。</p>
-<p>問題不只是操作步驟多，而是整條資料處理鏈缺乏一致的管理方式。</p>
+<p>這些工具各自都能完成任務，但彼此之間仍需人工操作、格式轉換與額外的串接程式。問題不只是操作步驟多，而是整條資料處理鏈缺乏一致的管理方式。</p>
 <h3 id="22-三個關鍵工程問題">2.2 三個關鍵工程問題</h3>
 <p><strong>問題一：整合成本高（Integration Complexity）</strong></p>
 <p>不同工具可能使用不同的資料格式、參數命名與執行方式。每次調整模型或更新設備端程式，都可能需要重新修改串接流程。</p>
 <p><strong>問題二：資料血緣不完整（Data Lineage）</strong></p>
-<p>當模型輸出異常分數時，工程師需要知道這個結果使用了哪些原始資料、特徵設定、模型版本與判斷門檻。</p>
-<p>如果這些資訊無法對應，問題就很難重現，模型結果也不容易追蹤。</p>
+<p>當模型輸出異常分數時，工程師需要知道這個結果使用了哪些原始資料、特徵設定、模型版本與判斷門檻。如果這些資訊無法對應，問題就很難重現，模型結果也不容易追蹤。</p>
 <p><strong>問題三：模型部署週期過長（Deployment Latency）</strong></p>
-<p>模型在 Notebook 中成功執行，不代表它已經具備設備端部署所需的設定管理、版本控制、錯誤處理與監控能力。</p>
-<p>如果每次更新都需要人工重新串接，模型從實驗到實際應用的週期就會受到限制。</p>
-<h3 id="23-after整合成可執行的工程閉環">2.3 After：整合成可執行的工程閉環</h3>
+<p>模型在 Notebook 中成功執行，不代表它已經具備設備端部署所需的設定管理、版本控制、錯誤處理與監控能力。如果每次更新都需要人工重新串接，模型從實驗到實際應用的週期就會受到限制。</p>
+<h3 id="23-after整合成可執行的工程流程">2.3 After：整合成可執行的工程流程</h3>
 <p>平台將原本分散的流程整合成：</p>
 <p><strong>資料接入 → 特徵處理 → 模型推論 → 健康度監控 → 異常診斷 → 維護回饋</strong></p>
-<p>其中，模型輸出不再只是一次性分析結果，而是可以進一步連結到監控、歷史紀錄與維護工作流程的系統資料。</p>
-<p>這種整合的價值，在於減少重複串接工作，並提高資料、模型與執行狀態之間的一致性。</p>
+<p>模型輸出不再只是一次性分析結果，而是能連結到監控、歷史紀錄與維護工作流程的系統資料。整合的價值在於減少重複串接工作，並提高資料、模型與執行狀態之間的一致性。</p>
 <h3 id="24-工程效益如何衡量">2.4 工程效益如何衡量？</h3>
 <p>原始簡報整理了模型部署週期、重複串接程式碼與資料血緣同步率三項專案展示指標，具體數值可見對應圖表。</p>
-<p>這些數字應搭配各自的計算方式、比較範圍與驗證條件解讀。部署週期的改善不能直接等同於模型準確率提升，而資料血緣同步也不代表所有資料品質問題都已消失。</p>
-<p>真正值得追求的，是建立可以持續量測、重現與改善的工程流程。</p>
+<p>這些數字應搭配各自的計算方式、比較範圍與驗證條件解讀。部署週期的改善不能直接等同於模型準確率提升，而資料血緣同步也不代表所有資料品質問題都已消失。真正值得追求的，是建立可以持續量測、重現與改善的工程流程。</p>
 <hr>
 <h2 id="3-系統架構五層整合設計">3. 系統架構：五層整合設計</h2>
 <p><img alt="系統組裝與架構設計" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/03_system_architecture.png"></p>
@@ -2470,8 +2947,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 			</tr>
 	</tbody>
 </table>
-<p>這種分層方式不代表每一層都是獨立部署的微服務，而是以職責劃分降低模組間的耦合。</p>
-<p>例如，前端不應直接存取資料庫；AI Agent 不應繞過後端權限檢查；模型推論也應與 UI 呈現分開，讓演算法能在不同工作流程中重複使用。</p>
+<p>分層不代表每一層都是獨立部署的微服務，而是以職責劃分降低模組間的耦合。例如，前端不應直接存取資料庫；AI Agent 不應繞過後端權限檢查；模型推論也應與 UI 呈現分開，讓推論邏輯能在不同工作流程中重複使用。</p>
 <h3 id="32-前端與後端如何協作">3.2 前端與後端如何協作？</h3>
 <p>前端使用 React 18、Material UI 與 React Flow 建立操作介面及工作流程視覺化。</p>
 <p>後端使用 Flask 提供 REST API，並透過不同 Blueprint 分離感測器、模型、設備、使用者及 Agent 等業務領域。</p>
@@ -2492,16 +2968,14 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <li>Python 工具執行資料查詢或分析。</li>
 <li>執行結果再交由 LLM 整理成可讀的回答。</li>
 </ol>
-<p>這個架構讓 LLM 負責理解與協調，讓程式負責可驗證的資料操作。</p>
+<p>LLM 負責理解與協調，程式負責可驗證的資料操作。</p>
 <p><strong>核心原則：讓 AI 決定要查什麼，但由受控的程式決定如何執行。</strong></p>
 <h3 id="34-如何看待系統效能資料">3.4 如何看待系統效能資料？</h3>
-<p>原始簡報列出資料接入、Tool 執行、SSE 廣播與 Agent 推理等延遲指標。這些數字有助於建立效能觀測的方向，但不同階段的延遲必須使用一致的量測起訖點，並區分平均值、P95、P99 與冷啟動情境。</p>
-<p>此外，若資料來自不同測試環境或不同量測方法，就不應直接相加，當成端到端延遲。</p>
-<p>對工程系統而言，效能指標必須能夠重現，才具有實際的診斷與比較價值。</p>
+<p>原始簡報列出資料接入、Tool 執行、SSE 廣播與 Agent 推理等延遲指標。這些數字能指出效能觀測的方向，但不同階段的延遲必須使用一致的量測起訖點，並區分平均值、P95、P99 與冷啟動情境。若資料來自不同測試環境或不同量測方法，也不應直接相加當成端到端延遲。對工程系統而言，效能指標必須能夠重現，才具有實際的診斷與比較價值。</p>
 <hr>
 <h2 id="4-端到端資料流從高頻訊號到健康度監控">4. 端到端資料流：從高頻訊號到健康度監控</h2>
 <p><img alt="端到端資料流" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/04_end_to_end_data_flow.png"></p>
-<p>在系統設計中，資料流不只是把資料從 A 傳到 B，更需要定義資料如何進入系統、如何被處理，以及系統在流量突然增加時如何維持穩定。</p>
+<p>資料流不只是把資料從 A 傳到 B，更需要定義資料如何進入系統、如何被處理，以及系統在流量突然增加時如何維持穩定。</p>
 <pre class="mermaid">flowchart TD
     A[&#34;感測器 / 檔案輸入&#34;] --&gt; B[&#34;記憶體緩衝區&#34;]
     B --&gt; C{&#34;批次觸發條件&#34;}
@@ -2523,8 +2997,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <pre class="mermaid">flowchart LR
     A[&#34;感測器串流&#34;] --&gt; B[&#34;有界記憶體緩衝區&#34;]
     B --&gt; C[&#34;批次寫出 Worker&#34;]
-    C --&gt; D[&#34;SQLite 持久化&#34;]</pre><p>這個設計能吸收一定程度的短暫流量波動，避免每筆資料都觸發獨立的寫入操作。</p>
-<p>不過，有界佇列也有重要限制：當緩衝區滿載時，<code>deque(maxlen=5000)</code> 會自動移除較舊的元素。因此，<strong>它適合需要限制記憶體使用量的緩衝情境，但不能直接視為不丟資料的可靠訊息佇列。</strong></p>
+    C --&gt; D[&#34;SQLite 持久化&#34;]</pre><p>這個設計能吸收短暫的流量波動，避免每筆資料都觸發獨立的寫入操作。有界佇列的限制同樣明確：當緩衝區滿載時，<code>deque(maxlen=5000)</code> 會自動移除較舊的元素。因此，<strong>它適合需要限制記憶體使用量的緩衝情境，但不能直接視為不丟資料的可靠訊息佇列。</strong></p>
 <p>如果所有感測器樣本都必須完整保存，就需要額外設計持久化佇列、溢位處理、背壓機制與資料遺失監控。</p>
 <h3 id="42-stage-2特徵擷取與模型推論scoring">4.2 Stage 2：特徵擷取與模型推論（Scoring）</h3>
 <p>原始振動訊號通常不適合直接用單一數值描述設備狀態，因此需要先經過訊號處理與特徵工程。</p>
@@ -2549,8 +3022,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <hr>
 <h2 id="5-ml--phm-pipeline如何從感測器資料辨識異常">5. ML &amp; PHM Pipeline：如何從感測器資料辨識異常？</h2>
 <p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/05_ml_phm_pipeline.png"></p>
-<p>設備健康管理的難點之一，是實際故障案例通常有限，而且不同設備、負載與運轉條件可能產生不同的訊號分布。</p>
-<p>因此，平台使用多種分析方法處理不同問題，而不是期待單一模型解決所有情況。</p>
+<p>設備健康管理的難點之一在於，實際故障案例通常有限，而且不同設備、負載與運轉條件可能產生不同的訊號分布。因此，平台使用多種分析方法處理不同問題，而不是期待單一模型解決所有情況。</p>
 <h3 id="51-訊號預處理與特徵工程">5.1 訊號預處理與特徵工程</h3>
 <p>假設輸入為一段振動加速度訊號：</p>
 $$
@@ -2567,11 +3039,10 @@ $$
 $$<p>峰值有助於觀察瞬間衝擊或尖峰，但也容易受到單一極端樣本影響。</p>
 <p><strong>峭度（Kurtosis）</strong></p>
 <p>峭度可描述訊號分布尾部與極端值的特性，在某些衝擊型異常分析中具有參考價值。不過，解讀時需要注意定義、偏差修正方式與訊號分布假設。</p>
-<p>除了時域特徵，平台也可利用 FFT（Fast Fourier Transform）將訊號轉換至頻域，觀察主要頻率成分及其變化。</p>
-<p>這些特徵的選擇應根據設備的物理特性、取樣率、運轉條件與實際診斷需求決定。</p>
+<p>除了時域特徵，平台也可利用 FFT（Fast Fourier Transform）將訊號轉換至頻域，觀察主要頻率成分及其變化。這些特徵的選擇應根據設備的物理特性、取樣率、運轉條件與實際診斷需求決定。</p>
 <h3 id="52-one-class-svm缺乏故障標籤時的異常偵測">5.2 One-Class SVM：缺乏故障標籤時的異常偵測</h3>
-<p>在故障樣本有限的情況下，One-Class SVM（OCSVM）是一種可考慮的無監督或單類別異常偵測方法。</p>
-<p>其基本想法是利用正常資料學習一個決策邊界，之後判斷新的資料是否偏離正常資料所形成的區域。</p>
+<p>在故障樣本有限的情況下，One-Class SVM（OCSVM）可用於無監督或單類別異常偵測。</p>
+<p>其基本想法是用正常資料學習一個決策邊界，再判斷新資料是否偏離這個區域。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;歷史正常資料&#34;] --&gt; B[&#34;特徵標準化&#34;]
     B --&gt; C[&#34;訓練 One-Class SVM&#34;]
@@ -2586,8 +3057,7 @@ $$<p>峰值有助於觀察瞬間衝擊或尖峰，但也容易受到單一極端
 </ul>
 <p>因此，實務上仍需利用正常資料的涵蓋範圍、誤報率、漏報率與工程師回饋評估模型是否合適。</p>
 <h3 id="53-dtw處理時間序列的非線性對齊">5.3 DTW：處理時間序列的非線性對齊</h3>
-<p>DTW（Dynamic Time Warping）用於比較兩段時間序列，即使它們在時間軸上存在局部伸縮，也能尋找較合理的對齊路徑。</p>
-<p>例如，同一設備在不同轉速下執行相似動作時，特徵峰值可能出現在不同時間點。直接逐點比較可能產生較大的差異，而 DTW 能在允許的條件下對齊兩段序列。</p>
+<p>DTW（Dynamic Time Warping）用於比較兩段時間序列，即使它們在時間軸上存在局部伸縮，也能尋找較合理的對齊路徑。例如，同一設備在不同轉速下執行相似動作時，特徵峰值可能出現在不同時間點。直接逐點比較可能產生較大的差異，而 DTW 能在允許的條件下對齊兩段序列。</p>
 <p>其概念是尋找一條累積距離較小的對齊路徑：</p>
 $$
 D(i,j) = d(x_i,y_j) + \min\left\{ D(i-1,j),\; D(i,j-1),\; D(i-1,j-1) \right\}
@@ -2600,9 +3070,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;歷史基準特徵&#34;] --&gt; B[&#34;擬合 PCA 模型&#34;]
     B --&gt; C[&#34;參考特徵空間&#34;]
-    C --&gt; D[&#34;新特徵：投影與漂移分析&#34;]</pre><p>若新資料的分布持續偏離歷史基準，可能表示設備狀態、操作條件或資料來源出現變化。</p>
-<p>但必須注意，<strong>資料漂移不一定等於設備退化。</strong> 負載改變、感測器更換、取樣條件改變或資料前處理版本不同，都可能造成分布差異。</p>
-<p>因此，漂移監控應同時保留基準版本、特徵設定與運轉條件，並由領域知識協助判讀。</p>
+    C --&gt; D[&#34;新特徵：投影與漂移分析&#34;]</pre><p>若新資料的分布持續偏離歷史基準，可能表示設備狀態、操作條件或資料來源出現變化。但必須注意，<strong>資料漂移不一定等於設備退化。</strong> 負載改變、感測器更換、取樣條件改變或資料前處理版本不同，都可能造成分布差異。因此，漂移監控應同時保留基準版本、特徵設定與運轉條件，並由領域知識協助判讀。</p>
 <h3 id="55-演算法應依問題選擇">5.5 演算法應依問題選擇</h3>
 <table>
 	<thead>
@@ -2655,8 +3123,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <li>Agent：LLM 對話、工具呼叫與串流回應。</li>
 <li>User &amp; Admin：使用者、權限與管理功能。</li>
 </ul>
-<p>Blueprint 的價值在於讓不同領域的路由與邏輯有相對清楚的歸屬。</p>
-<p>不過，將程式拆成多個 Blueprint 並不會自動解決所有耦合問題。如果大量業務邏輯仍集中在單一大型檔案，後續仍需要進一步抽離 Service Layer、資料存取層與共用領域邏輯。</p>
+<p>Blueprint 的價值在於讓不同領域的路由與邏輯有清楚的歸屬。不過，將程式拆成多個 Blueprint 並不會自動解決所有耦合問題。如果大量業務邏輯還是集中在單一大型檔案，就需要進一步抽離 Service Layer、資料存取層與共用領域邏輯。</p>
 <h3 id="62-身分驗證與權限控制">6.2 身分驗證與權限控制</h3>
 <p>平台整合企業 LDAP／Active Directory 身分驗證，並使用 JWT 處理後續 API 的存取驗證。</p>
 <p>典型流程為：</p>
@@ -2669,7 +3136,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <li><strong>Authentication：</strong> 確認使用者是誰。</li>
 <li><strong>Authorization：</strong> 確認使用者可以執行哪些操作。</li>
 </ul>
-<p>即使請求帶有有效 JWT，後端仍應依使用者角色、專案權限與資源範圍進行檢查。敏感操作不能只依賴前端是否顯示按鈕。</p>
+<p>即使請求帶有有效 JWT，後端仍應依使用者角色、專案權限與資源範圍檢查。敏感操作不能只依賴前端是否顯示按鈕。</p>
 <h3 id="63-sqlite-雙資料庫設計">6.3 SQLite 雙資料庫設計</h3>
 <p>平台將一般設定與模型歷程資料，和高頻振動資料分開保存。</p>
 <table>
@@ -2690,9 +3157,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 			</tr>
 	</tbody>
 </table>
-<p>這種方式讓不同性質的資料可以分開管理，也能降低高頻資料持續成長對主要業務資料庫的影響。</p>
-<p>後端透過 SQLAlchemy 管理資料存取，並使用 SQLite 的 <code>ATTACH DATABASE</code> 機制，在連線建立時附加另一個資料庫，讓部分跨資料庫查詢能透過單一 SQL 執行。</p>
-<p>但雙資料庫不代表所有操作都具有單一交易的完整原子性。跨資料庫交易、備份一致性與併發寫入仍須依 SQLite 的實際限制進行設計與驗證。</p>
+<p>把兩類資料分開管理，也能降低高頻資料持續成長對主要業務資料庫的影響。後端透過 SQLAlchemy 管理資料存取，並使用 SQLite 的 <code>ATTACH DATABASE</code> 機制，在連線建立時附加另一個資料庫，讓部分跨資料庫查詢能透過單一 SQL 執行。但雙資料庫不代表跨庫操作具備單一交易的完整原子性。跨資料庫交易、備份一致性與併發寫入仍須依 SQLite 的實際限制進行設計與驗證。</p>
 <h3 id="64-背景任務與模型生命週期">6.4 背景任務與模型生命週期</h3>
 <p>平台使用 APScheduler 執行週期性工作，例如監控檢查、資料整理與資料庫備份；部分資料處理則透過佇列與背景工作降低對請求處理流程的影響。</p>
 <p>模型生命週期也需要明確的狀態紀錄。例如，<code>ModelBuildingHistory</code> 可追蹤模型建置任務的狀態：</p>
@@ -2701,8 +3166,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
     building --&gt; completed
     building --&gt; failed</pre><p>除了狀態，還應保存模型設定、執行時間、資料範圍及相關評估指標。這些紀錄能幫助工程師釐清模型是否成功建置、使用了哪些設定，以及異常發生在哪個階段。</p>
 <h3 id="65-備份與資料保護">6.5 備份與資料保護</h3>
-<p>平台設有定期資料庫備份，並透過 SQLite 的線上備份 API 產生備份檔案。</p>
-<p>不過，備份排程存在並不等於災難復原能力已經完整。可靠的資料保護還需要考慮：</p>
+<p>平台設有定期資料庫備份，並透過 SQLite 的線上備份 API 產生備份檔案。不過，備份排程存在並不等於災難復原能力已經完整。可靠的資料保護還需要考慮：</p>
 <ul>
 <li>備份檔案是否能成功還原。</li>
 <li>多個資料庫及模型檔案之間是否具有一致的版本。</li>
@@ -2713,12 +3177,11 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <hr>
 <h2 id="7-ai-agent從自然語言查詢到可控的工程工具">7. AI Agent：從自然語言查詢到可控的工程工具</h2>
 <p><img alt="AI Agent 架構" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/07_ai_agent_architecture.png"></p>
-<p>將 LLM 加入設備監控平台，真正的挑戰不只是讓模型能夠回答問題，而是讓它能在具備權限控制、資料可追溯與執行邊界的環境中使用系統能力。</p>
+<p>將 LLM 加入設備監控平台，真正的挑戰不只是讓模型能夠回答問題，而是讓它能在有權限控制、資料可追溯與明確執行邊界的環境下使用系統能力。</p>
 <h3 id="71-為什麼需要-tool-calling">7.1 為什麼需要 Tool Calling？</h3>
 <p>假設工程師詢問：</p>
 <p>「最近設備的健康度為什麼下降？有沒有值得注意的振動異常？」</p>
-<p>單純依靠 LLM 的內部知識，無法得知目前設備的真實狀態。</p>
-<p>因此，Agent 需要先查詢實際資料，再根據結果進行分析。</p>
+<p>單純依靠 LLM 的內部知識，無法得知目前設備的真實狀態。因此，Agent 需要先查詢實際資料，再根據結果進行分析。</p>
 <p>平台提供的工具可以包含：</p>
 <table>
 	<thead>
@@ -2765,8 +3228,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
     F --&gt; G{&#34;是否需要更多證據？&#34;}
     G --&gt;|&#34;是&#34;| B
     G --&gt;|&#34;否&#34;| H[&#34;LLM 摘要與說明&#34;]
-    H --&gt; I[&#34;前端 SSE 串流&#34;]</pre><p>這個流程將語言理解與資料執行分開。</p>
-<p>LLM 可以決定要查詢哪些資料、如何組織分析步驟，但真正的 SQL 查詢、檔案存取與演算法計算仍由後端工具執行。</p>
+    H --&gt; I[&#34;前端 SSE 串流&#34;]</pre><p>這個流程將語言理解與資料執行分開。LLM 可以決定要查詢哪些資料、如何組織分析步驟，但真正的 SQL 查詢、檔案存取與演算法計算仍由後端工具執行。</p>
 <p>這樣能降低模型憑空編造即時數值的風險，但不能完全消除幻覺。LLM 仍可能誤解工具結果、過度推論或產生缺乏證據的解釋，因此回答應盡可能引用查詢結果、時間範圍與資料來源。</p>
 <h3 id="73-為什麼不讓-agent-直接操作資料庫">7.3 為什麼不讓 Agent 直接操作資料庫？</h3>
 <p>直接將任意 SQL 或 Shell 權限交給 LLM，會使錯誤操作、權限越界與資料安全風險更難控制。</p>
@@ -2778,7 +3240,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <li>每次工具執行仍須遵守使用者的身分與資源權限。</li>
 <li>對重要操作記錄請求、工具執行結果與錯誤資訊。</li>
 </ol>
-<p>需要特別注意的是，將 SQL 設為唯讀並不會自動讓它安全。查詢仍應限制可存取的資料表、欄位、執行時間與回傳資料量，並避免洩漏敏感資訊。</p>
+<p>SQL 設為唯讀並不會自動變安全。查詢仍應限制可存取的資料表、欄位、執行時間與回傳資料量，並避免洩漏敏感資訊。</p>
 <h3 id="74-llm-推理與確定性執行的分工">7.4 LLM 推理與確定性執行的分工</h3>
 <p>這套架構的核心是將不同類型的工作交給適合的元件：</p>
 <ul>
@@ -2787,16 +3249,14 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <li><strong>Backend：</strong> 管理身分、權限、參數驗證與執行邊界。</li>
 <li><strong>Frontend：</strong> 顯示推理過程、查詢結果與維護建議。</li>
 </ul>
-<p>這不代表整體系統的結果是百分之百確定的，而是盡量讓需要精確的資料取得與運算交由可測試、可驗證的程式處理。</p>
+<p>這不代表整體系統的結果是百分之百確定的，而是讓需要精確的資料取得與運算，盡量交給可測試、可驗證的程式處理。</p>
 <h3 id="75-sse-在-agent-互動中的角色">7.5 SSE 在 Agent 互動中的角色</h3>
-<p>Agent 執行可能包含多次工具呼叫與較長的推理過程。如果前端只能等待最終回應，使用者很難了解目前的執行狀態。</p>
-<p>SSE 允許伺服器透過單向 HTTP 連線持續傳送事件，適合用來顯示串流文字、狀態更新與工具執行結果。</p>
+<p>Agent 執行可能包含多次工具呼叫與較長的推理過程。如果前端只能等待最終回應，使用者很難了解目前的執行狀態。SSE 允許伺服器透過單向 HTTP 連線持續傳送事件，適合用來顯示串流文字、狀態更新與工具執行結果。</p>
 <p>若未來需要瀏覽器與伺服器進行頻繁的雙向即時互動，再評估 WebSocket 是否更合適。</p>
 <hr>
 <h2 id="8-部署與監控讓平台能在目標環境中運作">8. 部署與監控：讓平台能在目標環境中運作</h2>
 <p><img alt="部署與監控" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/08_deployment_monitoring.png"></p>
-<p>一個可以在開發環境成功執行的系統，不一定能直接部署到另一台設備或伺服器。</p>
-<p>部署設計需要處理依賴、環境設定、持久化資料、背景工作與更新流程。</p>
+<p>一個可以在開發環境成功執行的系統，不一定能直接部署到另一台設備或伺服器。部署設計需要處理依賴、環境設定、持久化資料、背景工作與更新流程。</p>
 <h3 id="81-docker-compose-容器化部署">8.1 Docker Compose 容器化部署</h3>
 <p>平台使用 Docker Compose 管理前端與後端服務。</p>
 <table>
@@ -2821,8 +3281,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 			</tr>
 	</tbody>
 </table>
-<p>容器化的主要價值，是讓服務的執行環境更容易重現，並簡化部署與更新流程。</p>
-<p>但容器本身不會自動提供高可用性。若前後端都部署在單一主機，主機故障仍可能影響整套系統。</p>
+<p>容器化的主要價值，是讓服務的執行環境更容易重現，並簡化部署與更新流程。但容器本身不會自動提供高可用性。若前後端都部署在單一主機，主機故障仍可能影響整套系統。</p>
 <h3 id="82-執行時注入環境設定">8.2 執行時注入環境設定</h3>
 <p>前端與後端的連線位址不應被永久寫死在建置產物中。</p>
 <p>平台透過執行時設定注入機制，讓容器啟動時產生或載入 <code>env.js</code>，再由前端讀取 <code>window.ENV</code> 取得後端端點。</p>
@@ -2849,7 +3308,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p>進一步的監控設計則應涵蓋：</p>
 <ul>
 <li>感測器資料是否持續進入。</li>
-<li>佇列長度與資料丟失情形。</li>
+<li>佇列長度與資料遺失情形。</li>
 <li>批次寫入延遲與資料庫錯誤率。</li>
 <li>模型推論延遲與異常比例。</li>
 <li>API 回應時間與錯誤率。</li>
@@ -2862,16 +3321,11 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <p><img alt="故障處理與擴展性" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/09_failure_scaling.png"></p>
 <p>單機架構的優點是部署簡單、依賴少、維運成本較低。但隨著資料量與併發請求增加，原本的簡化設計也會逐漸出現限制。</p>
 <h3 id="91-有界佇列的容量與資料完整性">9.1 有界佇列的容量與資料完整性</h3>
-<p>目前資料流透過記憶體佇列吸收短暫突發流量，再批次寫入 SQLite。</p>
-<p>這種方式能減少頻繁 I/O，但也有明確的容量限制。</p>
+<p>目前資料流透過記憶體佇列吸收短暫突發流量，再批次寫入 SQLite。這種方式能減少頻繁 I/O，但也有明確的容量限制。</p>
 <p>如果輸入速率長時間高於消化速率，佇列仍會持續接近滿載。對使用 <code>deque(maxlen=5000)</code> 的實作而言，舊資料可能被新資料覆蓋，因此不能只觀察程式是否仍在執行，還需要監控資料遺失與佇列滿載情形。</p>
-<p>此外，當資料庫寫入失敗、程序重新啟動或設備斷電時，尚未寫入磁碟的資料也可能遺失。</p>
-<p>因此，可靠性設計應根據資料的重要性，決定是否需要磁碟緩衝、重試機制、持久化訊息佇列或資料補傳能力。</p>
+<p>當資料庫寫入失敗、程序重新啟動或設備斷電時，尚未寫入磁碟的資料也可能遺失。因此，可靠性設計應根據資料的重要性，決定是否需要磁碟緩衝、重試機制、持久化訊息佇列或資料補傳能力。</p>
 <h3 id="92-sqlite-的寫入併發限制">9.2 SQLite 的寫入併發限制</h3>
-<p>SQLite 適合許多單機與低維運負擔的應用，但它的寫入併發能力有限。</p>
-<p>當多個工作同時寫入資料，或高頻感測器資料與 API 請求競爭資料庫資源時，可能出現鎖定等待、寫入延遲或失敗。</p>
-<p>這不代表 SQLite 不適合 Edge AI，而是需要確認資料量、寫入模式、鎖定時間與查詢需求是否符合其使用範圍。</p>
-<p>對單機設備而言，簡單的資料庫加上適當批次寫入，可能比引入完整分散式資料平台更合理。</p>
+<p>SQLite 適合許多單機與低維運負擔的應用，但它的寫入併發能力有限。當多個工作同時寫入資料，或高頻感測器資料與 API 請求競爭資料庫資源時，可能出現鎖定等待、寫入延遲或失敗。這不代表 SQLite 不適合 Edge AI，而是需要確認資料量、寫入模式、鎖定時間與查詢需求是否符合其使用範圍。對單機設備而言，簡單的資料庫加上適當批次寫入，可能比引入完整分散式資料平台更合理。</p>
 <h3 id="93-未來架構將接收計算與儲存解耦">9.3 未來架構：將接收、計算與儲存解耦</h3>
 <p>當系統需要處理更多設備、更高吞吐量或更嚴格的可靠性要求時，可以逐步演進至下列架構：</p>
 <pre class="mermaid">flowchart LR
@@ -2932,12 +3386,11 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <li>在必要時將資料庫與快取替換成更符合負載需求的服務。</li>
 <li>最後再評估多副本部署、負載平衡與容器編排。</li>
 </ol>
-<p>如此一來，架構演進是由實際需求驅動，而不是因為某種技術流行就提前引入。</p>
+<p>架構演進應該由實際需求驅動，而不是因為某種技術流行就提前引入。</p>
 <hr>
 <h2 id="10-engineering-trade-offs技術選擇與架構演進">10. Engineering Trade-offs：技術選擇與架構演進</h2>
 <p><img alt="工程權衡" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/10_engineering_tradeoffs.png"></p>
-<p>系統設計不只是選擇技術，也是在不同的限制之間取得平衡。</p>
-<p>對 Edge AI 平台而言，部署便利性、離線運作、資料完整性、效能與維運成本都可能互相影響。</p>
+<p>系統設計不只是選擇技術，也是在不同的限制之間取得平衡。對 Edge AI 平台而言，部署便利性、離線運作、資料完整性、效能與維運成本都可能互相影響。</p>
 <h3 id="101-現行方案與未來演進">10.1 現行方案與未來演進</h3>
 <table>
 	<thead>
@@ -3005,8 +3458,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 			</tr>
 	</tbody>
 </table>
-<p>這張表不是說未來方案一定比較好，而是列出目前選擇的適用範圍，以及在什麼條件下可能需要改變。</p>
-<p>例如，Flask 本身並不等於缺乏擴充性；真正需要關注的是程式結構、部署方式、請求處理模型與背景工作如何分離。同樣地，React Context 也不一定需要被 Redux 取代，是否更換應由狀態複雜度與實際維護成本決定。</p>
+<p>這張表不是說未來方案一定比較好，而是列出目前選擇的適用範圍，以及在什麼條件下可能需要改變。例如，Flask 本身並不等於缺乏擴充性；真正需要關注的是程式結構、部署方式、請求處理模型與背景工作如何分離。同樣地，React Context 也不一定需要被 Redux 取代，是否更換應由狀態複雜度與實際維護成本決定。</p>
 <h3 id="102-三階段架構演進">10.2 三階段架構演進</h3>
 <p>可以將未來的架構演進整理成三個階段：</p>
 <pre class="mermaid">flowchart LR
@@ -3031,15 +3483,14 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <hr>
 <h2 id="結語真正的價值在於把模型整合成工程系統">結語：真正的價值在於把模型整合成工程系統</h2>
 <p>回顧這個專案，我認為最大的挑戰並不是單獨實作某個演算法，而是如何讓感測器資料、模型推論、後端 API、設備部署、監控與 AI Agent 在同一套系統中協同運作。</p>
-<p>從整體工程角度來看，這個平台帶給我的重要經驗包括以下幾點：</p>
+<p>這個平台帶給我的幾點經驗：</p>
 <ol>
 <li><strong>模型需要完整的資料與部署流程。</strong> 模型在實驗環境中表現良好，只是整個生命週期的一部分。要讓模型真正進入設備應用，還需要特徵設定、版本管理、推論介面、監控與錯誤處理。</li>
 <li><strong>AI Agent 的可靠性取決於工具與系統邊界。</strong> LLM 可以協助工程師理解問題，但不應取代需要精確執行的資料查詢與數值計算。透過受控工具、後端驗證與可追溯的執行結果，才能讓 Agent 更有機會成為可靠的工程助手。</li>
 <li><strong>系統效能必須搭配可觀測性。</strong> 緩衝區、批次寫入、快取與背景排程都能改善部分工作負載，但每種設計也會引入新的限制。只有持續量測延遲、錯誤率、資料完整性與資源使用情況，才能判斷這些選擇是否真的有效。</li>
 <li><strong>架構演進應由瓶頸與需求驅動。</strong> SQLite、Flask 與 Docker Compose 可以是合理的起點，前提是理解它們的適用範圍，並在需求超出限制時有計畫地演進。</li>
 </ol>
-<p>對我而言，這個專案的核心不是使用了多少種框架，而是建立了一套從感測器資料到工程決策的完整技術脈絡，並在實際限制下思考資料處理、模型應用、系統可靠性與未來擴充。</p>
-<p>這也是我希望持續深化的方向：不只完成單一功能，而是能夠理解並設計一套可維護、可觀測、可驗證，而且能隨需求成長的 AI 工程系統。</p>
+<p>對我而言，這個專案的核心不是使用了多少種框架，而是建立了一套從感測器資料到工程決策的完整技術脈絡，並在實際限制下思考資料處理、模型應用、系統可靠性與未來擴充。這也是我希望持續深化的方向：不只完成單一功能，而是能夠理解並設計一套可維護、可觀測、可驗證，而且能隨需求成長的 AI 工程系統。</p>
 <hr>
 <blockquote>
 <p><strong>版權與使用條款：</strong> 本文所有圖表版權歸作者所有，轉載請註明出處與原作者。內容已全面進行去識別化與虛擬化處理，僅供技術交流與架構展示使用，不構成任何營業秘密洩露。文中所列未來架構屬於可能的演進方向，不代表已全部實作或部署。</p>
@@ -3047,28 +3498,28 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 ]]></content:encoded></item><item><title>智慧工廠邊緣 AI：從預測性維護到自主決策 Agent 的系統架構設計</title><link>https://jiejiefu.github.io/blog/projects/fab-predictive-maintenance-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/projects/fab-predictive-maintenance-ppt169/</guid><description>從感測器串流、異常偵測、剩餘壽命預測，到邊緣部署與工業知識檢索，說明一套智慧工廠邊緣 AI 系統的分層架構與設計取捨。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <ul>
-<li>架構涵蓋六個層級，從感測器與串流，一路到 PHM、Edge Agent 與 MES／EAP 安全整合。</li>
-<li>以 20 台設備、3 個通道、2 kHz 取樣為例，每日約產生 41.5 GB 原始資料；納管設備規模與高頻串流規模是兩個不同指標。</li>
+<li>架構涵蓋六個層級，從感測器與串流，一路到設備健康管理（PHM）、Edge Agent 與 MES／EAP 安全整合。</li>
+<li>以 20 台設備、3 個通道、2 kHz 取樣為例，每日約產生 41.5 GB 原始資料；設備納管規模與高頻資料處理規模是兩個不同指標。</li>
 <li>偵測採用兩階段流程：先以 Isolation Forest 篩選，再由 Autoencoder 評估，並透過告警整併降低噪音。</li>
 <li>RUL 預測（Weibull、LSTM／Transformer、領域特徵）支援 30 天與 7 天維護規劃；文中數字屬專案情境，並非通用基準。</li>
 <li>模型歷經標準化封裝、影子部署、金絲雀分批發佈（5% → 20% → 100%）、監控與回退。</li>
 <li>Edge Agent、工業 RAG 與 MLOps 串接證據與工作流程，但安全關鍵控制仍留在 LLM 之外。</li>
 </ul>
-<p><strong>總結：</strong> 在擴大自主決策之前，先讓每一層都可觀測、可驗證、可回退。</p>
+<p>在擴大自主決策之前，先讓每一層都可觀測、可驗證、可回退。</p>
 </aside>
 
 <h2 id="前言">前言</h2>
-<p>這篇文章整理了我在面試簡報中提出的智慧工廠邊緣 AI 系統架構，將原本的 11 張簡報內容延伸成一份較完整的技術筆記。</p>
-<p>文章從設備感測資料開始，依序討論即時資料處理、異常偵測、設備剩餘壽命預測（RUL）、邊緣部署、工業知識檢索，以及 AI Agent 的決策與控制邊界。除了技術元件，也會說明各層的設計考量，以及在延遲、運算資源、可靠性與維運成本之間需要做出的取捨。</p>
-<p>這套架構關注的核心問題，不只是將 AI 模型部署到工廠，而是如何讓模型在受限的運算環境中持續運作，並與既有設備控制、維護流程及工廠資訊系統整合。</p>
+<p>這篇文章整理了我在面試簡報中提出的智慧工廠邊緣 AI 系統架構，將原本的 11 張簡報內容延伸成一份較完整的技術筆記。各章引用的專案指標，其定義與歸因限制統一整理於文末附錄。</p>
+<p>文章從設備感測資料開始，依序討論即時資料處理、異常偵測、設備剩餘壽命預測（RUL）、邊緣部署、工業知識檢索，以及 AI Agent 的決策與控制邊界。但真正要回答的問題，不只是把 AI 模型部署到工廠，而是如何讓它在延遲、運算資源、可靠性與維運成本之間取得平衡，並與既有設備控制、維護流程及工廠資訊系統整合。</p>
 <blockquote>
 <p><strong>智慧財產權與使用聲明：</strong> 本文用於技術交流、系統設計討論與個人技術能力展示。內容已進行去識別化與必要的資訊調整，不應包含未公開的客戶資料、營業秘密或內部專案資訊。本文圖表與文字的使用及轉載，請依作者公布的授權條件辦理。</p>
 </blockquote>
 <hr>
 <h2 id="01-系統目標與設計前提">01. 系統目標與設計前提</h2>
 <p><img alt="封面：智慧工廠邊緣端預測性維護與自主決策 Agent 系統" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/01_cover.png"></p>
-<p>半導體製造的產線設備具有幾項共同特性：設備種類多、感測資料頻率高、停機成本高，而且部分控制流程對延遲與可靠性有嚴格要求。</p>
-<p>如果將所有資料送往雲端，再統一進行分析與決策，雖然有利於集中管理，但也會增加網路傳輸、資料治理及系統依賴的成本。因此，這套架構採用邊緣運算與集中式管理並行的方式，將需要低延遲反應的工作留在廠區內處理。</p>
+<p>半導體製造的產線設備有幾項共同特性：設備種類多、感測資料頻率高、停機成本高，而且部分控制流程對延遲與可靠性有嚴格要求。</p>
+<p>如果將所有資料送往雲端，再統一分析與決策，雖然有利於集中管理，但也會增加網路傳輸、資料治理及系統依賴的成本。因此，這套架構採用邊緣運算與集中式管理並行的方式，將需要低延遲反應的工作留在廠區內處理。</p>
+<p>更現實的限制是：廠區網段的對外連線通常受防火牆與稽核規範管制，波形或影像資料要離開廠區，往往得先走一輪申請與審查。雲端分析本身並沒有錯，但這樣一來，「即時」兩個字就沒有意義了。</p>
 <p>整體設計主要考量四個面向：</p>
 <ul>
 <li><strong>資料治理與資安：</strong> 感測資料、設備資訊及維修紀錄依照資料分級與存取權限處理。敏感資料原則上在廠內完成必要的運算與管理，跨系統傳輸則需符合廠內規範。</li>
@@ -3076,11 +3527,11 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 <li><strong>異常偵測的可用性：</strong> 除了模型準確率，也必須評估誤報率、漏報率、告警頻率及現場人員的處理負擔。</li>
 <li><strong>設備安全與故障隔離：</strong> AI 模型可以提供異常判斷與維護建議，但涉及設備安全的控制邏輯，仍須由經過驗證的控制系統與安全機制負責。</li>
 </ul>
-<p>這些前提會直接影響後續的架構分層、模型選擇與 Agent 的權限設計。</p>
+<p>這些前提直接影響後續的架構分層、模型選擇與 Agent 的權限設計。</p>
 <hr>
 <h2 id="02-端到端技術架構">02. 端到端技術架構</h2>
 <p><img alt="端到端技術架構地圖" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/02_architecture.png"></p>
-<p>整體架構分為六個層級。感測器與資料擷取層負責取得設備狀態；串流與訊號處理層負責資料整理；AI 分析層負責異常偵測與健康度評估；最上層則整合決策、維護流程及必要的控制介面。</p>
+<p>整體架構分為六層，見下表。前三層解決資料從哪裡來、怎麼整理、怎麼形成判斷；後三層解決判斷之後要交給誰、用什麼權限執行，以及如何與既有系統對接。</p>
 <table>
 	<thead>
 			<tr>
@@ -3122,15 +3573,15 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 			</tr>
 	</tbody>
 </table>
-<p>在這個架構中，邊緣端主要負責低延遲的資料處理與推論，集中式平台則負責模型管理、跨設備分析、訓練及部署協調。</p>
-<p>各元件的責任也需要清楚區分。Kafka 適合用於訊息傳遞與資料流解耦；InfluxDB 可用於時序資料的保存與查詢；環形緩衝區則適合處理需要穩定記憶體使用量的連續資料。這些元件不一定必須串成單一路徑，實際組合仍取決於資料頻率、延遲需求與部署環境。</p>
-<p>同樣地，邊緣推論與設備控制也不是同一件事。即使模型能在數毫秒內產生結果，仍須將資料擷取、訊號處理、推論、通訊及控制器執行時間一併納入端到端延遲評估。</p>
+<p>邊緣端負責低延遲的資料處理與推論，集中式平台負責模型管理、跨設備分析、訓練及部署協調。</p>
+<p>各元件的職責不同。Kafka 負責訊息傳遞與降低資料流耦合；InfluxDB 負責時序資料的保存與查詢；環形緩衝區則用來處理需要穩定記憶體使用量的連續資料。這些元件不必串成單一路徑，實際組合取決於資料頻率、延遲需求與部署環境。</p>
+<p>邊緣推論與設備控制也不是同一件事。即使模型能在數毫秒內產生結果，仍須將資料擷取、訊號處理、推論、通訊及控制器執行時間一併納入端到端延遲評估。</p>
 <hr>
 <h2 id="03-高吞吐資料串流與訊號處理">03. 高吞吐資料串流與訊號處理</h2>
 <p><img alt="高吞吐資料串流與訊號處理" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/03_streaming.png"></p>
-<p>在高頻感測場景中，資料處理的第一個問題通常不是模型準確率，而是如何有效地處理持續輸入的資料。</p>
+<p>在高頻感測場景中，資料處理的第一個問題通常不是模型準確率，而是如何處理持續輸入的資料。</p>
 <h3 id="資料量估算與計算範圍">資料量估算與計算範圍</h3>
-<p>以一個代表性資料情境為例，假設有 20 台設備，每台設備配置 3 個感測通道，每個通道以 2 kHz 連續取樣，每筆數值以 4 bytes 儲存。</p>
+<p>以代表性情境估算：20 台設備，每台 3 個感測通道，每通道以 2 kHz 連續取樣，每筆數值以 4 bytes 儲存。</p>
 <p>每秒產生的原始數值資料量為：</p>
 $$
 20 \times 3 \times 2{,}000 \times 4 = 480{,}000\ \text{bytes/s}
@@ -3138,10 +3589,8 @@ $$<p>換算為每日資料量：</p>
 $$
 480{,}000 \times 86{,}400 = 41{,}472{,}000{,}000\ \text{bytes/day}
 $$<p>也就是約 <strong>41.47 GB／日</strong>，採十進位換算（1 GB = \(10^9\) bytes）。</p>
-<p>這個估算只包含感測數值本身，尚未計入時間戳、通訊封包、索引、資料庫儲存格式與其他中繼資料。若將這些額外開銷納入估算，實際傳輸量或儲存需求可能接近 50 GB／日，具體數值則取決於資料格式與系統設計。</p>
-<p>這裡的 20 台設備是用來說明資料量的計算範例，不代表整個系統只管理 20 台設備，也不能直接將此數字當作 500+ 台設備的總資料量。</p>
-<p>在實際系統中，<strong>設備納管規模與高頻原始資料處理規模是兩個不同的指標</strong>。設備納管規模代表系統可以管理或連線的設備數量；高頻資料處理規模則取決於實際啟用高頻取樣的設備數、每台設備的通道數、取樣頻率及資料保存策略。</p>
-<p>因此，即使系統已納管 500+ 台設備，也不代表所有設備都以相同頻率持續傳送原始波形。對外描述系統規模時，應避免將這兩個數字混為一談。</p>
+<p>這個估算只包含感測數值本身，尚未計入時間戳、通訊封包、索引、資料庫儲存格式與其他中繼資料。若將這些額外成本納入估算，實際傳輸量或儲存需求可能接近 50 GB／日，具體數值則取決於資料格式與系統設計。</p>
+<p>20 台設備只是計算範例，不是規模宣稱。<strong>設備納管規模</strong>（系統能連線多少台）與<strong>高頻資料處理規模</strong>（同時有幾台以 2 kHz 持續送出原始波形）是兩個不同的指標，後者取決於實際啟用高頻取樣的設備數、通道數、取樣頻率與資料保存策略。即使系統已納管 500+ 台設備，也不代表所有設備都以相同頻率持續傳送原始波形；對外描述規模時，不要混用這兩個數字。</p>
 <h3 id="訊號處理流程">訊號處理流程</h3>
 <p>資料管線可以拆成四個階段：</p>
 <ol>
@@ -3150,9 +3599,9 @@ $$<p>也就是約 <strong>41.47 GB／日</strong>，採十進位換算（1 GB = 
 <li><strong>特徵萃取：</strong> 使用 FFT、小波轉換及統計方法，計算 RMS、頻譜熵、特定頻帶能量等特徵。</li>
 <li><strong>特徵輸出：</strong> 將結果轉換成固定格式的特徵向量，供異常偵測及健康度模型使用。</li>
 </ol>
-<p>例如，模型輸入可以是 64 維特徵向量，而不是每次都直接接收完整的原始波形。這能降低部分下游處理的計算負擔，但是否適合仍取決於異常型態與模型需求。若特徵萃取時丟失了重要資訊，後續模型也無法將其還原。</p>
-<h3 id="邊緣端的效能優化">邊緣端的效能優化</h3>
-<p>這一層主要可以從以下方向著手：</p>
+<p>例如，模型輸入可以是 64 維特徵向量，而不是每次都直接接收完整的原始波形。這能降低下游處理的計算負擔，但是否適合仍取決於異常型態與模型需求。若特徵萃取時漏掉了重要資訊，後續模型也無法將其還原。</p>
+<h3 id="邊緣端的效能最佳化">邊緣端的效能最佳化</h3>
+<p>這一層可以從幾個方向著手：</p>
 <ul>
 <li>以批次或視窗方式處理資料，減少逐筆處理的額外成本。</li>
 <li>使用預先配置的環形緩衝區，降低記憶體配置與複製的頻率。</li>
@@ -3161,17 +3610,17 @@ $$<p>也就是約 <strong>41.47 GB／日</strong>，採十進位換算（1 GB = 
 <li>持續監控佇列長度、資料遺失率、CPU 使用率與端到端延遲。</li>
 </ul>
 <p>原始簡報列出的效能比較包括：處理延遲由 45 ms 降至 12 ms 以下、CPU 使用率由 100% 降至 32%，以及吞吐量提升約 2.5 倍。</p>
-<p>延遲由 45 ms 降至 12 ms，代表延遲至少降低約 73.3%。不過，延遲與吞吐量是不同指標，不能只根據延遲降幅直接推算吞吐量提升幅度。若要比較吞吐量，仍應在相同或可比較的輸入負載下，計算單位時間內實際完成的資料量。</p>
-<p>CPU 使用率則應搭配統計區間、核心數與測試負載解讀，不宜直接視為所有部署環境的穩態使用率。</p>
+<p>延遲降低約 73%。不過延遲與吞吐量是不同指標，不能拿延遲降幅推算吞吐量增幅；若要比吞吐量，得在相同輸入負載下計算單位時間內實際完成的資料量。</p>
+<p>CPU 使用率也一樣，要搭配統計區間、核心數與測試負載解讀，不能直接當成所有部署環境的穩態值。</p>
 <hr>
 <h2 id="04-雙層異常偵測">04. 雙層異常偵測</h2>
 <p><img alt="雙層異常偵測" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/04_anomaly_detection.png"></p>
-<p>設備故障資料通常具有明顯的不平衡特性。正常運作的資料容易取得，但真正發生故障的案例相對少，因此只依賴監督式學習，往往會面臨標籤不足的問題。</p>
-<p>另一個實務問題是誤報。即使模型能偵測出部分異常，如果每天產生大量無法採取行動的告警，現場人員就很難持續信任系統。</p>
+<p>設備故障資料的類別通常嚴重不平衡。正常運作的資料容易取得，真正發生故障的案例相對少，因此只依賴監督式學習，往往受限於標籤不足。</p>
+<p>另一個實務問題是誤報。模型就算抓到異常，只要每天產生大量無法採取行動的告警，現場人員就很難繼續信任系統。</p>
+<p>最常見的誤報不是模型「錯得很離譜」，而是換料或暖機階段。那段時間的振動頻譜本來就會短暫偏離平日分布，模型照異常分數判斷，就會連續觸發告警，但設備其實是正常的。這種告警不會讓系統當掉，卻足以讓現場人員開始忽略它。</p>
 <p>因此，這套架構採用分層偵測，將低成本的初步篩選與較深入的異常判斷分開。</p>
 <h3 id="第一層快速篩選">第一層：快速篩選</h3>
-<p>Isolation Forest 可用於辨識與既有資料分布不同的樣本。由於模型相對輕量，適合用於部分資源受限的邊緣場景。</p>
-<p>第一層的目標是快速找出值得進一步分析的資料，而不是直接將所有異常分數轉換成設備故障結論。</p>
+<p>Isolation Forest 可用於辨識與既有資料分布不同的樣本。它的角色不是直接宣判故障，而是快速找出值得進一步分析的資料，避免把所有異常分數都轉換成設備故障結論。由於模型相對輕量，也適合用在部分資源受限的邊緣場景。</p>
 <h3 id="第二層深入判斷">第二層：深入判斷</h3>
 <p>Autoencoder 可以透過重建誤差，評估輸入資料與模型所學習之正常模式的差異。</p>
 <p>實務上，可以根據設備類型、運作狀態與感測通道設定不同的門檻，避免將正常的製程切換或負載變化全部視為故障。</p>
@@ -3183,20 +3632,19 @@ $$<p>也就是約 <strong>41.47 GB／日</strong>，採十進位換算（1 GB = 
 <li>設備目前的運作模式及維修狀態。</li>
 <li>告警是否已經被確認或建立維修工單。</li>
 </ul>
-<p>例如，可以針對相同設備與相同異常類型設定五分鐘的重複告警抑制窗口。但這項機制必須保留嚴重程度升級與安全相關事件的例外處理，不能為了減少通知而遮蔽新的風險。</p>
+<p>例如，可以針對相同設備與相同異常類型設定五分鐘的重複告警抑制期間。但這項機制必須保留嚴重程度升級與安全相關事件的例外處理，不能為了減少通知而遮蔽新的風險。</p>
 <p>原始簡報列出的指標包括誤報率由 15% 降至 3.2%、F1-Score 達到 0.94，以及平均故障偵測時間縮短 40%。</p>
 <p>這些指標分別反映不同面向：</p>
 <ul>
-<li><strong>誤報率：</strong> 必須先確認採用的是正常樣本中的誤判比例（False Positive Rate, FPR），還是所有告警中誤報所占的比例。兩者的分母不同，不能直接互換。</li>
-<li><strong>F1-Score：</strong> 是 Precision 與 Recall 的調和平均數，適合用來觀察精確率與召回率之間的平衡，但仍須搭配評估資料及故障類別解讀。</li>
-<li><strong>故障偵測時間：</strong> 應說明起算點是故障發生、異常特徵首次出現，還是系統首次發出有效告警。</li>
+<li><strong>誤報率：</strong> 必須先確認採用的是正常樣本中的誤判比例（False Positive Rate, FPR），還是所有告警中誤報所佔的比例。兩者的分母不同，不能直接互換。</li>
+<li><strong>F1-Score：</strong> Precision 與 Recall 的調和平均數，用來衡量兩者的平衡，但仍須搭配評估資料及故障類別解讀。</li>
+<li><strong>故障偵測時間：</strong> 起算點可能是故障發生、異常特徵首次出現，或系統首次發出有效告警，三者不可互換。</li>
 </ul>
-<p>此外，若誤報率的改善同時來自模型調整、門檻設定及重複告警抑制，就應將其理解為整體告警流程的改善，而不能直接認定全部改善都來自模型本身。</p>
 <hr>
 <h2 id="05-設備健康管理與剩餘壽命預測">05. 設備健康管理與剩餘壽命預測</h2>
 <p><img alt="PHM 與剩餘壽命預測" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/05_rul_prediction.png"></p>
 <p>異常偵測主要回答「目前是否偏離正常狀態」，預測性維護則進一步回答「設備健康度正在如何變化，以及何時可能需要維護」。</p>
-<p>PHM（Prognostics and Health Management）通常會整合感測特徵、設備歷史、故障模式及維護紀錄。若資料足夠，也可以建立 RUL（Remaining Useful Life，剩餘使用壽命）模型，估計設備距離特定失效條件還有多少時間。</p>
+<p>設備健康管理（PHM）通常會整合感測特徵、設備歷史、故障模式及維護紀錄。若資料足夠，也可以建立 RUL 模型，估計設備距離特定失效條件還有多久。</p>
 <h3 id="rul-模型設計">RUL 模型設計</h3>
 <p>可依據資料型態選擇不同方法：</p>
 <ul>
@@ -3204,9 +3652,9 @@ $$<p>也就是約 <strong>41.47 GB／日</strong>，採十進位換算（1 GB = 
 <li><strong>時序模型：</strong> 例如 LSTM 或 Transformer，用於分析設備健康指標隨時間的變化。</li>
 <li><strong>領域特徵：</strong> 結合頻帶能量、頻譜熵、振動幅度與設備負載，提升模型對實際失效模式的辨識能力。</li>
 </ul>
-<p>這些方法的適用條件並不相同。Weibull 存活分布本身不能直接保證單一設備的 RUL 預測準確度；如果要預測個別設備的剩餘壽命，仍需要結合適當的觀測資料與模型驗證。</p>
+<p>三種方法的適用條件並不相同。Weibull 存活分布本身不能保證單一設備的 RUL 準確度；要預測個別設備的剩餘壽命，仍得結合觀測資料與模型驗證。</p>
 <h3 id="從預測結果到維護安排">從預測結果到維護安排</h3>
-<p>RUL 的價值不只是產生一個時間數字，而是讓維護團隊能提前安排人力、備品與停機窗口。</p>
+<p>RUL 的價值不只是產生一個時間數字，而是讓維護團隊能提前安排人力、備品與停機時段。</p>
 <p>例如，可以將預測結果分成三個維護區間：</p>
 <ul>
 <li><strong>一般監控：</strong> 預估剩餘壽命大於 30 天，依既定頻率追蹤設備狀態。</li>
@@ -3214,48 +3662,46 @@ $$<p>也就是約 <strong>41.47 GB／日</strong>，採十進位換算（1 GB = 
 <li><strong>優先評估：</strong> 預估剩餘壽命小於 7 天，安排工程師檢查並評估維修時程。</li>
 </ul>
 <p>這些區間只是示例，實際門檻應依設備故障後果、備品交期、預測不確定性與產線排程決定。當設備涉及安全風險時，也不能只依賴 RUL 數字判斷是否繼續運作。</p>
+<p>RUL 給的是統計上的估計，不是保證。真正讓人緊張的情況，是預測顯示還有兩週、但下一次取樣就掉到門檻以下；這也是為什麼維護區間必須保留人工複核，而不能直接變成停機指令。</p>
 <p>原始簡報列出的指標包括 RUL 預測 RMSE 不超過 32 小時、非預期停機時間減少 42%，以及維護成本降低 28%。</p>
-<p>RMSE（Root Mean Squared Error，均方根誤差）衡量預測值與實際值之間的整體誤差，其計算方式為：</p>
+<p>RMSE（Root Mean Squared Error，均方根誤差）衡量預測值與實際值之間的整體誤差，定義為：</p>
 $$
 \mathrm{RMSE} = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(\hat{y}_i - y_i)^2}
-$$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大較大的預測誤差，因此不能解讀成每一筆預測都保證落在 32 小時以內。</p>
-<p>此外，RUL 評估還需要考慮預測時點、設備類型、故障定義與評估資料的選取方式。不同設備或不同故障模式的結果，也不宜直接合併比較。</p>
-<p>至於停機時間減少 42% 與維護成本降低 28%，應視為特定專案範圍內的整體改善指標。若無法將模型本身的貢獻與維護流程、備品策略或設備更新等因素分開，便不宜將全部改善直接歸因於 AI 模型。</p>
+$$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 對較大的預測誤差更敏感，因此不能解讀成每一筆預測都保證落在 32 小時以內。</p>
 <hr>
 <h2 id="06-邊緣部署與模型生命週期管理">06. 邊緣部署與模型生命週期管理</h2>
 <p><img alt="邊緣部署與低代碼平台" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/06_edge_deployment.png"></p>
-<p>模型完成訓練之後，還需要解決另一個問題：如何將它穩定地部署到不同設備與產線，並在更新失敗時恢復原本的服務。</p>
-<p>在工廠環境中，部署不只是將程式打包成容器。作業系統、硬體架構、驅動程式、推論引擎版本與設備通訊方式，都可能影響模型是否能正常執行。</p>
-<p>因此，部署流程可以拆成以下幾個階段。</p>
+<p>模型訓練完之後，下一個問題是如何穩定部署到不同設備與產線，並在更新失敗時回到原本的服務。</p>
+<p>部署不只是把程式打包成容器。作業系統、硬體架構、驅動程式、推論引擎版本與設備通訊方式，都可能影響模型是否能正常執行。</p>
+<p>因此，部署流程可以拆成四個階段。</p>
 <h3 id="1-標準化封裝">1. 標準化封裝</h3>
 <p>將模型、推論程式、依賴套件與設定檔納入可追蹤的發佈版本，並針對不同硬體建立相容性測試。</p>
 <h3 id="2-影子部署">2. 影子部署</h3>
 <p>新模型先與現行模型或規則並行執行，但不直接影響正式控制流程。透過比較輸出差異、延遲、資源使用量與異常案例，評估新版本是否符合上線條件。</p>
 <p>影子部署期間應涵蓋具有代表性的設備狀態；兩週可以是參考週期，但不一定適用於故障事件稀少的設備。</p>
 <h3 id="3-金絲雀分批發佈">3. 金絲雀分批發佈</h3>
-<p>先選擇少量設備部署新版本，再逐步擴大範圍。例如依序推進至 5%、20% 與完整部署。每個階段都應設置明確的驗收門檻。</p>
+<p>先在少量設備部署新版本，再依序推進到 5%、20%，最後全面上線。每個階段都要有明確的驗收門檻。</p>
 <h3 id="4-監控與回退">4. 監控與回退</h3>
 <p>持續監控推論失敗率、延遲、資源使用量及模型輸出分布。若指標超過門檻，系統應停止擴大部署，並依照事先定義的流程回退至已驗證版本。</p>
-<p>在此基礎上，可以提供面向產線工程師的自助管理介面，讓使用者依照權限選擇模型版本、查看部署狀態與執行回退，而不必直接修改模型內部參數。</p>
+<p>在此基礎上，可以提供面向產線工程師的自助管理介面，讓使用者依照權限選擇模型版本、查看部署狀態與執行回退，而不必直接修改模型內部參數。介面看似小事，但它決定了出事時誰能動手。設計時就必須預期這種情境：新版本在少數設備上的推論延遲異常升高，值班工程師在半夜把它切回舊版，整個過程不需要改動任何一行模型程式碼。</p>
 <p>原始簡報列出的指標包括容器映像小於 300 MB、冷啟動時間低於 30 秒，以及部署週期由六個月縮短至兩週。</p>
-<p>其中，容器映像大小應明確區分單一服務映像與完整執行環境的大小；冷啟動時間則應區分容器啟動、模型載入及服務進入可用狀態的時間。部署週期也應說明起訖點，例如從候選版本準備完成到正式部署，或從需求提出到完成上線。</p>
-<p>這些數字應視為特定部署條件下的專案指標，而不是所有邊緣設備都能直接達到的通用標準。</p>
+<p>其中，容器映像大小要區分是單一服務映像還是含完整執行環境；冷啟動時間則要區分容器啟動、模型載入與服務進入可用狀態三個階段。部署週期也需要說明起訖點，例如從候選版本準備完成到正式部署，或從需求提出到完成上線。</p>
 <hr>
 <h2 id="07-edge-agent任務協調與決策邊界">07. Edge Agent：任務協調與決策邊界</h2>
 <p><img alt="邊緣端智慧代理 (Edge Agent)" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/07_edge_agent.png"></p>
-<p>Edge Agent 的角色，是將感測資料、模型推論、設備狀態與維護流程整合成一套可執行、可追蹤的工作流程。</p>
-<p>它不一定需要在每次決策時都呼叫大型語言模型。對於延遲要求明確、輸入輸出固定的任務，使用傳統程式邏輯或輕量模型通常更容易測試與驗證。Agent 則可以負責需要跨工具協調、資訊整合或多步驟處理的任務。</p>
+<p>Edge Agent 負責把感測資料、模型推論、設備狀態與維護流程，整合成一套可執行、可追蹤的工作流程。</p>
+<p>它不一定每次決策都要呼叫大型語言模型。對於延遲要求明確、輸入輸出固定的任務，使用傳統程式邏輯或輕量模型通常更容易測試與驗證。Agent 則可以負責需要跨工具協調、資訊整合或多步驟處理的任務。</p>
 <h3 id="邊緣端的任務分工">邊緣端的任務分工</h3>
-<p>在這套架構中，可以將工作分為三類：</p>
+<p>工作可以分成三類：</p>
 <ul>
 <li><strong>即時訊號處理：</strong> 在邊緣端完成資料擷取、特徵計算與必要的快速推論。</li>
 <li><strong>狀態判斷與任務協調：</strong> 整合異常分數、RUL、設備狀態與維護紀錄，決定是否需要進一步檢查或建立工單。</li>
 <li><strong>設備控制與安全處理：</strong> 由具備明確控制邏輯與安全驗證的系統執行，不將自由生成的文字或未經驗證的模型輸出直接轉換成高風險控制指令。</li>
 </ul>
 <p>若採用 LangGraph 等工作流程框架，可以管理 Agent 的狀態、工具呼叫、重試與執行分支；Model Router 則可依據任務複雜度、延遲需求與運算資源，選擇適當的模型或規則引擎。</p>
-<p>不過，使用這些框架並不會自動帶來即時性或安全性。仍需要針對執行時間、錯誤處理、資源限制與異常路徑進行測試。</p>
+<p>不過，使用這些框架並不會自動帶來即時性或安全性。仍需要測試執行時間、錯誤處理、資源限制與異常路徑。</p>
 <h3 id="斷線時的處理策略">斷線時的處理策略</h3>
-<p>邊緣系統需要考慮網路中斷、集中式服務不可用及模型服務異常等情境。</p>
+<p>網路斷了，Agent 該繼續做，還是該停？這是邊緣系統一定會遇到的情境：網路中斷、集中式服務無法使用、模型服務異常。</p>
 <p>合理的設計是讓必要的監控與本地狀態判斷，在失去上游連線時仍能依照既定規則運作；若系統無法確認自身狀態，則應進入預先定義的降級模式。</p>
 <p>但降級不代表所有設備都採取相同動作。部分設備可能需要降載，有些設備則應停止特定動作或交由既有控制器接管。具體行為必須由設備風險分析與安全設計決定，而不是由通用 Agent 自行推斷。</p>
 <p>這裡需要區分三個概念：</p>
@@ -3265,17 +3711,17 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <li><strong>設備安全性：</strong> 在通訊中斷、模型異常或任務失敗時，設備是否仍受到既有控制器與安全機制的保護。</li>
 </ol>
 <p>三者的評估方式不同，不能以 Agent 的任務成功率代替設備安全驗證。</p>
-<p>原始簡報提出指令往返延遲低於 20 ms，以及離線自主運作可用率達 99.5% 等指標。指令往返延遲應明確界定起訖點，並說明是否包含網路傳輸、模型推論及工具執行時間；離線可用率則應說明統計期間、離線情境與服務可用的判定條件。</p>
+<p>原始簡報列出指令往返延遲低於 20 ms，以及離線自主運作可用率達 99.5%。前者需要界定起訖點，以及是否包含網路傳輸、模型推論及工具執行；後者需要說明統計期間、離線情境與可用判定條件。</p>
 <p>對於 OHT、載台及其他高風險設備，仍必須以獨立的安全機制及適當的驗證程序確保安全，不能單憑 Agent 的執行成功率推論設備安全。</p>
 <hr>
 <h2 id="08-工業-rag讓設備知識可以被檢索與追溯">08. 工業 RAG：讓設備知識可以被檢索與追溯</h2>
 <p><img alt="產業知識檢索增強生成 (Industrial RAG)" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/08_industrial_rag.png"></p>
 <p>工廠的知識不只存在於設備手冊，也散落在維修日誌、異常分析報告、工程師筆記與歷史工單中。</p>
-<p>這些資料往往具有不同的格式、命名習慣與品質。如果只將文件直接放進向量資料庫，即使可以產生看似流暢的回答，也不代表答案正確，更不代表它適用於目前的設備狀態。</p>
-<p>因此，工業 RAG（Retrieval-Augmented Generation）的重點不只是生成答案，而是建立從問題、檢索結果到原始文件的可追溯流程。</p>
+<p>但這些資料的格式、命名習慣與品質都不一致。直接丟進向量資料庫，即使能生成流暢的回答，也不代表答案正確，更不代表它適用於目前的設備狀態。</p>
+<p>工業 RAG（Retrieval-Augmented Generation）要解決的就是這件事：重點不在生成答案，而在建立從問題、檢索結果到原始文件的可追溯流程。</p>
 <h3 id="知識處理流程">知識處理流程</h3>
 <ol>
-<li><strong>文件整理與權限管理：</strong> 進行格式轉換、去重、版本辨識與敏感資料處理，並保留文件來源及存取權限。</li>
+<li><strong>文件整理與權限管理：</strong> 格式轉換、去除重複、版本辨識與敏感資料處理，並保留文件來源及存取權限。</li>
 <li><strong>語意切分與索引：</strong> 依照文件結構與內容建立適當的文字區塊，再產生向量表示。</li>
 <li><strong>混合檢索：</strong> 結合 BM25 關鍵字搜尋、向量檢索與 Metadata 過濾，降低專有名詞、設備編號及相似文件造成的檢索問題。</li>
 <li><strong>重排序：</strong> 使用 Reranker 重新評估候選文件與問題的關聯性。</li>
@@ -3286,38 +3732,35 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <p>對於設備維修建議，回答應清楚區分文件明確記載的內容與模型整理出的推論。若找不到足夠依據，系統應允許回答「目前資料不足」，而不是為了完整性自行補上操作步驟。</p>
 <p>同時，文件索引與查詢紀錄也需要依照資料敏感程度設定保存期限、稽核方式及存取權限。</p>
 <p>原始簡報列出的規模包括 85 萬份文件、每月超過 2 萬次查詢，以及知識查找時間由平均三小時縮短至 40 秒。</p>
-<p>在解讀這些數字時，文件數量應區分原始文件、文件版本與切分後的索引區塊；查詢量則應區分查詢請求與成功取得有效答案的次數。</p>
-<p>至於查找時間，建議將其定義為使用者提出問題至找到可供參考的知識來源所花費的時間，而不是直接等同於完整故障排除或維修作業的時間。如果原始的三小時與 40 秒使用不同的計算口徑，便不宜直接作為同一指標比較。</p>
+<p>文件數量要區分原始文件、版本與切塊；查詢量要區分請求數與有效回答數。至於「三小時縮短到 40 秒」，指的是<strong>找到資料</strong>的時間，不是<strong>修好設備</strong>的時間——這兩種計算方式不能互相比較。</p>
 <hr>
 <h2 id="09-mlops模型上線後的持續監控">09. MLOps：模型上線後的持續監控</h2>
 <p><img alt="MLOps 與持續學習" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/09_mlops.png"></p>
-<p>模型在測試資料上表現良好，不代表上線之後能一直維持相同的品質。</p>
+<p>模型在測試資料上表現良好，然後呢？</p>
 <p>設備可能因零件老化、維護作業、負載改變或製程條件變化，產生與訓練資料不同的特徵分布。因此，模型上線後仍需要持續監控，並建立從問題發現到版本更新的完整流程。</p>
 <h3 id="漂移監控">漂移監控</h3>
 <p>可依照資料特性使用 PSI、KS 檢定或其他分布差異指標，觀察線上資料是否偏離基準。</p>
 <p>例如，PSI 超過 0.25 可以作為某些情境下的警示門檻，但不能直接等同於模型已經失效。門檻應依據資料分布、特徵特性與實際驗證結果設定。</p>
-<p>此外，系統還應監控資料缺失、感測器異常、推論延遲與模型輸出分布，避免把感測器故障誤判為模型漂移。</p>
-<p>若使用七日滾動基準追蹤設備狀態，也需要避免基準持續吸收緩慢發展的異常。較穩健的做法是依照設備運作模式與歷史資料建立動態基準，並搭配異常狀態檢查及基準更新條件，避免將持續性故障納入正常資料分布。</p>
+<p>系統還應監控資料缺漏、感測器異常、推論延遲與模型輸出分布，避免把感測器故障誤判為模型漂移。</p>
+<p>若使用七日滾動基準追蹤設備狀態，也需要避免基準持續吸收緩慢發展的異常。較穩健的做法是依照設備運作模式與歷史資料建立動態基準，並加上異常狀態檢查與基準更新條件，不要讓持續性故障被吸收進正常分布。</p>
 <h3 id="模型更新流程">模型更新流程</h3>
-<p>一套較完整的 MLOps 流程可以包含：</p>
+<p>較完整的 MLOps 流程包含：</p>
 <ul>
 <li>定期評估資料品質與模型表現。</li>
 <li>針對確認的問題建立候選模型。</li>
-<li>在歷史資料及必要的模擬情境中進行驗證。</li>
+<li>在歷史資料及必要的模擬情境中驗證。</li>
 <li>透過影子模式比較新舊版本。</li>
 <li>經過必要的審核後分批發佈。</li>
 <li>保留版本、資料來源、參數與驗證紀錄，以便追蹤與回退。</li>
 </ul>
 <p>自動化的目的不是讓系統在偵測到漂移後立即自行更換模型，而是縮短問題發現、模型評估與部署的週期，同時維持更新過程的可控性。</p>
+<p>我自己在推動這類流程時，卡住的通常不是模型，而是「誰有權按下那個按鈕」。</p>
 <p>原始簡報列出的指標包括自動重訓週期由兩個月縮短至兩週、異常停機率降低 75%，以及每年節省 1,200 小時的人工投入。</p>
-<p>其中，自動重訓週期應區分資料更新、模型訓練、模型驗證與正式部署所花費的時間。重訓頻率提高也不代表模型品質必然改善，仍須確認候選模型通過驗證條件。</p>
-<p>異常停機率與人工投入則屬於系統或流程層級的指標。若改善同時受到資料管線、自動化工具、維護流程與人員分工調整影響，就不宜將全部成效直接歸因於模型重訓機制。</p>
 <hr>
 <h2 id="10-系統整合與後續發展方向">10. 系統整合與後續發展方向</h2>
 <p><img alt="策略影響與成長藍圖 (2026–2027)" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/10_star_impact.png"></p>
-<p>前面討論的串流處理、異常偵測、RUL 預測、Edge Agent、工業 RAG 與 MLOps，解決的是不同層次的問題。</p>
-<p>串流處理確保資料可以被穩定地取得與分析；異常偵測與 RUL 模型提供設備狀態的判斷依據；Agent 負責整合資訊與協調任務；RAG 提供可追溯的文件知識；MLOps 則管理模型從驗證到上線後的生命週期。</p>
-<p>這些元件需要透過明確的資料介面、權限機制與錯誤處理方式整合，而不是單純將所有服務串接起來，就認為已經形成自主決策系統。</p>
+<p>前面討論的六個部分解決的是不同層次的問題：串流處理確保資料能穩定取得與分析，異常偵測與 RUL 提供設備狀態的判斷依據，Agent 整合資訊並協調任務，RAG 補上可追溯的文件知識，MLOps 則管理模型從驗證到上線後的整個生命週期。</p>
+<p>把它們串起來並不難。難的是用明確的資料介面、權限機制與錯誤處理方式整合，而不是把幾個服務接上，就宣稱已經形成自主決策系統。</p>
 <h3 id="10建立可觀測可預測可維運的基礎">1.0：建立可觀測、可預測、可維運的基礎</h3>
 <p>第一階段的重點是讓各個元件具備明確的輸入輸出、監控指標與故障處理方式，並在限定設備與產線中驗證效能。</p>
 <table>
@@ -3378,15 +3821,16 @@ $$<p>其中 \(\hat{y}_i\) 為預測值，\(y_i\) 為實際值。RMSE 會放大�
 <p><img alt="感謝聆聽" loading="lazy" src="/blog/projects/fab-predictive-maintenance-ppt169/images/11_thanks.png"></p>
 <p>智慧工廠的邊緣 AI 系統，並不是將感測器、機器學習模型與 Agent 框架組合在一起就能完成。</p>
 <p>真正需要處理的是整個系統的工程問題：資料能否穩定取得、模型能否在受限資源下執行、異常結果是否值得信任、部署失敗時能否回退，以及 AI 的建議如何在不破壞既有安全機制的前提下，融入設備與維護流程。</p>
-<p>從這個角度來看，預測性維護與自主決策 Agent 並不是兩個獨立的功能。前者提供設備狀態與風險資訊，後者負責將這些資訊轉換成可追蹤的工作流程；而資料治理、模型監控與安全控制，則是讓整套系統能夠長期運作的必要條件。</p>
+<p>預測性維護與自主決策 Agent 並不是兩個獨立的功能。前者提供設備狀態與風險資訊，後者負責將這些資訊轉換成可追蹤的工作流程；而資料治理、模型監控與安全控制，則是讓整套系統能夠長期運作的必要條件。</p>
 <p>如果要持續推進這類系統，最重要的不是一開始就追求完全自主，而是先讓每個環節都具備可觀測性、可驗證性與可回退能力，再逐步擴大 AI 能夠參與的決策範圍。</p>
-<p>這也是我整理這套架構時最重視的設計原則：<strong>讓 AI 的能力與系統的責任邊界同時清楚，才能讓技術真正進入工廠現場。</strong></p>
+<p>我整理這套架構時最重視的設計原則，就是<strong>讓 AI 的能力與系統的責任邊界同時清楚，才能讓技術真正進入工廠現場。</strong></p>
 <p>如果您的團隊也正在解這類工業現場的落地難題，或對這套設計思維有興趣，非常歡迎隨時交流討論。</p>
 <hr>
-<blockquote>
-<p><strong>版權與使用條款：</strong> 本文文字與圖表的使用及轉載，請依作者公布的授權條件辦理。本文以技術交流與架構討論為目的，部分資訊已去識別化或調整，不應作為特定設備的操作、安全控制或維護決策依據。</p>
-</blockquote>
-<blockquote>
-<p><strong>關於文中資料：</strong> 本文所述的設備規模與部分效能資料，整理自過往專案經驗及面試簡報；涉及公司、客戶、設備配置與內部系統的資訊，則以去識別化或概括化方式呈現。部分資料因無法重新取得原始測試紀錄，本文不另行宣稱已完成獨立驗證。讀者應依照各項指標的定義與適用範圍理解其意義，而非直接將其視為可套用至所有工廠的產業基準。</p>
-</blockquote>
+<h2 id="附錄文中數字的閱讀方式">附錄：文中數字的閱讀方式</h2>
+<p>各章引用的數字整理自過往專案經驗與面試簡報，用途是說明設計取捨，不是效能承諾。以下四點適用於全文。</p>
+<p><strong>一、來源與範圍。</strong> 部分原始測試紀錄已無法重新取得，本文不宣稱這些數字完成過獨立驗證。涉及公司、客戶、設備配置與內部系統的資訊，均以去識別化或概括化方式呈現。</p>
+<p><strong>二、量測基準比數字重要。</strong> 同一個指標在不同定義下可能相差一個數量級。延遲與冷啟動要問起訖點；誤報率要問分母是正常樣本還是全部告警；可用率要問統計期間與判定條件；文件量要問是原始文件、版本還是切塊；容器映像要問是單一服務還是完整執行環境。平均值也應搭配分布與尾端值一起看。</p>
+<p><strong>三、不可單一歸因。</strong> 停機時間、維護成本、異常停機率、每年節省工時這類指標，同時受維護流程、備品策略、設備更新與人員分工影響。若無法把模型的貢獻拆出來，就不宜把全部改善算在 AI 頭上；反過來說，模型變好也不保證系統指標會跟著變好。</p>
+<p><strong>四、不是產業基準。</strong> 這些數字成立於特定設備、特定負載與特定部署條件。換一條產線、換一種故障型態，結果可能完全不同，請不要當成可套用到所有工廠的標準。</p>
+<p>本文不構成任何設備操作、安全控制或維護決策的依據。</p>
 ]]></content:encoded></item></channel></rss>
