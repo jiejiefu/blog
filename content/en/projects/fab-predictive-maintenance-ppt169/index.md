@@ -17,25 +17,21 @@ cover:
 ---
 
 {{< tldr >}}
-- The architecture spans six layers, from sensors and streaming through PHM, edge agents, and MES/EAP safety integration.
+- The architecture spans six layers, from sensors and streaming through equipment health management (PHM), edge agents, and MES/EAP safety integration.
 - A 20-machine, 3-channel, 2 kHz example generates about 41.5 GB/day of raw data; managed fleet size and high-frequency stream scale are separate metrics.
 - Detection uses a two-stage pipeline: Isolation Forest screening followed by Autoencoder assessment, with alert consolidation to reduce noise.
 - RUL prediction (Weibull, LSTM/Transformer, domain features) feeds 30-day and 7-day maintenance planning; the reported figures are project-specific, not universal benchmarks.
 - Models move through standardized packaging, shadow deployment, canary rollout (5% → 20% → 100%), monitoring, and rollback.
 - Edge Agents, Industrial RAG, and MLOps connect evidence and workflows, but safety-critical control stays outside the LLM.
 
-**Bottom line:** Make each layer observable, verifiable, and recoverable before expanding autonomous decision-making.
+Make each layer observable, verifiable, and recoverable before expanding autonomous decision-making.
 {{< /tldr >}}
 
 ## Introduction
 
-This article documents the Smart Fab Edge AI system architecture I presented in an interview presentation, expanding the original 11-slide deck into a more comprehensive technical reference.
+This article documents the Smart Fab Edge AI system architecture I presented in an interview presentation, expanding the original 11-slide deck into a more comprehensive technical reference. The project metrics cited in each section are collected in the appendix at the end, together with their measurement caveats.
 
-Starting with equipment sensor data, the article walks through real-time data processing, anomaly detection, Remaining Useful Life (RUL) prediction, edge deployment, industrial knowledge retrieval, and the decision-making capabilities and control boundaries of AI agents. Beyond the technical components, it discusses the design considerations at each layer and the trade-offs among latency, computational resources, reliability, and operational maintenance costs.
-
-The central challenge is not simply deploying AI models in a factory. It is designing a system that can operate continuously under constrained computing resources while integrating with existing equipment controls, maintenance workflows, and factory information systems.
-
-The equipment scale and selected performance figures described in this article are drawn from previous project experience and interview materials. Information concerning companies, customers, equipment configurations, and internal systems has been anonymized or generalized. Because some original test records are no longer available, the performance figures presented here are not claimed to have undergone independent revalidation. Readers should interpret each metric according to its definition and scope rather than treating it as an industry benchmark applicable to every factory.
+Starting with equipment sensor data, the article walks through real-time data processing, anomaly detection, Remaining Useful Life (RUL) prediction, edge deployment, industrial knowledge retrieval, and the decision boundaries of AI agents. The question it actually tries to answer is not simply how to deploy AI models in a factory, but how to keep them running under constrained resources — trading off latency, compute, reliability, and operating cost — while integrating with existing equipment controls, maintenance workflows, and factory information systems.
 
 > **Intellectual Property and Usage Notice:** This article is intended for technical knowledge sharing, system architecture discussions, and demonstration of personal technical capabilities. The content has been anonymized and adjusted where necessary. It should not contain confidential customer data, trade secrets, or non-public internal project information. The use and redistribution of the text and diagrams are subject to the licensing terms published by the author.
 
@@ -48,6 +44,8 @@ The equipment scale and selected performance figures described in this article a
 Production lines in semiconductor manufacturing share several operational characteristics: a wide variety of equipment, high-frequency sensor data, substantial downtime costs, and control processes with strict latency and reliability requirements.
 
 Sending all data to the cloud for centralized analysis and decision-making can simplify management. However, it also increases network transmission overhead, data governance complexity, and system dependencies. This architecture therefore combines edge computing with centralized management, keeping latency-sensitive processing within the factory.
+
+One very practical constraint: outbound connections from a production network are usually governed by firewall policy and audit requirements. Sending waveform or image data off-site typically means going through a review cycle first. That does not make cloud analytics unreasonable, but it does take the word "real-time" out of the sentence.
 
 The overall design focuses on four key considerations:
 
@@ -64,7 +62,7 @@ These assumptions directly influence the subsequent architectural layers, model 
 
 ![End-to-end technical architecture map](images/02_architecture.png)
 
-The overall architecture consists of six layers. The sensing and data acquisition layer captures equipment status, while the streaming and signal processing layers organize and transform incoming data. The AI analytics layer performs anomaly detection and health assessment. The upper layers coordinate decisions, maintenance workflows, and the necessary control interfaces.
+The overall architecture consists of six layers, listed in the table below. The first three answer where the data comes from, how it is organized, and how it becomes a judgment. The last three answer who receives that judgment, with what permissions it is executed, and how it connects to existing systems.
 
 | Layer | Name | Key Technologies and Responsibilities |
 | --- | --- | --- |
@@ -111,13 +109,7 @@ This is approximately **41.47 GB per day**, using decimal units where 1 GB = \(1
 
 This estimate includes only the raw sensor values. It excludes timestamps, communication packet overhead, indexes, database storage formats, and other metadata. Once these additional overheads are included, actual transmission or storage requirements could approach 50 GB per day, depending on the data format and system design.
 
-The 20-machine scenario is an illustrative calculation, not a statement that the entire system manages only 20 machines. Nor should this figure be directly interpreted as the total data volume for a system managing 500 or more machines.
-
-In practice, **the number of managed machines and the scale of high-frequency raw data processing are two distinct metrics**.
-
-The managed equipment scale describes how many machines the system can connect to or manage. The high-frequency data processing scale depends on the number of machines actually using high-frequency sampling, the number of channels per machine, sampling rates, and data retention policies.
-
-Consequently, a system managing more than 500 machines does not necessarily receive continuous raw waveforms from every machine at the same sampling frequency. When describing system scale, these two figures should not be conflated.
+The 20-machine scenario is an illustrative calculation. **Managed fleet size** (how many machines the system can connect to) and **high-frequency processing scale** (how many machines are actually streaming raw waveforms at 2 kHz) are two different metrics; the latter depends on how many machines enable high-frequency sampling, how many channels each has, the sampling rate, and the retention policy. A system managing 500 or more machines does not necessarily receive continuous raw waveforms from all of them at the same rate, so do not conflate the two numbers when describing system scale.
 
 ### Signal Processing Pipeline
 
@@ -146,11 +138,9 @@ The original presentation reported the following performance comparisons:
 - CPU utilization decreased from 100% to 32%.
 - Throughput increased by approximately 2.5 times.
 
-Reducing latency from 45 ms to below 12 ms represents a latency reduction of at least approximately 73.3%.
+Latency dropped by roughly 73%. But latency and throughput are different metrics: the throughput gain cannot be derived from the latency reduction. Comparing throughput requires measuring how much data is actually processed per unit time under the same input load.
 
-However, latency and throughput are different metrics. The throughput improvement cannot be derived directly from the latency reduction. A meaningful throughput comparison requires measuring the amount of data actually processed per unit of time under identical or comparable input loads.
-
-CPU utilization must also be interpreted in the context of the measurement interval, core count, and test workload. The original figures of 100% and 32% are retained here as comparisons reported in the existing presentation. Without access to the original test records, they should not be interpreted as steady-state utilization levels that apply to every deployment environment.
+CPU utilization is the same story. It has to be read together with the measurement interval, core count, and test workload, and should not be treated as a steady-state figure for every deployment environment.
 
 ---
 
@@ -161,6 +151,8 @@ CPU utilization must also be interpreted in the context of the measurement inter
 Equipment failure datasets are typically highly imbalanced. Normal operating data is relatively easy to collect, while actual failure cases are comparatively rare. As a result, purely supervised learning approaches often face a shortage of labeled failure data.
 
 False alarms present another practical challenge. Even if a model can identify certain anomalies, generating large numbers of alerts that do not lead to actionable responses can undermine the confidence of on-site personnel.
+
+Most false alarms are not the model being wildly wrong. They show up around material changeover or warm-up, when the vibration spectrum briefly departs from its usual distribution. The model scores it as anomalous and fires repeatedly, while the machine is in fact fine. Alarms like that will not crash the system, but they are enough to make the people on the floor start ignoring it.
 
 This architecture therefore adopts a layered detection strategy that separates lightweight initial screening from more detailed anomaly assessment.
 
@@ -199,11 +191,7 @@ These metrics describe different aspects of system performance.
 
 - **False-positive rate:** The evaluation must first establish whether this refers to the proportion of normal samples incorrectly classified as anomalous (False Positive Rate, FPR) or the proportion of alerts that are false alarms. These metrics have different denominators and are not interchangeable.
 - **F1-score:** The harmonic mean of precision and recall. It helps assess the balance between these two metrics but must still be interpreted in the context of the evaluation dataset and failure categories.
-- **Fault detection time:** The starting point must be clearly defined. It could be the actual onset of a failure, the first appearance of anomalous features, or the first effective alert generated by the system.
-
-Furthermore, if the reduction in false alarms resulted from a combination of model improvements, threshold tuning, and duplicate-alert suppression, the outcome should be understood as an improvement in the overall alerting workflow rather than attributed entirely to the model itself.
-
-Because the original test data is unavailable, the figures in this article are retained as descriptions of previously reported project results. They are not presented as independently validated or universally applicable model performance benchmarks.
+- **Fault detection time:** The starting point could be the onset of the failure, the first appearance of anomalous features, or the first effective alert. These are not interchangeable.
 
 ---
 
@@ -215,7 +203,7 @@ Anomaly detection primarily answers the question, "Is the equipment currently de
 
 Predictive maintenance goes a step further by addressing two additional questions: "How is the equipment's health changing over time?" and "When might maintenance be required?"
 
-Prognostics and Health Management (PHM) typically integrates sensor features, equipment history, failure modes, and maintenance records. When sufficient data is available, a Remaining Useful Life (RUL) model can estimate how much time remains before equipment reaches a defined failure condition.
+Equipment health management (PHM) typically integrates sensor features, equipment history, failure modes, and maintenance records. When sufficient data is available, an RUL model can estimate how much time remains before equipment reaches a defined failure condition.
 
 ### RUL Model Design
 
@@ -241,6 +229,8 @@ These intervals are illustrative. Actual thresholds should be determined accordi
 
 For equipment involving safety risks, decisions about continued operation must not rely solely on the RUL estimate.
 
+An RUL estimate is a statistical expectation, not a guarantee. The case that actually makes people nervous is a prediction saying two weeks, followed by the next sample dropping below the threshold. That is why the maintenance intervals have to keep a human check in the loop instead of turning directly into a shutdown order.
+
 The original presentation reported the following metrics:
 
 - RUL prediction RMSE of no more than 32 hours.
@@ -256,10 +246,6 @@ $$
 where \(\hat{y}_i\) represents the predicted value and \(y_i\) represents the actual value.
 
 RMSE gives greater weight to larger prediction errors. Therefore, an RMSE of no more than 32 hours does not mean that every individual prediction is guaranteed to be within 32 hours of the actual value.
-
-RUL evaluation must also account for the prediction time, equipment type, failure definition, and evaluation dataset selection methodology. Results from different equipment types or failure modes should not be combined or compared without considering these differences.
-
-The reported reductions of 42% in unplanned downtime and 28% in maintenance costs should likewise be treated as overall improvement metrics within a specific project scope. If the contributions of the AI model cannot be separated from changes in maintenance workflows, spare-parts strategies, equipment upgrades, or other operational factors, the entire improvement should not be attributed directly to the AI model.
 
 ---
 
@@ -299,17 +285,15 @@ If any metric exceeds its predefined threshold, the system should stop expanding
 
 On top of this workflow, a self-service management interface can be provided for production engineers. Depending on their access permissions, users can select model versions, inspect deployment status, and initiate rollbacks without directly modifying internal model parameters.
 
+The interface sounds like a minor convenience, but it determines who can act when things go wrong. The design has to assume this scenario: inference latency rises abnormally on a handful of devices, and the on-call engineer rolls them back to the previous version at 2 a.m., without touching a single line of model code.
+
 The original presentation lists several project metrics:
 
 - Container image size below 300 MB.
 - Cold-start time below 30 seconds.
 - Deployment cycle reduced from six months to two weeks.
 
-These figures should be interpreted with clearly defined measurement boundaries. Container image size should distinguish between an individual service image and the complete runtime environment. Cold-start time should separately account for container startup, model loading, and the time required for the service to become ready.
-
-The deployment cycle also needs a clearly defined start and end point. For example, it could measure the time from candidate release readiness to production deployment, or the entire process from initial requirements to a completed production rollout.
-
-These figures can be retained as project-specific targets from the original material, but they should not be treated as universal benchmarks that every edge device can achieve.
+Container image size should distinguish between a single service image and the complete runtime environment. Cold-start time should separately account for container startup, model loading, and the time until the service is ready. The deployment cycle also needs explicit start and end points, such as candidate-release-ready to production deployment, or the entire path from initial requirement to completed rollout.
 
 ---
 
@@ -337,7 +321,7 @@ However, adopting these frameworks does not automatically guarantee real-time pe
 
 ### Handling Network Disconnections
 
-Edge systems must account for network outages, unavailable centralized services, and model-serving failures.
+The network is down. Should the Agent keep working, or should it stop? Every edge system eventually faces this: outages, unavailable centralized services, and model-serving failures.
 
 A reasonable design ensures that essential monitoring and local state-assessment functions can continue operating according to predefined rules when upstream connectivity is lost. If the system cannot reliably determine its own state, it should enter a predefined degraded operating mode.
 
@@ -353,9 +337,7 @@ Three concepts must be distinguished:
 
 These concepts require different evaluation methods. An Agent's task success rate cannot substitute for equipment safety validation.
 
-The original presentation proposes a command round-trip latency below 20 ms and offline autonomous operation availability of 99.5%.
-
-For command latency, the measurement boundaries must be explicitly defined, including whether network transmission, model inference, and tool execution are included. Offline availability also requires a defined measurement period, a description of the offline scenarios being evaluated, and clear criteria for determining whether the service is available.
+The original presentation proposes a command round-trip latency below 20 ms and offline autonomous operation availability of 99.5%. The first needs explicit start and end points, including whether network transmission, inference, and tool execution are counted. The second needs a measurement period, the offline scenarios being evaluated, and clear criteria for what counts as available.
 
 For OHT systems, transport platforms, and other high-risk equipment, safety must continue to rely on independent safety mechanisms and appropriate verification procedures. Agent execution success alone is not sufficient evidence of equipment safety.
 
@@ -395,13 +377,7 @@ The original presentation lists the following scale and performance metrics:
 - More than 20,000 queries per month.
 - Knowledge lookup time reduced from an average of three hours to 40 seconds.
 
-When interpreting these figures, document counts should distinguish between original documents, document versions, and indexed chunks created through document segmentation. Query volume should distinguish between submitted requests and requests that successfully retrieve useful answers.
-
-Knowledge lookup time should be defined as the time from a user's question to the identification of a relevant knowledge source. It should not automatically be equated with the time required to complete an entire troubleshooting or maintenance procedure.
-
-If the original three-hour and 40-second figures were calculated using different measurement criteria, they should not be directly compared as equivalent metrics.
-
-Because the historical test records are not currently available for re-examination, the figures from the original material are retained without making additional assumptions about their measurement methodology or treating them as guaranteed results for all RAG systems.
+Document counts should distinguish source documents from versions and indexed chunks; query volume should distinguish submitted requests from requests that returned a usable answer. As for "three hours to 40 seconds," that measures the time to find the information, not the time to fix the equipment — the two are not comparable.
 
 ---
 
@@ -409,7 +385,7 @@ Because the historical test records are not currently available for re-examinati
 
 ![MLOps and continuous learning](images/09_mlops.png)
 
-Good performance on test data does not guarantee that a model will maintain the same quality after deployment.
+The model performs well on the test set. Then what?
 
 Equipment may experience changes in component condition, maintenance activities, operating loads, or process conditions. These changes can produce data distributions that differ from the training data.
 
@@ -442,15 +418,13 @@ A more complete MLOps workflow may include the following steps:
 
 The purpose of automation is not to replace a model immediately whenever drift is detected. Instead, it is to shorten the time required to detect problems, evaluate candidate models, and deploy updates while keeping the process controlled and auditable.
 
+I have found that when pushing this kind of workflow, the blocker is rarely the model. It is usually the question of who is allowed to press the button.
+
 The original presentation lists the following metrics:
 
 - Automatic retraining cycle reduced from two months to two weeks.
 - Abnormal equipment downtime reduced by 75%.
 - 1,200 hours of manual effort saved annually.
-
-The automatic retraining cycle should distinguish among data updates, model training, model validation, and production deployment. Increasing retraining frequency does not necessarily improve model quality; every candidate model must still satisfy the required validation criteria.
-
-Abnormal downtime and manual effort are system-level or process-level metrics. If improvements also result from changes to data pipelines, automation tools, maintenance workflows, or workforce responsibilities, the entire benefit should not be attributed directly to the model retraining mechanism.
 
 ---
 
@@ -515,4 +489,16 @@ This is the central design principle behind this architecture: **AI capabilities
 
 ---
 
-> **Copyright and Terms of Use:** The use and reproduction of this article's text and figures are subject to the licensing terms published by the author. This article is intended for technical knowledge sharing and architectural discussion. Some information has been de-identified or adjusted and should not be used as the basis for operating specific equipment, implementing safety controls, or making maintenance decisions.
+## Appendix: How to Read the Numbers in This Article
+
+The figures cited throughout this article come from past project experience and interview material. They exist to explain design trade-offs, not to promise performance. Four points apply to every metric here.
+
+**1. Source and scope.** Some original test records can no longer be retrieved, so none of these numbers is claimed to have been independently revalidated. Information about companies, customers, equipment configurations, and internal systems has been de-identified or generalized.
+
+**2. Measurement scope matters more than the number.** The same metric can differ by an order of magnitude depending on how it is defined. Latency and cold start depend on where the clock starts and stops. A false-positive rate depends on whether the denominator is all normal samples or all alerts. Availability depends on the measurement window and the criteria for what counts as available. Document counts depend on whether they mean source documents, versions, or chunks. Container image size depends on whether it means one service or the full runtime. Averages should be read together with the distribution and its tail.
+
+**3. Improvement cannot be attributed to a single cause.** Downtime, maintenance cost, abnormal-stop rate, and hours saved are all shaped by maintenance workflows, spare-parts strategy, equipment upgrades, and staffing. If the model's contribution cannot be isolated, the whole improvement should not be credited to AI. Conversely, a better model does not guarantee better system-level metrics.
+
+**4. These are not industry benchmarks.** The figures hold for specific equipment, specific loads, and specific deployment conditions. A different production line or failure mode can produce entirely different results. Do not treat them as standards applicable to every factory.
+
+Nothing here should be used as the basis for operating specific equipment, implementing safety controls, or making maintenance decisions.

@@ -60,7 +60,7 @@ At a high level, the platform provides four capabilities:
 | Health monitoring | Track health scores, historical changes, and potential abnormal conditions |
 | AI-assisted workflows | Retrieve relevant data, summarize findings, and help engineers investigate the next step |
 
-The AI agent is an assistance layer, not an autonomous replacement for engineering judgment. Decisions that can affect production equipment should remain subject to appropriate validation and human oversight.
+The AI agent is an assistance layer, not an autonomous replacement for engineering judgment. Decisions that can affect production equipment should stay subject to validation and human oversight.
 
 ## 2. Why Edge AI?
 
@@ -87,7 +87,7 @@ The platform aims to standardize the path from data ingestion to operational use
 | Data lineage | Make analysis inputs, outputs, and model versions easier to trace |
 | Maintenance workflow | Present data and analysis in a form that supports investigation and follow-up |
 
-The project materials include illustrative figures such as a deployment cycle reduced from 28 days to 1 day, an 85% reduction in integration code, and 100% synchronization of data lineage within the measured scope. These numbers should be published as verified results only if their definitions, measurement periods, and comparison baselines can be documented. Otherwise, label them as internal estimates or targets.
+The project materials include illustrative figures: a deployment cycle shortened from 28 days to 1 day, an 85% reduction in integration code, and 100% lineage synchronization within the measured scope. Read them only alongside their definitions, measurement periods, and comparison baselines; without those, they are internal estimates rather than verified results.
 
 ## 3. System Architecture
 
@@ -142,7 +142,7 @@ The frontend should focus on user interaction and presentation. It should not be
 
 The Flask backend exposes REST APIs and coordinates application-level operations, such as authentication, analysis requests, data retrieval, and report generation.
 
-Keeping these responsibilities behind a stable API allows the frontend, analysis modules, and edge processes to evolve without requiring every component to know the implementation details of the others.
+Keeping these responsibilities behind a stable API allows the frontend, analysis modules, and edge processes to evolve without every component needing to know the implementation details of the others.
 
 ### 3.3 Analytics layer
 
@@ -275,7 +275,7 @@ flowchart LR
 | DTW | Compare sequences with temporal misalignment | Can be computationally expensive and reference-dependent |
 | PCA | Monitor multivariate structure and potential drift | Drift is not equivalent to failure |
 
-A robust PHM workflow combines these methods with engineering context, historical evidence, and validation.
+A practical PHM workflow combines these methods with engineering context, historical evidence, and validation.
 
 ## 6. Backend Design
 
@@ -289,9 +289,9 @@ The backend should validate request parameters, enforce authorization, handle er
 
 ### 6.2 Authentication and authorization
 
-The platform uses LDAP / Active Directory integration for organizational identity and JWTs for authenticated requests, according to the implementation design.
+The platform uses LDAP / Active Directory integration for organizational identity and JWTs for authenticated requests.
 
-These mechanisms serve different purposes: directory authentication verifies a user's identity, while a token can carry authenticated-session claims to subsequent API calls. Authorization still needs to be checked for each protected operation. Tokens should have appropriate expiry and signing configuration, and secrets must not be hard-coded into source code or container images.
+These mechanisms serve different purposes: directory authentication verifies a user's identity, while a token carries authenticated-session claims to subsequent API calls. Authorization is still checked for each protected operation. Tokens need appropriate expiry and signing configuration, and secrets must never be hard-coded into source code or container images.
 
 ```mermaid
 flowchart LR
@@ -316,7 +316,7 @@ SQLite is suitable for many local deployments. If concurrent writes or multi-nod
 
 APScheduler can run periodic jobs such as drift checks, report generation, or maintenance summaries. The job should be designed to tolerate retries, failures, and partial completion.
 
-One important deployment detail: starting the scheduler in multiple web-worker processes can cause the same job to run more than once unless scheduling is coordinated. For multi-process deployments, consider a dedicated scheduler process or another mechanism that ensures a single active job owner.
+Starting the scheduler in multiple web-worker processes can cause the same job to run more than once unless scheduling is coordinated. For multi-process deployments, consider a dedicated scheduler process or another mechanism that ensures a single active job owner.
 
 Model-build history should record enough metadata to reproduce an analysis, such as model version, training-data reference, configuration, creation time, and evaluation results. The exact fields depend on the platform's traceability requirements.
 
@@ -361,7 +361,7 @@ Depending on the actual deployment, the agent may expose tools such as:
 | `read_file` | Read permitted files from an allowlisted location |
 | `export_report` | Generate a report using validated inputs |
 
-Tool names are illustrative; document only tools that are implemented and available in the deployed version.
+Tool names are illustrative; only tools that are actually implemented are available in the deployed version.
 
 ### 7.2 Tool governance and safety
 
@@ -401,7 +401,7 @@ A container being healthy does not guarantee that the whole application is funct
 
 ### 8.2 Runtime frontend configuration
 
-If the frontend needs to be deployed as a static bundle whose backend URL can change by environment, a runtime configuration file such as `env.js` can expose a value through `window.ENV`. This avoids rebuilding the frontend bundle for every deployment environment.
+When the frontend is deployed as a static bundle and its backend URL varies by environment, a runtime configuration file such as `env.js` can expose the value through `window.ENV`. This avoids rebuilding the bundle for every environment.
 
 The runtime configuration must be loaded before application code reads it, validated at startup, and treated as public configuration. Do not put passwords, API secrets, or other credentials in browser-visible variables.
 
