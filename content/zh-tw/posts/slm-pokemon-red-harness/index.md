@@ -149,7 +149,96 @@ state = {
 }
 ```
 
+上面是簡化版。實際專案裡，這層還有 16-bit big-endian、BCD 金額與 event bit 三種讀法：
+
+{{< code-fold label="pokemon_reverse.py · RAM 讀取原語" >}}
+```python
+    def read_byte(self, addr: int) -> int:
+        return self.pyboy.memory[addr]
+
+    def read_event_bit(self, addr: int, bit_idx: int) -> bool:
+        """Reads an individual event bit formatted like 0xD74B-idx where idx 0 is MSB."""
+        val = self.read_byte(addr)
+        return f"{val:08b}"[bit_idx] == "1"
+
+    def read_word_be(self, addr: int) -> int:
+        """Big-endian 16-bit word."""
+        return (self.pyboy.memory[addr] << 8) | self.pyboy.memory[addr + 1]
+
+    def read_bcd_money(self) -> int:
+        """Reads 3-byte BCD money at 0xD347-0xD349."""
+        def bcd(b):
+            return ((b >> 4) * 10) + (b & 0x0F)
+        b2 = self.read_byte(0xD347)
+        b1 = self.read_byte(0xD348)
+        b0 = self.read_byte(0xD349)
+        return bcd(b2) * 10000 + bcd(b1) * 100 + bcd(b0)
+```
+{{< /code-fold >}}
+
 搭配 Game Boy 的 charmap 解碼，`wTileMap` 可以直接還原對話框、選單項目與游標位置。這些字元是遊戲自己寫進記憶體的事實，不需要 OCR 猜。
+
+{{< code-fold label="pokemon_reverse.py · decode_text_bytes + extract_screen_tilemap" >}}
+```python
+    def decode_text_bytes(self, byte_list: List[int]) -> str:
+        """Converts raw Pokemon Red encoding bytes into a readable string."""
+        chars = []
+        for b in byte_list:
+            if b == 0x50:  # string terminator
+                break
+            ch = POKEMON_CHAR_MAP.get(b, "")
+            chars.append(ch)
+        return "".join(chars)
+
+    def extract_screen_tilemap(self) -> Tuple[List[str], List[str], Optional[str], str]:
+        """Reads the 20x18 Game Boy TileMap from wTileMap (0xC3A0 - 0xC507).
+
+        Returns:
+            (all_text_lines, menu_items, selected_menu_item, dialogue_text)
+        """
+        all_lines: List[str] = []
+        dialogue_lines: List[str] = []
+        menu_items: List[str] = []
+        selected_menu_item: Optional[str] = None
+
+        for row in range(18):
+            row_bytes = [self.read_byte(0xC3A0 + row * 20 + col) for col in range(20)]
+            decoded_row = "".join(POKEMON_CHAR_MAP.get(b, " ") for b in row_bytes)
+            cleaned = decoded_row.strip()
+
+            if cleaned:
+                all_lines.append(cleaned)
+
+                # Check for menu cursor ▶
+                if "▶" in cleaned:
+                    parts = cleaned.split("▶", 1)
+                    item_name = parts[1].strip().split()[0] if parts[1].strip() else "Option"
+                    selected_menu_item = item_name
+                    menu_items.append(f"▶{item_name}")
+                elif row < 12 and any(keyword in cleaned for keyword in ["PKMN", "ITEM", "RUN", "SAVE", "OPTION", "EXIT", "YES", "NO"]):
+                    for w in cleaned.split():
+                        if w and len(w) > 1 and w not in menu_items:
+                            menu_items.append(w)
+
+        # Check if lower screen has a true Game Boy dialogue box frame (Row 12: 0x79 0x7A...)
+        r12_b0 = self.read_byte(0xC3A0 + 12 * 20)
+        r12_b1 = self.read_byte(0xC3A0 + 12 * 20 + 1)
+        has_dialogue_frame = (r12_b0 == 0x79 and r12_b1 == 0x7A)
+
+        if has_dialogue_frame:
+            for row in range(13, 17):
+                row_bytes = [self.read_byte(0xC3A0 + row * 20 + col) for col in range(1, 19)]
+                line_str = "".join(POKEMON_CHAR_MAP.get(b, " ") for b in row_bytes).strip()
+                line_str = line_str.replace("▶", "").replace("▼", "").strip()
+                if line_str and sum(c.isalpha() for c in line_str) >= 2:
+                    if not any(kw in line_str for kw in ["FIGHT", "PKMN", "ITEM", "RUN", "EXIT", "SAVE", "OPTION"]):
+                        if line_str not in dialogue_lines:
+                            dialogue_lines.append(line_str)
+
+        dialogue_text = " ".join(dialogue_lines)
+        return all_lines, menu_items, selected_menu_item, dialogue_text
+```
+{{< /code-fold >}}
 
 依專案 README 的自測值，這一層的讀取延遲小於 `0.01 ms`。這是專案自測，量測方式也很土：在同樣的 Python 迴圈裡連續讀幾次，抓個大概。但它和「1–2 秒的截圖推論」差了好幾個量級。
 
@@ -209,11 +298,128 @@ Layer 1 維護三種東西：
 
 然後用 BFS（廣度優先搜尋）找最近的未探索 frontier，或走到已知出口。這層完全不需要語言模型。它要的是全域路徑、碰撞檢查與一致性。
 
+{{< code-fold label="memory_system.py · find_frontier_exploration_step" >}}
+```python
+    def find_frontier_exploration_step(
+        self,
+        map_id: int,
+        start_pos: Tuple[int, int],
+        max_depth: int = 80,
+    ) -> Optional[str]:
+        """Finds the closest unvisited coordinate (frontier tile) and returns the first step direction.
+
+        CRITICAL FIX: Known warps and locked entry stairs are NEVER treated as frontier exploration targets!
+        """
+        sx, sy = start_pos
+        known_warps = self.get_known_warps(map_id)
+        queue = deque()
+        visited = {start_pos}
+
+        for dir_name, (dx, dy) in DIR_VECTORS.items():
+            nx, ny = sx + dx, sy + dy
+            if (map_id, sx, sy, dir_name) in self.blocked_moves:
+                continue
+            # If entry warp is on cooldown, cannot step directly onto it
+            if self.is_warp_cooldown_active() and (nx, ny) in self.current_entry_warps:
+                continue
+            if (map_id, nx, ny) not in self.seen_coords:
+                # Discovered warps are portals, NOT unexplored floor frontiers!
+                if (nx, ny) not in known_warps:
+                    return dir_name
+            visited.add((nx, ny))
+            queue.append(((nx, ny), dir_name))
+
+        steps = 0
+        while queue and steps < max_depth:
+            steps += 1
+            (cx, cy), first_dir = queue.popleft()
+
+            for dir_name, (dx, dy) in DIR_VECTORS.items():
+                nx, ny = cx + dx, cy + dy
+                if (nx, ny) in visited:
+                    continue
+                if (map_id, cx, cy, dir_name) in self.blocked_moves:
+                    continue
+                if not (0 <= nx <= 80 and 0 <= ny <= 80):
+                    continue
+                # Do not path through active cooldown entry warps
+                if self.is_warp_cooldown_active() and (nx, ny) in self.current_entry_warps:
+                    continue
+
+                if (map_id, nx, ny) not in self.seen_coords:
+                    # Ignore warps as frontier targets
+                    if (nx, ny) not in known_warps:
+                        return first_dir
+
+                visited.add((nx, ny))
+                queue.append(((nx, ny), first_dir))
+
+        return None
+```
+{{< /code-fold >}}
+
 ### Layer 2：0.8B 的策略
 
 模型拿到的是整理過的狀態：地圖名稱、座標、可行方向、障礙方向、NPC 線索、frontier 方向、上一個動作。模型的輸出是一個動作（方向或互動鍵），必要時附帶 1–3 步的步數。
 
 依 README 的自測值，文字模式推論約 `10–50 ms`。這個數字同樣是專案自測，不是獨立 benchmark；但至少說明，當輸入是結構化狀態時，0.8B 不需要很長的思考時間。（這次 log 的 `latency` 欄位量的是 Ollama HTTP 往返，包含排隊與網路層，不是這個數字；兩者邊界不同。）
+
+模型收到的 prompt 長這樣：
+
+{{< code-fold label="ollama_brain.py · build_prompt" >}}
+```python
+    def build_prompt(
+        self,
+        state: GameState,
+        last_action: str = "NONE",
+        stuck_detected: bool = False,
+        memory_context: Optional[str] = None,
+    ) -> str:
+        """Builds a rich, spatial-aware prompt for the language model."""
+        context_text = state.to_prompt_text()
+
+        guidance = []
+        if memory_context:
+            guidance.append(memory_context)
+
+        if stuck_detected:
+            guidance.append("CRITICAL ALERT: Player coordinates did not change on last attempt! Choose an alternate open direction.")
+        elif state.screen_type == "dialogue":
+            guidance.append("ACTION HINT: Dialogue box active. Output 'A' to continue conversation.")
+        elif state.screen_type == "menu":
+            guidance.append("ACTION HINT: Menu is currently open. Output 'A' to select, 'B' to close, or 'UP'/'DOWN' to navigate.")
+        elif state.screen_type == "battle":
+            guidance.append("ACTION HINT: In Pokemon Battle! Select 'A' to attack or choose fight commands.")
+        else:
+            guidance.append(
+                "ACTION HINT: Overworld navigation.\n"
+                "- Check the 2D Radar: (.) is walkable, (#) is wall, (D) is forward exit, (B) is entry stairs (LOCKED, DO NOT ENTER), (?) is unexplored.\n"
+                "- CRITICAL: DO NOT backtrack into the stairs or door you just exited (marked B). Walk towards unexplored tiles (?) or talk to NPCs.\n"
+                "- Houses/rooms: explore the room first; the exit door to outside is usually to the south (DOWN).\n"
+                "- Choose a movement direction (DOWN, UP, LEFT, RIGHT) to walk, or press 'A' if interacting with an NPC in front."
+            )
+
+        prompt = f"""You are an autonomous AI playing Pokemon Red (Game Boy).
+Your goal is to explore maps, advance dialogues, discover exits, and progress through Kanto.
+
+{context_text}
+Previous Action: {last_action}
+{chr(10).join(guidance)}
+
+[VALID ACTIONS]
+Movement: DOWN, UP, LEFT, RIGHT [optional steps: 1-3]
+Interact / Confirm: A
+Cancel / Back: B
+Menu: START
+
+[OUTPUT FORMAT]
+Output exactly one line:
+Action: <BUTTON> [steps]
+Example: Action: DOWN 2
+Action:"""
+        return prompt
+```
+{{< /code-fold >}}
 
 ### 非同步：讓慢的層不要擋住快的層
 
@@ -230,7 +436,92 @@ sequenceDiagram
 
 主迴圈維持 30–60 FPS，模型在背景執行緒跑。`Queue(maxsize=1)` 是刻意的：寧可丟掉排隊中的舊狀態，也不要讓模型追著歷史跑。但這樣只能丟掉排隊中的狀態，不能保證回傳的 action 對應最新狀態；要做到「只採用最新」，每個狀態得帶一個遞增的 sequence number，模型回來時比對，舊的就丟掉。
 
+{{< code-fold label="async_agent.py · ollama_worker" >}}
+```python
+def ollama_worker(
+    task_queue: queue.Queue,
+    result_box: dict,
+    brain: OllamaBrain,
+    min_interval: float,
+    stop_event: threading.Event,
+):
+    """Background worker thread that queries Ollama without blocking PyBoy."""
+    last_inference_time = 0.0
+
+    while not stop_event.is_set():
+        try:
+            task = task_queue.get(timeout=0.2)
+        except queue.Empty:
+            continue
+
+        if task is None:
+            break
+
+        state, image, last_action, is_stuck, memory_context = task
+
+        now = time.time()
+        elapsed = now - last_inference_time
+        if elapsed < min_interval:
+            time.sleep(min_interval - elapsed)
+
+        try:
+            action, steps, latency, raw_text = brain.decide_action(
+                state=state,
+                image=image,
+                last_action=last_action,
+                stuck_detected=is_stuck,
+                memory_context=memory_context,
+            )
+            result_box["action"] = action
+            result_box["steps"] = steps
+            result_box["latency"] = latency
+            result_box["raw_text"] = raw_text
+            result_box["ready"] = True
+            last_inference_time = time.time()
+        except Exception as e:
+            log.error(f"Inference worker error: {e}")
+            result_box["action"] = "A" if state.screen_type == "dialogue" else "DOWN"
+            result_box["steps"] = 1
+            result_box["latency"] = 0.0
+            result_box["raw_text"] = "FALLBACK"
+            result_box["ready"] = True
+        finally:
+            task_queue.task_done()
+```
+{{< /code-fold >}}
+
 按鍵也有時序校正，單位是 Game Boy 的 60 Hz 幀：方向鍵按住 12 幀、放開 12 幀，總共 24 幀；A/B 這類非方向鍵是按住 8 幀、放開 10 幀。按太快，遊戲只會轉向不會走；按太慢，一個 tile 的移動會拖成兩步。
+
+{{< code-fold label="emulator.py · press（幀數校正）" >}}
+```python
+    def press(self, button: str, hold_frames: Optional[int] = None, release_frames: Optional[int] = None) -> None:
+        """Executes a clean button press and release cycle calibrated to Game Boy physics."""
+        btn = button.lower()
+        if btn == "none":
+            self.tick(24)
+            return
+
+        valid_buttons = {"up", "down", "left", "right", "a", "b", "start", "select"}
+        if btn not in valid_buttons:
+            self.tick(24)
+            return
+
+        is_directional = btn in {"up", "down", "left", "right"}
+        if hold_frames is None:
+            # 12 frames hold ensures direction change + full tile-step trigger in Pokemon Red
+            hold_frames = 12 if is_directional else 8
+        if release_frames is None:
+            # 12 frames release ensures full completion of the 24-tick Game Boy step animation
+            release_frames = 12 if is_directional else 10
+
+        # Press
+        self.pyboy.button_press(btn)
+        self.tick(hold_frames)
+        # Release
+        self.pyboy.button_release(btn)
+        self.tick(release_frames)
+```
+{{< /code-fold >}}
 
 這種分層在機器人學裡很常見：**慢速 planner + 快速 controller**。在這裡，planner 是一顆 0.8B 的語言模型，controller 是 BFS 與反射規則。
 
@@ -248,11 +539,67 @@ Agent 第一次卡住，是在房子裡上樓、下樓、再上樓。
 - 記錄 `current_entry_warps`，剛進來的那個入口要冷卻。
 - 一般冷卻 25 步；偵測到嚴重來回震盪時鎖 60 步。
 
+{{< code-fold label="memory_system.py · warp 冷卻與 ping-pong 偵測" >}}
 ```python
-# 已知的 warp 是傳送門，不是未探索的地板
-if (nx, ny) not in known_warps:
-    ...
+    def is_warp_cooldown_active(self) -> bool:
+        """Returns True if the agent recently entered this map and should avoid backtracking."""
+        return self.map_step_count < self.warp_cooldown_target and bool(self.current_entry_warps)
+
+    def get_known_warps(self, map_id: int) -> Set[Tuple[int, int]]:
+        """Returns all known warp coordinates on a given map."""
+        warps = set()
+        for w in self.discovered_warps.get(map_id, []):
+            warps.add((w.get("x"), w.get("y")))
+        if self.last_map_id == map_id:
+            warps.update(self.current_entry_warps)
+        return warps
+
+    # --- Warp / Map Transition Detection ---
+    if self.last_map_id is not None and self.last_map_id != curr_map:
+        old_x, old_y = self.last_coords
+        log.info(f"[Spatial Discovery] Warp discovered: Map {self.last_map_id} ({old_x}, {old_y}) -> Map {curr_map} ({state.map_name})")
+        self.attempt_counts.clear()
+
+        if self.last_map_id not in self.discovered_warps:
+            self.discovered_warps[self.last_map_id] = []
+
+        already_known = any(
+            w["x"] == old_x and w["y"] == old_y for w in self.discovered_warps[self.last_map_id]
+        )
+        if not already_known:
+            self.discovered_warps[self.last_map_id].append({
+                "x": old_x,
+                "y": old_y,
+                "desc": f"Warp to {state.map_name}",
+            })
+
+        # Check Ping-Pong oscillation between maps (e.g. A -> B -> A -> B)
+        self.map_history.append((self.last_map_id, curr_map))
+        is_ping_pong = False
+        if len(self.map_history) >= 4:
+            h = list(self.map_history)
+            if h[-1] == h[-3] and h[-2] == h[-4]:
+                is_ping_pong = True
+
+        # Register entry warp zone on arrival map
+        self.current_entry_warps = {curr_pos}
+        # Also include any known warp on curr_map close to arrival point (stairs/landing)
+        for w in self.discovered_warps.get(curr_map, []):
+            if abs(w["x"] - curr_pos[0]) + abs(w["y"] - curr_pos[1]) <= 1:
+                self.current_entry_warps.add((w["x"], w["y"]))
+
+        # Reset step count on new map and set cooldown
+        self.map_step_count = 0
+        if is_ping_pong:
+            self.warp_cooldown_target = 60
+            log.warning(f"[Anti-Ping-Pong] Severe map oscillation detected between Map {self.last_map_id} and {curr_map}! Locking entry warp for 60 steps.")
+        else:
+            self.warp_cooldown_target = 25
+
+        self.add_quest_log(f"Entered new area: {state.map_name}!")
+        self.stuck_step_count = 0
 ```
+{{< /code-fold >}}
 
 BFS 現在追的是「還沒探索」的格子，已知的門直接排除。
 
@@ -274,6 +621,43 @@ Immediate Paths: Walkable -> [None] | Obstacles -> [UP, DOWN, LEFT, RIGHT]
 
 - `get_movement_options` 偵測四個方向全 blocked 時，自動衰減，必要時清除這個位置的區域障礙。
 - Smart Unstick 在真的卡住時，從可行方向隨機挑一個，重新取狀態。
+
+{{< code-fold label="memory_system.py / async_agent.py · 死鎖解除與 Smart Unstick" >}}
+```python
+    def get_movement_options(self, map_id: int, pos: Tuple[int, int]) -> Tuple[List[str], List[str]]:
+        """Returns (open_directions, blocked_directions) for the current position."""
+        open_dirs = []
+        blocked_dirs = []
+        for d in ("UP", "DOWN", "LEFT", "RIGHT"):
+            if (map_id, pos[0], pos[1], d) in self.blocked_moves:
+                blocked_dirs.append(d)
+            else:
+                open_dirs.append(d)
+
+        # Anti-deadlock: If ALL 4 directions are marked blocked at current position, auto-decay and unblock!
+        if len(blocked_dirs) == 4:
+            log.warning(f"[Collision Anti-Lock] All 4 directions blocked at Map {map_id} ({pos[0]},{pos[1]})! Resetting local obstacles...")
+            for d in ("UP", "DOWN", "LEFT", "RIGHT"):
+                self.blocked_moves.discard((map_id, pos[0], pos[1], d))
+            open_dirs = ["UP", "DOWN", "LEFT", "RIGHT"]
+            blocked_dirs = []
+
+        return open_dirs, blocked_dirs
+
+    # Smart Unstick Routine
+    if is_stuck:
+        log.warning(f"[Step {step}] Stagnation detected at ({state.player_x}, {state.player_y})! Resetting obstacles and escaping...")
+        self.stuck_detector.clear()
+        active_plan["steps_left"] = 0
+
+        # Ensure 4-way block is reset
+        open_dirs, _ = self.cog_memory.get_movement_options(state.map_id, (state.player_x, state.player_y))
+        alt_dir = random.choice(open_dirs) if open_dirs else random.choice(["DOWN", "RIGHT", "LEFT", "UP"])
+        self.emulator.press(alt_dir)
+        state = self.reverse.extract_state()
+        self.cog_memory.update_spatial_position(state, last_action=alt_dir)
+```
+{{< /code-fold >}}
 
 ### 6.3 壞掉的碰撞網格被存下來
 
@@ -308,6 +692,49 @@ Action: DOWN 2
 - 加入停滯檢測，重複動作時強制換方向。
 - 只給四個方向與互動鍵，不給開放式指令。
 - 讓 Layer 1 在模型選到 blocked 方向時直接覆蓋。
+
+{{< code-fold label="async_agent.py / memory_system.py · 停滯偵測與動作歷史" >}}
+```python
+class StuckDetector:
+    """Tracks position and dialogue changes to identify when the agent is stuck."""
+
+    def __init__(self, history_len: int = 5):
+        self.history = deque(maxlen=history_len)
+
+    def update(self, state: GameState, action: str) -> bool:
+        self.history.append((state.map_id, state.player_x, state.player_y, state.screen_type, action))
+        if len(self.history) < self.history.maxlen:
+            return False
+
+        # In dialogue, battle, cutscene or joypad lock, we are not geographically stuck
+        if state.screen_type in ("dialogue", "battle", "cutscene") or getattr(state, "joy_ignore", 0) > 0:
+            return False
+
+        # If coordinates and map are identical across all recent steps in overworld
+        first_entry = self.history[0]
+        all_same_coords = all(
+            h[0] == first_entry[0] and h[1] == first_entry[1] and h[2] == first_entry[2]
+            for h in self.history
+        )
+        return all_same_coords
+
+    def clear(self):
+        self.history.clear()
+
+# memory_system.py — 動作環形緩衝
+if last_action != "NONE":
+    self.recent_actions.append(last_action)
+    if len(self.recent_actions) > 8:
+        self.recent_actions.pop(0)
+
+# memory_system.py — 選方向時對走爛的格子扣分
+score = -visits * 10
+if self.is_warp_cooldown_active() and target_pos in self.current_entry_warps:
+    score -= 5000
+if self.recent_actions and self.recent_actions[-1] == d:
+    score += 5
+```
+{{< /code-fold >}}
 
 ## 7. 實驗：從 title screen 到 Pallet Town
 

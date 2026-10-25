@@ -1,0 +1,22 @@
+{{- $inner := trim .Inner "\n\r" -}}
+{{- $lines := split $inner "\n" -}}
+{{- $first := trim (index $lines 0) " " -}}
+{{- $fenced := strings.HasPrefix $first "```" -}}
+{{- $count := len $lines -}}
+{{- $lang := "" -}}
+{{- if $fenced -}}
+  {{- $count = sub $count 2 -}}
+  {{- $lang = replaceRE "^```" "" $first | strings.TrimSpace -}}
+{{- end -}}
+{{- $label := .Get "label" | default (.Get "file") | default "程式碼" -}}
+{{- $meta := .Get "lang" | default $lang -}}
+<details class="code-fold">
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">{{ $label }}</span>
+    <span class="code-fold__meta">{{ with $meta }}{{ . }} · {{ end }}{{ $count }} 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    {{ .Inner | markdownify }}
+  </div>
+</details>
