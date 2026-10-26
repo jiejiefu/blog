@@ -110,7 +110,7 @@ menu:
 
 markup:
   highlight:
-    noClasses: false # 改用 class-based 高亮，配色由 assets/css/extended/chroma-*.css 提供（Tokyo Night，淺/深分流）
+    noClasses: false # 改用 class-based 高亮，配色由 assets/css/extended/chroma-*.css 提供（淺色 Atom One Light／深色 Tokyo Night，分流）
   goldmark:
     extensions:
       passthrough:

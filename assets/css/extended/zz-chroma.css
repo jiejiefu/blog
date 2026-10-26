@@ -1,9 +1,9 @@
-/* Tokyo Night — 程式碼高亮配色（淺色 tokyonight-day / 深色 tokyonight-night）
+/* Chroma — 淺色 Atom One Light / 深色 Tokyo Night Night
  *
  * 相關檔案：
- *   assets/css/extended/chroma-tokyonight-day.css    （.chroma token 色，scoped 淺色）
- *   assets/css/extended/chroma-tokyonight-night.css  （.chroma token 色，scoped 深色）
- *   config.yaml → markup.highlight.noClasses: false  （改成 class-based，才會吃到上面兩檔）
+ *   assets/css/extended/chroma-atom-one-light.css  （.chroma token 色，scoped 淺色）
+ *   assets/css/extended/chroma-tokyonight-night.css（.chroma token 色，scoped 深色）
+ *   config.yaml → markup.highlight.noClasses: false（改成 class-based，才會吃到上面兩檔）
  *
  * ⚠️ 檔名刻意以 `zz-` 開頭：PaperMod 用 resources.Match "css/extended/*.css"
  * 依**檔名排序**串接，custom.css 排在前面。這裡要覆蓋 custom.css 對
@@ -19,12 +19,12 @@
  * 改下去會連帶動到那些 UI 表面。行內 code 另外用 scoped 選擇器處理（見檔尾）。
  */
 
-/* 淺色：tokyonight-day (#3760bf on #e1e2e7) */
+/* 淺色：Atom One Light（#383A42 on #FAFAFA） */
 :root {
-    --code-block-bg: #e1e2e7;
+    --code-block-bg: #FAFAFA;
 }
 
-/* 深色：tokyonight-night (#c0caf5 on #1a1b26) */
+/* 深色：Tokyo Night Night（#c0caf5 on #1a1b26） */
 :root[data-theme="dark"] {
     --code-block-bg: #1a1b26;
 }
@@ -34,9 +34,13 @@
     overflow: hidden;
 }
 
+/* #FAFAFA 與頁面白底只差 5 階，加一圈內描邊讓區塊邊界清楚，且不影響 layout。 */
+:root:not([data-theme="dark"]) .post-content .highlight:not(table) {
+    box-shadow: inset 0 0 0 1px #E5E5E6;
+}
+
 /* PaperMod 把 pre code 的文字色寫死成 rgb(213,213,214)，
- * 在淺色的 tokyonight-day 底上等於看不見。
- * 改成 inherit，讓它跟著 .chroma 的 #3760bf / #c0caf5。 */
+ * 在淺色底上會看不見。改成 inherit，讓它跟著 .chroma 的 #383A42 / #c0caf5。 */
 .post-content pre code {
     color: inherit;
 }
@@ -44,7 +48,7 @@
 /* 行內 code：只作用在內文（:not(pre) 排除程式碼區塊），
  * 不去動 --code-bg 這個共用變數。 */
 .post-content :not(pre) > code {
-    background: #e1e2e7;
+    background: #E5E5E6;
 }
 
 :root[data-theme="dark"] .post-content :not(pre) > code {
