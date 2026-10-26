@@ -48,24 +48,30 @@
     {{- with .Params.tags }}{{ $tagSet = $tagSet | append . }}{{ end }}
 {{- end }}
 
-{{- /* ---------- 1. Hero ---------- */ -}}
+{{- /* ---------- 1. Hero ----------
+       桌機是 12 欄的雙欄版（文字 1–6、文字畫 7–13）；版心只在這裡放寬到 1120，
+       其餘區塊由 lab-glyph.css 的 `> :not(.lab-hero)` 規則留在原本的 720。
+       文字畫的細節見 partials/glyph_art.html。 */ -}}
 <header class="lab-hero">
-  <p class="lab-hero__eyebrow">
-    <span class="lab-hero__prompt" aria-hidden="true">&gt;_</span>
-    {{ $home.hero.eyebrow }}
-  </p>
-  <h1 class="lab-hero__title">{{ $home.hero.title }}</h1>
-  <p class="lab-hero__topics">{{ $home.hero.topicsLine }}</p>
-  <p class="lab-hero__lede">{{ $home.hero.lede | markdownify }}</p>
-  <p class="lab-hero__actions">
-    <a class="lab-btn lab-btn--primary" href="{{ $home.hero.primaryCta.url | absLangURL }}">
-      {{ $home.hero.primaryCta.text }}
-      <span class="lab-btn__arrow" aria-hidden="true">&#8599;</span>
-    </a>
-    <a class="lab-btn" href="{{ "posts/" | absLangURL }}">
-      {{ $home.sections.allPosts }}
-    </a>
-  </p>
+  <div class="lab-hero__text">
+    <p class="lab-hero__eyebrow">
+      <span class="lab-hero__prompt" aria-hidden="true">&gt;_</span>
+      {{ $home.hero.eyebrow }}
+    </p>
+    <h1 class="lab-hero__title">{{ $home.hero.title }}</h1>
+    <p class="lab-hero__topics">{{ $home.hero.topicsLine }}</p>
+    <p class="lab-hero__lede">{{ $home.hero.lede | markdownify }}</p>
+    <p class="lab-hero__actions">
+      <a class="lab-btn lab-btn--primary" href="{{ $home.hero.primaryCta.url | absLangURL }}">
+        {{ $home.hero.primaryCta.text }}
+        <span class="lab-btn__arrow" aria-hidden="true">&#8599;</span>
+      </a>
+      <a class="lab-btn" href="{{ "posts/" | absLangURL }}">
+        {{ $home.sections.allPosts }}
+      </a>
+    </p>
+  </div>
+  {{ partial "glyph_art.html" . }}
 </header>
 
 {{- /* ---------- 2. Engineering Console ----------

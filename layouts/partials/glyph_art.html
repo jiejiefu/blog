@@ -1,0 +1,40 @@
+{{- /*
+  首頁 hero 右半的「文字畫」：兔子。
+  ==========================================================================
+  data → assets/js/glyph-art-data.js（window.ART，132×110 的亮度網格）
+  draw → assets/js/glyph-art.js
+  無 JS → assets/glyph-art/hare.txt（伺服器端就渲染好的 <pre>）
+
+  ⚠️ 字型只在有這個 partial 的頁面（首頁）註冊，而且走 resources.Get + fingerprint，
+     所以檔名帶 hash、也自動帶 /blog/ 前綴。不要改成 static/ 的固定路徑。
+  ⚠️ 色票（--glyph-0..7 / --glyph-hot）定義在 assets/css/extended/lab-glyph.css，
+     scope 在 .lab-glyph 上，JS 從 box 讀 —— 不是從 documentElement。
+*/ -}}
+<div class="lab-glyph" data-art="hare" aria-hidden="true">
+  {{- with resources.Get "fonts/martian-mono-latin-var.woff2" }}
+  {{- $font := . | fingerprint }}
+  <style>
+    @font-face {
+      font-family: "Martian Mono";
+      src: url("{{ $font.RelPermalink }}") format("woff2");
+      font-weight: 100 800;
+      font-stretch: 75% 112.5%;
+      font-display: swap;
+    }
+  </style>
+  {{- end }}
+  <canvas class="lab-glyph__canvas"></canvas>
+  {{- with resources.Get "glyph-art/hare.txt" }}
+  {{- /* safeHTML 是必要的：.txt 的 .Content 是字串，模板會把 + 之類的字元轉成
+         實體（&#43;），整張圖就毀了。這份文字只有 ` #%*+-:=@`，沒有 HTML 特殊字元。 */}}
+  <pre class="lab-glyph__still">{{ .Content | safeHTML }}</pre>
+  {{- end }}
+  {{- with resources.Get "js/glyph-art-data.js" }}
+  {{- $data := . | minify | fingerprint }}
+  <script src="{{ $data.RelPermalink }}" defer></script>
+  {{- end }}
+  {{- with resources.Get "js/glyph-art.js" }}
+  {{- $js := . | minify | fingerprint }}
+  <script src="{{ $js.RelPermalink }}" defer></script>
+  {{- end }}
+</div>

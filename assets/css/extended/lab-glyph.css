@@ -1,0 +1,132 @@
+/* ==========================================================================
+   首頁 hero 的「文字畫」（兔子）
+   ==========================================================================
+   8 階色票與紙色直接仿照 Hallmark "Terminal" 主題的 tokens.css，
+   **只 scope 在 .lab-glyph 上**，不動全站的 --accent / --theme。
+   理由跟 lab-console.css 一樣：這是一個自成一格的元件（深色舞台 + 自己的色階），
+   套全站色票會讓它變成「另一個 accent 色塊」而不是一張圖。
+
+   ⚠️ 這個檔案必須排在 custom.css 之後（檔名 lab-* 在 extended.css 的字母序裡
+      剛好在 custom 後面），因為下面要覆蓋 .lab-hero 的 padding 與標題字級。
+   ⚠️ --glyph-* 是給 canvas 用的：assets/js/glyph-art.js 用 getComputedStyle(box)
+      讀，不是 documentElement。把它們搬到 :root 會讓全站都拿得到，沒有好處。
+*/
+
+.lab-glyph {
+    --glyph-paper: oklch(12.5% 0.012 150);
+    --glyph-0: oklch(30% 0.06 146);
+    --glyph-1: oklch(38% 0.08 145);
+    --glyph-2: oklch(47% 0.11 144);
+    --glyph-3: oklch(57% 0.14 143);
+    --glyph-4: oklch(67% 0.17 142);
+    --glyph-5: oklch(77% 0.19 142);
+    --glyph-6: oklch(86% 0.2 141);
+    --glyph-7: oklch(94% 0.12 138);
+    --glyph-hot: oklch(87% 0.2 142);
+
+    position: relative;
+    /* overflow: clip 讓無 JS 的 <pre> 不會溢出到 hero 外（參考站也是這樣收的）。 */
+    overflow: clip;
+    background: var(--glyph-paper);
+    /* cqw / cqh 需要一個 container：.lab-glyph__still 的字級靠它縮放。
+       size 而不是 inline-size，因為字級要同時受寬度與高度限制（見下方）。 */
+    container-type: size;
+    font-family: "Martian Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-stretch: 87.5%;
+    font-variant-ligatures: none;
+}
+
+.lab-glyph__canvas {
+    position: absolute;
+    inset: 0;
+    display: none;
+}
+
+.lab-glyph.is-live .lab-glyph__canvas {
+    display: block;
+}
+
+.lab-glyph.is-live .lab-glyph__still {
+    display: none;
+}
+
+/* 無 JS 的版本：同一份網格、同一組字，只是用 <pre> 印。
+   字級算得跟 canvas 一樣，兩個版本才會完全對齊：
+     canvas  cw = min(W/132, H/(110×1.85))、ch = cw×1.85、最大字級 = cw×1.62
+     pre     實測 Martian Mono 在 font-stretch:87.5% 下的字寬是 0.65em
+             → 一列 132 字 = 85.8em；總高 110 列 = 110×1.85×0.65 = 132.3em
+   所以 font-size = min(100cqw/85.8, 100cqh/132.3)，line-height = 1.85×0.65 = 1.2025。
+   只寫 cqw 版會讓 pre 比 canvas 高 6%、把耳朵裁掉（第一版就是這樣）。
+   貼齊右下：<pre> 的每列結尾空白被裁掉、最後一列是空的，靠右下對齊才不會歪。 */
+.lab-glyph__still {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    font-size: calc(100cqw / 85.8);
+    font-size: min(calc(100cqw / 85.8), calc(100cqh / 132.3));
+    line-height: 1.2025;
+    color: var(--glyph-4);
+    white-space: pre;
+}
+
+/* ---------- 版面：首頁只把 hero 放寬，其餘區塊維持原本的 720 ---------- */
+
+/* :has() 只在首頁命中（.lab-hero 只由 layouts/index.html 輸出）。
+   1168 = 1120 內容 + 兩側 24 的 .main padding。 */
+.main:has(.lab-hero) {
+    max-width: calc(1120px + var(--gap) * 2);
+}
+
+.main:has(.lab-hero) > :not(.lab-hero) {
+    max-width: var(--main-width);
+    margin-inline: auto;
+}
+
+@media (min-width: 60rem) {
+    /* 導覽列跟著 hero 一起放寬（PaperMod 預設 --nav-width: 1024px），
+       logo 才會跟 hero 的左緣、選單跟右緣對齊。只影響首頁。 */
+    body:has(.lab-hero) {
+        --nav-width: 1120px;
+    }
+
+    .main:has(.lab-hero) .lab-hero {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 32px;
+        align-items: stretch;
+        min-height: calc(100svh - var(--header-height) - var(--gap) * 2);
+        padding: 0;
+    }
+
+    .main:has(.lab-hero) .lab-hero__text {
+        grid-column: 1 / span 6;
+        align-self: center;
+        padding-block: clamp(1.5rem, 4vw, 2.75rem);
+    }
+
+    /* 兩欄版的標題要跟著版心放大，否則 520px 的欄位配 2.6rem 會空掉。 */
+    .main:has(.lab-hero) .lab-hero__title {
+        font-size: clamp(2rem, 3.2vw + 0.6rem, 3.1rem);
+    }
+
+    .main:has(.lab-hero) .lab-glyph {
+        grid-column: 7 / -1;
+    }
+}
+
+@media (max-width: 59.999rem) {
+    .main:has(.lab-hero) .lab-glyph {
+        height: min(70svh, 620px);
+        margin-top: 1.25rem;
+    }
+}
+
+/* 舊瀏覽器沒有 :has()：hero 留在 720 會擠成兩個窄欄，不如直接疊起來。 */
+@supports not selector(:has(*)) {
+    .main .lab-glyph {
+        height: min(70svh, 620px);
+        margin-top: 1.25rem;
+    }
+}
