@@ -73,6 +73,15 @@
 {{- end }}
 {{- end }}
 
+{{- /* 口述音檔的同步字幕。只有頁面用到 audio shortcode 才載入；沒有 VTT 時
+       JS 會自行 no-op。逐頁判斷只能放 head，footer 是 partialCached。 */ -}}
+{{- if .HasShortcode "audio" }}
+{{- with resources.Get "js/audio-captions.js" }}
+{{- $js := . | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}"></script>
+{{- end }}
+{{- end }}
+
 {{- if .HasShortcode "memory" }}
 {{- with resources.Get "js/memory-fold.js" }}
 {{- $js := . | minify | fingerprint }}

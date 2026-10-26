@@ -1,0 +1,50 @@
+{{- /* 頁面 bundle 內的口述音檔：原生 <audio> 播放器。
+       有同名 .vtt 或 captions="..." 時，另掛同步字幕（assets/js/audio-captions.js）。
+       用法：{{< audio src="audio/introduction.m4a" caption="..." >}}
+       src 相對於目前 page bundle；type 可覆寫 MIME。 */ -}}
+{{- $src := .Get "src" -}}
+{{- if not $src -}}
+{{- errorf "audio: 缺少 src（%s）" .Page.File.Path -}}
+{{- end -}}
+{{- $audio := .Page.Resources.GetMatch $src -}}
+{{- if not $audio -}}
+{{- errorf "audio: 在 bundle 找不到 %q（%s）" $src .Page.File.Path -}}
+{{- end -}}
+{{- $types := dict
+    ".m4a" "audio/mp4"
+    ".mp4" "audio/mp4"
+    ".aac" "audio/aac"
+    ".mp3" "audio/mpeg"
+    ".ogg" "audio/ogg"
+    ".opus" "audio/ogg"
+    ".wav" "audio/wav"
+    ".flac" "audio/flac"
+    ".webm" "audio/webm" -}}
+{{- $type := .Get "type" | default (index $types (lower (path.Ext $src))) | default "audio/mpeg" -}}
+{{- $caption := .Get "caption" -}}
+{{- $captions := .Get "captions" -}}
+{{- $vttPath := $captions | default (printf "%s.vtt" (strings.TrimSuffix (path.Ext $src) $src)) -}}
+{{- $vtt := .Page.Resources.GetMatch $vttPath -}}
+{{- if and $captions (not $vtt) -}}
+{{- errorf "audio: 在 bundle 找不到字幕 %q（%s）" $captions .Page.File.Path -}}
+{{- end -}}
+{{- $download := T "audio_download" | default "Download" -}}
+<figure class="post-audio" data-post-audio>
+    <audio
+        class="post-audio__player"
+        src="{{ $audio.RelPermalink }}"
+        type="{{ $type }}"
+        controls
+        preload="metadata"
+        {{- with $vtt }} data-audio-captions="{{ .RelPermalink }}"{{ end }}
+        {{- with $caption }} aria-label="{{ . }}"{{ end }}
+    >
+        <a href="{{ $audio.RelPermalink }}" download>{{ $download }}</a>
+    </audio>
+    {{- with $vtt }}
+    <div class="post-audio__cue" data-audio-cue hidden aria-hidden="true"></div>
+    {{- end }}
+    {{- with $caption }}
+    <figcaption class="post-audio__caption">{{ . }}</figcaption>
+    {{- end }}
+</figure>

@@ -747,6 +747,40 @@
     text-align: center;
 }
 
+/* ---- 文章內嵌音檔（audio shortcode）---------------------------------------- */
+.post-audio {
+    margin: 2rem 0;
+}
+
+.post-audio__player {
+    display: block;
+    width: 100%;
+}
+
+.post-audio__cue {
+    margin: 0.85rem auto 0;
+    max-width: 44rem;
+    min-height: 3.1em;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--secondary);
+    text-align: center;
+    text-wrap: pretty;
+}
+
+.post-audio__cue[hidden] {
+    display: block;
+    visibility: hidden;
+}
+
+.post-audio__caption {
+    margin-top: 0.7rem;
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: var(--secondary);
+    text-align: center;
+}
+
 /* ==========================================================================
    Code fold — 可收合的程式碼區塊（layouts/shortcodes/code-fold.html）
    預設收合；shortcode 加 open="true" 可在載入時展開。

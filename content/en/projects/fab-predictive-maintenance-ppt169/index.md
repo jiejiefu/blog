@@ -33,6 +33,8 @@ This article documents the Smart Fab Edge AI system architecture I presented in 
 
 Starting with equipment sensor data, the article walks through real-time data processing, anomaly detection, Remaining Useful Life (RUL) prediction, edge deployment, industrial knowledge retrieval, and the decision boundaries of AI agents. The question it actually tries to answer is not simply how to deploy AI models in a factory, but how to keep them running under constrained resources — trading off latency, compute, reliability, and operating cost — while integrating with existing equipment controls, maintenance workflows, and factory information systems.
 
+{{< audio src="audio/morty-introduction.m4a" caption="Introduction — narrated by Morty" >}}
+
 > **Intellectual Property and Usage Notice:** This article is intended for technical knowledge sharing, system architecture discussions, and demonstration of personal technical capabilities. The content has been anonymized and adjusted where necessary. It should not contain confidential customer data, trade secrets, or non-public internal project information. The use and redistribution of the text and diagrams are subject to the licensing terms published by the author.
 
 ---

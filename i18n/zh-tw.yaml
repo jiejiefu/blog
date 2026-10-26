@@ -15,3 +15,6 @@
 
 - id: share_source_label
   translation: "出處："
+
+- id: audio_download
+  translation: "下載"

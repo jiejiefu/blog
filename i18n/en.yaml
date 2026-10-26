@@ -9,3 +9,6 @@
 
 - id: share_source_label
   translation: "Source: "
+
+- id: audio_download
+  translation: "Download"
