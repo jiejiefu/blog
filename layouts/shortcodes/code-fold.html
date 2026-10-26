@@ -10,7 +10,9 @@
 {{- end -}}
 {{- $label := .Get "label" | default (.Get "file") | default "程式碼" -}}
 {{- $meta := .Get "lang" | default $lang -}}
-<details class="code-fold">
+{{- $openRaw := .Get "open" -}}
+{{- $open := or (eq $openRaw true) (eq $openRaw "true") -}}
+<details class="code-fold"{{ if $open }} open{{ end }}>
   <summary class="code-fold__summary">
     <span class="code-fold__label">{{ $label }}</span>
     <span class="code-fold__meta">{{ with $meta }}{{ . }} · {{ end }}{{ $count }} 行</span>

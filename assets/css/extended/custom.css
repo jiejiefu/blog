@@ -748,7 +748,8 @@
 }
 
 /* ==========================================================================
-   Code fold — 預設收合的程式碼區塊（layouts/shortcodes/code-fold.html）
+   Code fold — 可收合的程式碼區塊（layouts/shortcodes/code-fold.html）
+   預設收合；shortcode 加 open="true" 可在載入時展開。
    視覺語言沿用 .memory：左側 accent 細線 + mono 標籤 + 加減號 toggle。
    背景用 --code-block-bg，與內層 .highlight 同色，展開後不會出現色塊接縫。
    ========================================================================== */
