@@ -1,18 +1,16 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Machine Learning on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/machine-learning/</link><description>Recent content in Machine Learning on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/machine-learning/index.xml" rel="self" type="application/rss+xml"/><item><title>半導體設備 Edge AI 平台：從感測器資料到智慧決策的端到端系統設計</title><link>https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/</guid><description>介紹半導體設備 Edge AI／PHM 平台的端到端架構，涵蓋感測器資料處理、機器學習、Flask 後端、AI Agent、邊緣部署、故障處理與系統擴充。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <ul>
-<li>Edge AI 平台是一套端到端工程系統：資料接入、特徵工程、推論、監控與人員工作流程，必須環環相扣。</li>
-<li>設計採用五層架構：React／MUI 呈現、Flask API、分析、邊緣執行，以及 SQLite／檔案持久化。</li>
-<li>有界 deque 會先批次緩衝近期樣本（例如 500 筆或約 5 秒）再進行特徵萃取；它是緩衝區，不是持久化佇列。</li>
-<li>PHM 結合訊號特徵（RMS、FFT）、One-Class SVM、DTW 與 PCA 漂移監控，判讀仍交由工程師負責。</li>
-<li>AI Agent 是受控的應用程式用戶端：工具白名單、授權、驗證與稽核紀錄由後端強制執行，而非依賴 LLM 提示詞。</li>
-<li>部署從 Docker Compose 的邊緣單體開始，待量測結果證明有必要時，才擴展為解耦的 Worker。</li>
+<li>五層架構：React／MUI、Flask API、分析、邊緣執行、SQLite／檔案持久化。</li>
+<li>有界 deque 批次緩衝近期樣本（500 筆或約 5 秒），但不是持久化佇列。</li>
+<li>PHM 結合 RMS／FFT、One-Class SVM、DTW 與 PCA 漂移監控；判讀仍由工程師負責。</li>
+<li>AI Agent 是受控的應用程式用戶端：工具白名單、授權、驗證與稽核紀錄由後端強制執行，不依賴 LLM 提示詞。</li>
+<li>部署從 Docker Compose 邊緣單體開始；待量測證明有必要，才解耦為獨立 Worker。</li>
 </ul>
-<p><strong>總結：</strong> 可靠性來自可追溯的資料、明確的故障行為與受治理的 Agent，而非單一模型或框架。</p>
+<p><strong>總結：</strong> 可靠性來自可追溯的資料、明確的故障行為與受治理的 Agent。</p>
 </aside>
 
 <h2 id="前言">前言</h2>
-<p>在半導體製造環境中，設備會持續產生振動、溫度與其他感測器資料。如何將這些資料轉化為可用的健康度指標、異常警報與維護建議，並進一步整合到實際的工程工作流程，是設備智慧化的重要課題。</p>
 <p>這篇文章介紹我參與開發的 <strong>Edge AI／PHM（Prognostics and Health Management，故障預測與健康管理）平台</strong>。平台涵蓋感測器資料處理、機器學習、設備端推論、健康度監控、後端服務與生成式 AI Agent，目標是把原本分散的資料分析與模型應用，收攏成一套可操作、可追蹤且能持續演進的工程系統。</p>
 <p>本文不會只列出使用了哪些技術，而是沿著實際的系統設計脈絡，回答幾個問題：</p>
 <ul>
@@ -81,43 +79,46 @@
 	</tbody>
 </table>
 <p>平台使用 React 建立操作介面，Flask 提供後端 API，SQLite 負責資料持久化，Docker Compose 管理容器化服務，並透過 AI Agent 把資料分析延伸到自然語言互動。</p>
-<h3 id="13-設計原則">1.3 設計原則</h3>
-<p>整體設計遵循一個原則：</p>
-<p><strong>先滿足當前部署限制，再為未來擴充保留清楚的演進路徑。</strong></p>
-<p>Edge AI 系統不必一開始就採用微服務、訊息佇列叢集與大型資料庫。真正重要的是理解設備端的運算資源、網路條件、資料流量、維運能力與可靠性要求，再選擇合適的架構。</p>
 <hr>
 <h2 id="2-為什麼需要-edge-ai-平台">2. 為什麼需要 Edge AI 平台？</h2>
 <p><img alt="為什麼需要 Edge AI 平台" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/02_why.png"></p>
-<h3 id="21-before功能存在流程卻彼此分離">2.1 Before：功能存在，流程卻彼此分離</h3>
-<p>在整合之前，感測器資料處理、模型實驗、設備端執行與監控介面可能分散在不同工具中。</p>
-<p>例如：</p>
-<ul>
-<li>CSV 檔案負責記錄或交換感測器資料。</li>
-<li>Python Scripts 負責一次性的資料清理與轉換。</li>
-<li>Jupyter Notebooks 負責離線模型實驗。</li>
-<li>JSON／YAML 設定檔負責保存模型參數與判斷門檻。</li>
-<li>設備端執行檔負責實際推論。</li>
-<li>Web Dashboard 負責呈現監控結果。</li>
-</ul>
-<p>這些工具各自都能完成任務，但彼此之間仍需人工操作、格式轉換與額外的串接程式。問題不只是操作步驟多，而是整條資料處理鏈缺乏一致的管理方式。</p>
-<h3 id="22-三個關鍵工程問題">2.2 三個關鍵工程問題</h3>
-<p><strong>問題一：整合成本高（Integration Complexity）</strong></p>
-<p>不同工具可能使用不同的資料格式、參數命名與執行方式。每次調整模型或更新設備端程式，都可能需要重新修改串接流程。</p>
-<p><strong>問題二：資料血緣不完整（Data Lineage）</strong></p>
-<p>當模型輸出異常分數時，工程師需要知道這個結果使用了哪些原始資料、特徵設定、模型版本與判斷門檻。如果這些資訊無法對應，問題就很難重現，模型結果也不容易追蹤。</p>
-<p><strong>問題三：模型部署週期過長（Deployment Latency）</strong></p>
-<p>模型在 Notebook 中成功執行，不代表它已經具備設備端部署所需的設定管理、版本控制、錯誤處理與監控能力。如果每次更新都需要人工重新串接，模型從實驗到實際應用的週期就會受到限制。</p>
-<h3 id="23-after整合成可執行的工程流程">2.3 After：整合成可執行的工程流程</h3>
-<p>平台將原本分散的流程整合成：</p>
-<p><strong>資料接入 → 特徵處理 → 模型推論 → 健康度監控 → 異常診斷 → 維護回饋</strong></p>
-<p>模型輸出不再只是一次性分析結果，而是能連結到監控、歷史紀錄與維護工作流程的系統資料。整合的價值在於減少重複串接工作，並提高資料、模型與執行狀態之間的一致性。</p>
-<h3 id="24-工程效益如何衡量">2.4 工程效益如何衡量？</h3>
-<p>原始簡報整理了模型部署週期、重複串接程式碼與資料血緣同步率三項專案展示指標，具體數值可見對應圖表。</p>
-<p>這些數字應搭配各自的計算方式、比較範圍與驗證條件解讀。部署週期的改善不能直接等同於模型準確率提升，而資料血緣同步也不代表所有資料品質問題都已消失。真正值得追求的，是建立可以持續量測、重現與改善的工程流程。</p>
+<p>模型只是生產系統的一部分；資料路徑與維運控制才決定它是否有用。</p>
+<h3 id="21-三個關鍵工程問題">2.1 三個關鍵工程問題</h3>
+<p><strong>整合成本高。</strong> 資料接入、前處理、模型執行、API、Dashboard 與告警分散在不同元件；介面不清時，一個小改動就會牽動多個模組。</p>
+<p><strong>資料血緣不完整。</strong> 工程師需要知道特徵或分數來自哪些資料、模型與設定；缺乏追溯性時，分析難以重現與比較。</p>
+<p><strong>模型部署週期過長。</strong> 開發環境能跑，不代表能在現場包裝、設定、安裝與更新。</p>
+<h3 id="22-整合後的改善">2.2 整合後的改善</h3>
+<p>平台把資料接入到營運使用的路徑標準化。</p>
+<table>
+	<thead>
+			<tr>
+					<th>工程面向</th>
+					<th>預期改善</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>部署</td>
+					<td>降低平台更新的打包與發佈成本</td>
+			</tr>
+			<tr>
+					<td>整合</td>
+					<td>重用共同介面，避免重複寫專案專屬串接程式</td>
+			</tr>
+			<tr>
+					<td>資料血緣</td>
+					<td>讓分析輸入、輸出與模型版本更容易追溯</td>
+			</tr>
+			<tr>
+					<td>維護流程</td>
+					<td>以支援調查與後續追蹤的形式呈現資料與分析</td>
+			</tr>
+	</tbody>
+</table>
+<p>三項指標需搭配定義與基準解讀；部署週期改善不等於模型準確率提升，資料血緣同步也不代表資料品質問題消失。</p>
 <hr>
 <h2 id="3-系統架構五層整合設計">3. 系統架構：五層整合設計</h2>
 <p><img alt="系統組裝與架構設計" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/03_system_architecture.png"></p>
-<p>平台採用分層設計，將使用者操作、後端服務、機器學習、設備端執行與資料持久化分開管理。</p>
 <pre class="mermaid">flowchart TB
     subgraph L1[&#34;L1 User &amp; Frontend&#34;]
         A[&#34;React 介面與監控儀表板&#34;]
@@ -155,275 +156,170 @@
 <table>
 	<thead>
 			<tr>
-					<th>層級</th>
-					<th>架構模組</th>
+					<th>層級／模組</th>
 					<th>主要職責</th>
 			</tr>
 	</thead>
 	<tbody>
 			<tr>
-					<td>L1</td>
-					<td>User &amp; Frontend</td>
-					<td>React 介面、監控儀表板、資料操作與 Agent UI</td>
+					<td>L1 前端</td>
+					<td>React 介面、監控儀表板、Agent UI</td>
 			</tr>
 			<tr>
-					<td>L2</td>
-					<td>Backend Core</td>
-					<td>Flask REST API、身分驗證、業務邏輯與工具協調</td>
+					<td>L2 後端</td>
+					<td>Flask REST API、身分驗證、工具協調</td>
 			</tr>
 			<tr>
-					<td>L3</td>
-					<td>ML &amp; Analytics</td>
-					<td>特徵工程、模型訓練、異常偵測與資料分析</td>
+					<td>L3 分析</td>
+					<td>特徵工程、模型訓練、異常偵測</td>
 			</tr>
 			<tr>
-					<td>L4</td>
-					<td>Edge Execution</td>
-					<td>感測器接入、設備端程式執行與即時推論</td>
+					<td>L4 邊緣</td>
+					<td>感測器接入、邊緣執行、即時推論</td>
 			</tr>
 			<tr>
-					<td>L5</td>
-					<td>Data &amp; Persistence</td>
-					<td>SQLite 資料庫、模型檔案、特徵設定與歷程紀錄</td>
+					<td>L5 資料</td>
+					<td>SQLite、模型檔案、歷程紀錄</td>
 			</tr>
 	</tbody>
 </table>
-<p>分層不代表每一層都是獨立部署的微服務，而是以職責劃分降低模組間的耦合。例如，前端不應直接存取資料庫；AI Agent 不應繞過後端權限檢查；模型推論也應與 UI 呈現分開，讓推論邏輯能在不同工作流程中重複使用。</p>
+<p>分層是職責邊界，不是獨立部署的微服務：前端不直接存取資料庫，模型推論與 UI 分離以利重複使用。</p>
+<p>邊緣執行在本機讀取感測器，降低網路依賴並讓高頻樣本留在設備端；切分取決於延遲、運算、網路、資料量與部署限制。</p>
 <h3 id="32-前端與後端如何協作">3.2 前端與後端如何協作？</h3>
-<p>前端使用 React 18、Material UI 與 React Flow 建立操作介面及工作流程視覺化。</p>
-<p>後端使用 Flask 提供 REST API，並透過不同 Blueprint 分離感測器、模型、設備、使用者及 Agent 等業務領域。</p>
-<p>兩者的主要互動方式包括：</p>
+<p>前端使用 React 18、Material UI 與 React Flow；後端使用 Flask REST API，並以 Blueprint 分離感測器、模型、設備、使用者與 Agent 等領域。</p>
 <ul>
-<li><strong>REST API：</strong> 查詢資料、更新設定、提交模型訓練任務。</li>
-<li><strong>Polling：</strong> 定期取得最新設備狀態。</li>
-<li><strong>Server-Sent Events（SSE）：</strong> 接收伺服器主動推送的事件與 Agent 串流回應。</li>
+<li><strong>REST API：</strong> 查詢資料、更新設定、提交訓練任務。</li>
+<li><strong>Polling：</strong> 定期取得設備狀態。</li>
+<li><strong>Server-Sent Events（SSE）：</strong> 接收伺服器事件與 Agent 串流。</li>
 </ul>
-<p>這些機制各有用途。一般 CRUD 操作適合 REST API；對於定期更新的狀態，可以使用 Polling；需要持續接收伺服器事件時，SSE 則提供較直接的單向串流方式。</p>
-<h3 id="33-為什麼-ai-agent-不能直接操作資料庫">3.3 為什麼 AI Agent 不能直接操作資料庫？</h3>
-<p>AI Agent 的優勢是理解自然語言、拆解任務與選擇工具，但 LLM 的輸出本質上仍具有不確定性。</p>
-<p>因此，平台將 AI 推理與實際執行分開：</p>
-<ol>
-<li>LLM 理解使用者問題。</li>
-<li>Agent 選擇符合任務需求的工具。</li>
-<li>後端檢查權限、參數與允許的操作範圍。</li>
-<li>Python 工具執行資料查詢或分析。</li>
-<li>執行結果再交由 LLM 整理成可讀的回答。</li>
-</ol>
-<p>LLM 負責理解與協調，程式負責可驗證的資料操作。</p>
-<p><strong>核心原則：讓 AI 決定要查什麼，但由受控的程式決定如何執行。</strong></p>
-<h3 id="34-如何看待系統效能資料">3.4 如何看待系統效能資料？</h3>
-<p>原始簡報列出資料接入、Tool 執行、SSE 廣播與 Agent 推理等延遲指標。這些數字能指出效能觀測的方向，但不同階段的延遲必須使用一致的量測起訖點，並區分平均值、P95、P99 與冷啟動情境。若資料來自不同測試環境或不同量測方法，也不應直接相加當成端到端延遲。對工程系統而言，效能指標必須能夠重現，才具有實際的診斷與比較價值。</p>
+<h3 id="33-如何看待系統效能資料">3.3 如何看待系統效能資料？</h3>
+<p>延遲指標須使用一致的量測起訖點，區分平均、P95、P99 與冷啟動；不同來源的數字不應直接相加。</p>
 <hr>
 <h2 id="4-端到端資料流從高頻訊號到健康度監控">4. 端到端資料流：從高頻訊號到健康度監控</h2>
 <p><img alt="端到端資料流" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/04_end_to_end_data_flow.png"></p>
-<p>資料流不只是把資料從 A 傳到 B，更需要定義資料如何進入系統、如何被處理，以及系統在流量突然增加時如何維持穩定。</p>
-<pre class="mermaid">flowchart TD
-    A[&#34;感測器 / 檔案輸入&#34;] --&gt; B[&#34;記憶體緩衝區&#34;]
-    B --&gt; C{&#34;批次觸發條件&#34;}
-    C --&gt;|&#34;時間或筆數門檻&#34;| D[&#34;持久化並準備批次&#34;]
-    D --&gt; E[&#34;特徵擷取&#34;]
-    E --&gt; F[&#34;ML / PHM 分析&#34;]
-    F --&gt; G[&#34;健康度分數與異常結果&#34;]
-    G --&gt; H[&#34;儀表板 / 報告 / 告警&#34;]
-    H --&gt; I[&#34;工程師檢視與處置&#34;]</pre><h3 id="41-stage-1資料接入與緩衝ingestion">4.1 Stage 1：資料接入與緩衝（Ingestion）</h3>
-<p>感測器持續產生資料。如果每筆訊號都立即寫入資料庫，高頻 I/O 操作可能與查詢請求互相競爭。</p>
-<p>平台採用有界記憶體緩衝區與批次寫入策略：</p>
-<ul>
-<li>使用 <code>collections.deque(maxlen=5000)</code> 緩衝資料。</li>
-<li>每隔約 5 秒，或達到批次條件時，將最多 500 筆資料寫入資料庫。</li>
-<li>將資料庫保留量限制在設定的範圍內。</li>
-<li>透過背景處理降低資料接收與磁碟 I/O 之間的耦合。</li>
-</ul>
-<p>概念上的資料流如下：</p>
+<p>資料流定義資料如何進入、被處理，以及流量突增時如何維持穩定。</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;感測器 /&lt;br/&gt;檔案輸入&#34;] --&gt; B[&#34;記憶體&lt;br/&gt;緩衝區&#34;]
+    B --&gt; C{&#34;批次&lt;br/&gt;觸發條件&lt;br/&gt;（時間或筆數）&#34;}</pre><pre class="mermaid">flowchart LR
+    D[&#34;持久化並&lt;br/&gt;準備批次&#34;] --&gt; E[&#34;特徵&lt;br/&gt;擷取&#34;]
+    E --&gt; F[&#34;ML / PHM&lt;br/&gt;分析&#34;]</pre><pre class="mermaid">flowchart LR
+    G[&#34;健康度分數&lt;br/&gt;與異常結果&#34;] --&gt; H[&#34;儀表板 /&lt;br/&gt;報告 / 告警&#34;]
+    H --&gt; I[&#34;工程師檢視&lt;br/&gt;與處置&#34;]</pre><h3 id="41-stage-1資料接入與緩衝ingestion">4.1 Stage 1：資料接入與緩衝（Ingestion）</h3>
+<p>感測器持續產生資料；平台以 <code>collections.deque(maxlen=5000)</code> 作為有界記憶體緩衝，每 5 秒或批次條件成立時，將最多 500 筆寫入 SQLite，讓高頻 I/O 不與查詢競爭。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;感測器串流&#34;] --&gt; B[&#34;有界記憶體緩衝區&#34;]
     B --&gt; C[&#34;批次寫出 Worker&#34;]
-    C --&gt; D[&#34;SQLite 持久化&#34;]</pre><p>這個設計能吸收短暫的流量波動，避免每筆資料都觸發獨立的寫入操作。有界佇列的限制同樣明確：當緩衝區滿載時，<code>deque(maxlen=5000)</code> 會自動移除較舊的元素。因此，<strong>它適合需要限制記憶體使用量的緩衝情境，但不能直接視為不丟資料的可靠訊息佇列。</strong></p>
-<p>如果所有感測器樣本都必須完整保存，就需要額外設計持久化佇列、溢位處理、背壓機制與資料遺失監控。</p>
+    C --&gt; D[&#34;SQLite 持久化&#34;]</pre><p>有界佇列滿載時會丟棄最舊資料，適合限制記憶體用量，但<strong>不是可靠訊息佇列</strong>；若樣本必須完整保存，需額外設計持久化佇列、溢位處理、背壓與遺失監控。</p>
 <h3 id="42-stage-2特徵擷取與模型推論scoring">4.2 Stage 2：特徵擷取與模型推論（Scoring）</h3>
-<p>原始振動訊號通常不適合直接用單一數值描述設備狀態，因此需要先經過訊號處理與特徵工程。</p>
-<p>典型流程如下：</p>
-<ol>
-<li>將連續訊號切分成固定長度的時間視窗。</li>
-<li>從每個視窗擷取時域與頻域特徵。</li>
-<li>將特徵整理成模型可接受的矩陣。</li>
-<li>執行異常偵測模型。</li>
-<li>將模型輸出轉換成供監控介面使用的狀態或健康度指標。</li>
-</ol>
-<p>例如，振動訊號可以轉換成 RMS、峰值、峭度與主要頻率等特徵。這些特徵有助於描述訊號強度、尖峰程度與頻率結構，但其意義仍需搭配設備特性與正常運轉基準判讀。</p>
+<p>批次輸出特徵、異常指標、健康度分數與中介資料。</p>
 <h3 id="43-stage-3監控告警與-agent-分析action">4.3 Stage 3：監控、告警與 Agent 分析（Action）</h3>
-<p>完成推論後，平台會更新設備狀態，並讓前端與 Agent 使用相關資料。</p>
-<ul>
-<li>前端透過 API 取得最新健康度資訊。</li>
-<li>週期性監控流程檢查設備狀態。</li>
-<li>異常事件可以觸發告警與 SSE 通知。</li>
-<li>AI Agent 根據事件內容及可用的歷史資料，協助整理異常原因與維護建議。</li>
-</ul>
-<p>此處需要區分兩件事：<strong>異常偵測負責辨識偏離，根因分析則負責提出可能的解釋。</strong> 前者可以由模型分數與規則驅動；後者通常需要結合歷史資料、設備知識與工程師驗證，不能只憑一個異常分數就斷言故障原因。</p>
+<p>平台透過儀表板、報告或告警呈現結果；<strong>異常偵測辨識偏離，根因分析提出解釋</strong>，後者需結合歷史資料、設備知識與工程師驗證，不能只憑一個分數斷言故障。</p>
 <hr>
 <h2 id="5-ml--phm-pipeline如何從感測器資料辨識異常">5. ML &amp; PHM Pipeline：如何從感測器資料辨識異常？</h2>
 <p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/05_ml_phm_pipeline.png"></p>
-<p>設備健康管理的難點之一在於，實際故障案例通常有限，而且不同設備、負載與運轉條件可能產生不同的訊號分布。因此，平台使用多種分析方法處理不同問題，而不是期待單一模型解決所有情況。</p>
-<h3 id="51-訊號預處理與特徵工程">5.1 訊號預處理與特徵工程</h3>
-<p>假設輸入為一段振動加速度訊號：</p>
-$$
-x = [x_1, x_2, \ldots, x_N]
-$$<p>首先將連續訊號切分成固定長度的視窗。若視窗之間存在重疊，就能提高時間解析度，但同時也會增加運算量與樣本間的相關性。</p>
-<p>接著擷取特徵。</p>
-<p><strong>RMS（Root Mean Square）</strong></p>
+<p>PHM 結合領域知識、訊號處理、統計分析與機器學習；沒有單一演算法能回答所有設備健康問題。</p>
+<h3 id="51-訊號特徵">5.1 訊號特徵</h3>
+<p>常見的訊號特徵包括：</p>
+<ul>
+<li><strong>RMS（Root Mean Square）：</strong> 描述訊號整體能量，常用於振動強度。</li>
+<li><strong>峰值（Peak）：</strong> 視窗內最大絕對振幅。</li>
+<li><strong>峭度（Kurtosis）：</strong> 描述分布尾部與衝擊性；解讀取決於分布假設與實作方式。</li>
+<li><strong>FFT（Fast Fourier Transform）：</strong> 將時域訊號轉為頻域成分，觀察主要頻率與頻譜變化。</li>
+</ul>
+<p>對訊號 \(x = [x_1, x_2, \ldots, x_N]\)，RMS 定義為：</p>
 $$
 \mathrm{RMS} = \sqrt{\frac{1}{N}\sum_{i=1}^{N} x_i^2}
-$$<p>RMS 可用來描述訊號的整體能量程度，適合追蹤振動強度的變化。</p>
-<p><strong>峰值（Peak）</strong></p>
-$$
-\mathrm{Peak} = \max_i |x_i|
-$$<p>峰值有助於觀察瞬間衝擊或尖峰，但也容易受到單一極端樣本影響。</p>
-<p><strong>峭度（Kurtosis）</strong></p>
-<p>峭度可描述訊號分布尾部與極端值的特性，在某些衝擊型異常分析中具有參考價值。不過，解讀時需要注意定義、偏差修正方式與訊號分布假設。</p>
-<p>除了時域特徵，平台也可利用 FFT（Fast Fourier Transform）將訊號轉換至頻域，觀察主要頻率成分及其變化。這些特徵的選擇應根據設備的物理特性、取樣率、運轉條件與實際診斷需求決定。</p>
-<h3 id="52-one-class-svm缺乏故障標籤時的異常偵測">5.2 One-Class SVM：缺乏故障標籤時的異常偵測</h3>
-<p>在故障樣本有限的情況下，One-Class SVM（OCSVM）可用於無監督或單類別異常偵測。</p>
-<p>其基本想法是用正常資料學習一個決策邊界，再判斷新資料是否偏離這個區域。</p>
+$$<p>特徵定義、視窗大小、取樣率、單位與前處理必須一致；否則看到的變化可能來自流程，而不是設備。</p>
+<h3 id="52-one-class-svm異常偵測">5.2 One-Class SVM：異常偵測</h3>
+<p>One-Class SVM 以正常資料學習決策邊界，標記邊界外的觀測；適合故障標籤很少的情境。</p>
+<ul>
+<li>以具代表性的正常運轉資料建立基準。</li>
+<li>特徵尺度保持一致。</li>
+<li>用驗證資料與工程回饋調整 <code>nu</code>、<code>gamma</code>。</li>
+<li>監控誤報與漏報；異常分數不是診斷。</li>
+<li>運轉條件或設備改變時重新檢視基準。</li>
+</ul>
 <pre class="mermaid">flowchart LR
     A[&#34;歷史正常資料&#34;] --&gt; B[&#34;特徵標準化&#34;]
     B --&gt; C[&#34;訓練 One-Class SVM&#34;]
     C --&gt; D[&#34;學習決策邊界&#34;]
-    D --&gt; E[&#34;新特徵向量：正常或異常&#34;]</pre><p>OCSVM 的優點是可以在缺少完整故障標籤的情境下建立異常偵測基準。</p>
-<p>但它也有需要注意的地方：</p>
-<ul>
-<li>對特徵尺度與資料前處理相當敏感。</li>
-<li><code>nu</code>、<code>gamma</code> 等參數會影響決策邊界。</li>
-<li>設備正常運轉條件若有多種模式，單一邊界可能難以涵蓋。</li>
-<li>異常偵測結果不等同於故障分類，更不直接代表故障原因。</li>
-</ul>
-<p>因此，實務上仍需利用正常資料的涵蓋範圍、誤報率、漏報率與工程師回饋評估模型是否合適。</p>
-<h3 id="53-dtw處理時間序列的非線性對齊">5.3 DTW：處理時間序列的非線性對齊</h3>
-<p>DTW（Dynamic Time Warping）用於比較兩段時間序列，即使它們在時間軸上存在局部伸縮，也能尋找較合理的對齊路徑。例如，同一設備在不同轉速下執行相似動作時，特徵峰值可能出現在不同時間點。直接逐點比較可能產生較大的差異，而 DTW 能在允許的條件下對齊兩段序列。</p>
-<p>其概念是尋找一條累積距離較小的對齊路徑：</p>
+    D --&gt; E[&#34;新特徵向量：正常或異常&#34;]</pre><h3 id="53-dtw時間序列對齊">5.3 DTW：時間序列對齊</h3>
+<p>DTW（Dynamic Time Warping）衡量時間軸或長度不同的序列相似度，適合比較事件時間有位移的模式。</p>
 $$
 D(i,j) = d(x_i,y_j) + \min\left\{ D(i-1,j),\; D(i,j-1),\; D(i-1,j-1) \right\}
-$$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
-<p>DTW 適合用於時間序列相似度分析，但並不是所有轉速變化問題都應使用 DTW。必要時仍須考慮訊號重採樣、階次分析或其他與設備物理機制更直接相關的方法。</p>
-<h3 id="54-pca特徵空間與長期漂移分析">5.4 PCA：特徵空間與長期漂移分析</h3>
-<p>PCA（Principal Component Analysis）透過線性投影，將多個可能相關的特徵轉換成較少的主成分。</p>
-<p>在 PHM 情境中，可以先利用歷史基準資料建立特徵空間，再觀察新資料相對於基準的變化。</p>
-<p>例如：</p>
+$$<p>其中 \(d(x_i,y_j)\) 是局部距離。Warping window 可降低運算量並避免不合理的對齊。<strong>DTW 不是萬用解</strong>；結果取決於參考序列、距離度量、正規化與領域條件。</p>
+<h3 id="54-pca漂移監控">5.4 PCA：漂移監控</h3>
+<p>PCA（Principal Component Analysis）將相關特徵線性投影到較少的主成分；以歷史基準比較新資料，可觀察分布變化。</p>
+<p>漂移不等於故障；製程配方改變、感測器更換、運轉條件或前處理版本不同，都可能造成漂移。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;歷史基準特徵&#34;] --&gt; B[&#34;擬合 PCA 模型&#34;]
     B --&gt; C[&#34;參考特徵空間&#34;]
-    C --&gt; D[&#34;新特徵：投影與漂移分析&#34;]</pre><p>若新資料的分布持續偏離歷史基準，可能表示設備狀態、操作條件或資料來源出現變化。但必須注意，<strong>資料漂移不一定等於設備退化。</strong> 負載改變、感測器更換、取樣條件改變或資料前處理版本不同，都可能造成分布差異。因此，漂移監控應同時保留基準版本、特徵設定與運轉條件，並由領域知識協助判讀。</p>
-<h3 id="55-演算法應依問題選擇">5.5 演算法應依問題選擇</h3>
+    C --&gt; D[&#34;新特徵：投影與漂移分析&#34;]</pre><h3 id="55-演算法選擇">5.5 演算法選擇</h3>
 <table>
 	<thead>
 			<tr>
-					<th>問題</th>
-					<th>可考慮的方法</th>
+					<th>方法</th>
 					<th>主要目的</th>
+					<th>主要限制</th>
 			</tr>
 	</thead>
 	<tbody>
 			<tr>
-					<td>缺乏故障標籤</td>
-					<td>One-Class SVM</td>
-					<td>建立正常行為邊界</td>
-			</tr>
-			<tr>
-					<td>序列時間軸不一致</td>
-					<td>DTW</td>
-					<td>比較序列形狀與相似度</td>
-			</tr>
-			<tr>
-					<td>高維特徵與分布變化</td>
-					<td>PCA</td>
-					<td>降維及特徵空間分析</td>
-			</tr>
-			<tr>
-					<td>突發振動變化</td>
-					<td>RMS、Peak、Kurtosis</td>
+					<td>RMS / Peak / Kurtosis</td>
 					<td>量化時域訊號特性</td>
+					<td>對視窗、雜訊與運轉條件敏感</td>
 			</tr>
 			<tr>
-					<td>頻率成分變化</td>
 					<td>FFT</td>
-					<td>觀察頻域結構</td>
+					<td>觀察頻譜成分與頻率變化</td>
+					<td>需適當取樣與解讀</td>
+			</tr>
+			<tr>
+					<td>One-Class SVM</td>
+					<td>偵測偏離正常資料邊界的觀測</td>
+					<td>取決於基準品質與參數選擇</td>
+			</tr>
+			<tr>
+					<td>DTW</td>
+					<td>比較時間軸不對齊的序列</td>
+					<td>運算成本較高，且依賴參考序列</td>
+			</tr>
+			<tr>
+					<td>PCA</td>
+					<td>監控多變量結構與潛在漂移</td>
+					<td>漂移不等於故障</td>
 			</tr>
 	</tbody>
 </table>
-<p>這些方法可以互補，但實際組合仍須依設備與資料特性驗證。</p>
+<p>這些方法可以互補，實際組合仍須依設備與資料特性驗證。</p>
 <hr>
 <h2 id="6-backend-engineering讓資料模型與服務可維護">6. Backend Engineering：讓資料、模型與服務可維護</h2>
 <p><img alt="後端工程" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/06_backend_engineering.png"></p>
-<p>模型與感測器資料只是整個平台的一部分。要讓系統能持續運作，還需要身分驗證、資料存取、背景工作、狀態管理與錯誤處理。</p>
 <h3 id="61-flask-與-blueprint-模組化">6.1 Flask 與 Blueprint 模組化</h3>
-<p>後端使用 Flask 建立 REST API，並依業務領域拆分 Blueprint，例如：</p>
-<ul>
-<li>Sensor Data：感測器資料接入與查詢。</li>
-<li>ML &amp; Analytics：特徵工程、模型訓練與分析。</li>
-<li>Edge Management：設備端程式與部署相關管理。</li>
-<li>Maintenance：維護回饋與相關工作流程。</li>
-<li>Agent：LLM 對話、工具呼叫與串流回應。</li>
-<li>User &amp; Admin：使用者、權限與管理功能。</li>
-</ul>
-<p>Blueprint 的價值在於讓不同領域的路由與邏輯有清楚的歸屬。不過，將程式拆成多個 Blueprint 並不會自動解決所有耦合問題。如果大量業務邏輯還是集中在單一大型檔案，就需要進一步抽離 Service Layer、資料存取層與共用領域邏輯。</p>
+<p>後端以 Flask 建立 REST API，依領域拆分 Blueprint：感測器資料、ML 分析、邊緣管理、維護、Agent、使用者與權限。<strong>Blueprint 只負責路由歸屬</strong>；業務邏輯過度集中時，仍須抽離 Service Layer 與資料存取層。</p>
 <h3 id="62-身分驗證與權限控制">6.2 身分驗證與權限控制</h3>
-<p>平台整合企業 LDAP／Active Directory 身分驗證，並使用 JWT 處理後續 API 的存取驗證。</p>
-<p>典型流程為：</p>
+<p>平台以 LDAP／Active Directory 驗證身分，JWT 驗證後續 API 請求。Authentication 確認身分；Authorization 檢查每個受保護操作。JWT 需有效期與簽章，密鑰不得寫死；<strong>有效 token 仍須依角色與資源範圍授權</strong>，敏感操作不能只靠前端隱藏按鈕。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;使用者登入&#34;] --&gt; B[&#34;LDAP / Active Directory 分身驗證&#34;]
     B --&gt; C[&#34;核發 JWT Access Token&#34;]
     C --&gt; D[&#34;已授權的 API 請求&#34;]
-    D --&gt; E[&#34;後端權限檢查&#34;]</pre><p>這裡需要區分身分驗證與授權：</p>
+    D --&gt; E[&#34;後端權限檢查&#34;]</pre><h3 id="63-sqlite-雙資料庫設計">6.3 SQLite 雙資料庫設計</h3>
 <ul>
-<li><strong>Authentication：</strong> 確認使用者是誰。</li>
-<li><strong>Authorization：</strong> 確認使用者可以執行哪些操作。</li>
+<li><code>edge_ai.db</code>：使用者、專案、設定、模型歷程。</li>
+<li><code>vibration.db</code>：振動資料與告警。</li>
 </ul>
-<p>即使請求帶有有效 JWT，後端仍應依使用者角色、專案權限與資源範圍檢查。敏感操作不能只依賴前端是否顯示按鈕。</p>
-<h3 id="63-sqlite-雙資料庫設計">6.3 SQLite 雙資料庫設計</h3>
-<p>平台將一般設定與模型歷程資料，和高頻振動資料分開保存。</p>
-<table>
-	<thead>
-			<tr>
-					<th>資料庫</th>
-					<th>主要用途</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td><code>edge_ai.db</code></td>
-					<td>使用者、專案、特徵設定、模型訓練歷程等</td>
-			</tr>
-			<tr>
-					<td><code>vibration.db</code></td>
-					<td>振動資料與相關告警紀錄</td>
-			</tr>
-	</tbody>
-</table>
-<p>把兩類資料分開管理，也能降低高頻資料持續成長對主要業務資料庫的影響。後端透過 SQLAlchemy 管理資料存取，並使用 SQLite 的 <code>ATTACH DATABASE</code> 機制，在連線建立時附加另一個資料庫，讓部分跨資料庫查詢能透過單一 SQL 執行。但雙資料庫不代表跨庫操作具備單一交易的完整原子性。跨資料庫交易、備份一致性與併發寫入仍須依 SQLite 的實際限制進行設計與驗證。</p>
+<p>SQLAlchemy 管理存取，<code>ATTACH DATABASE</code> 支援跨庫查詢；但<strong>分庫不保證跨庫交易原子性</strong>，備份、還原、版本與併發寫入仍需測試。</p>
 <h3 id="64-背景任務與模型生命週期">6.4 背景任務與模型生命週期</h3>
-<p>平台使用 APScheduler 執行週期性工作，例如監控檢查、資料整理與資料庫備份；部分資料處理則透過佇列與背景工作降低對請求處理流程的影響。</p>
-<p>模型生命週期也需要明確的狀態紀錄。例如，<code>ModelBuildingHistory</code> 可追蹤模型建置任務的狀態：</p>
+<p>APScheduler 執行週期性工作（漂移檢查、報表、維護摘要）；工作需容忍重試、失敗與部分完成。<strong>多個 Web Worker 同時啟動 scheduler 會重複執行</strong>，需專用 scheduler 或單一擁有者機制。<code>ModelBuildingHistory</code> 保存模型版本、訓練資料參考、設定、時間與評估結果；建置狀態需區分失敗與未啟動。</p>
 <pre class="mermaid">stateDiagram-v2
     [*] --&gt; building
     building --&gt; completed
-    building --&gt; failed</pre><p>除了狀態，還應保存模型設定、執行時間、資料範圍及相關評估指標。這些紀錄能幫助工程師釐清模型是否成功建置、使用了哪些設定，以及異常發生在哪個階段。</p>
-<h3 id="65-備份與資料保護">6.5 備份與資料保護</h3>
-<p>平台設有定期資料庫備份，並透過 SQLite 的線上備份 API 產生備份檔案。不過，備份排程存在並不等於災難復原能力已經完整。可靠的資料保護還需要考慮：</p>
-<ul>
-<li>備份檔案是否能成功還原。</li>
-<li>多個資料庫及模型檔案之間是否具有一致的版本。</li>
-<li>備份是否與正式資料存放在不同的故障範圍。</li>
-<li>是否定期驗證還原流程與資料完整性。</li>
-</ul>
-<p>這些項目應列入後續的維運驗證與可靠性改善工作。</p>
-<hr>
+    building --&gt; failed</pre><hr>
 <h2 id="7-ai-agent從自然語言查詢到可控的工程工具">7. AI Agent：從自然語言查詢到可控的工程工具</h2>
 <p><img alt="AI Agent 架構" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/07_ai_agent_architecture.png"></p>
-<p>將 LLM 加入設備監控平台，真正的挑戰不只是讓模型能夠回答問題，而是讓它能在有權限控制、資料可追溯與明確執行邊界的環境下使用系統能力。</p>
-<h3 id="71-為什麼需要-tool-calling">7.1 為什麼需要 Tool Calling？</h3>
-<p>假設工程師詢問：</p>
-<p>「最近設備的健康度為什麼下降？有沒有值得注意的振動異常？」</p>
-<p>單純依靠 LLM 的內部知識，無法得知目前設備的真實狀態。因此，Agent 需要先查詢實際資料，再根據結果進行分析。</p>
-<p>平台提供的工具可以包含：</p>
+<p>AI Agent 將自然語言請求轉成受控的資料查詢與分析流程；重點是權限、可追溯性與執行邊界。</p>
+<h3 id="71-工具範例">7.1 工具範例</h3>
+<p>Agent 可使用的工具包括：</p>
 <table>
 	<thead>
 			<tr>
@@ -434,32 +330,32 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
 	<tbody>
 			<tr>
 					<td><code>get_health_score</code></td>
-					<td>取得設備健康度</td>
+					<td>取得健康度與相關脈絡</td>
 			</tr>
 			<tr>
 					<td><code>get_vibration_data</code></td>
-					<td>查詢振動資料</td>
+					<td>查詢授權的振動資料</td>
 			</tr>
 			<tr>
 					<td><code>run_sql_query_safe</code></td>
-					<td>執行受控的唯讀資料查詢</td>
+					<td>執行受控的唯讀查詢</td>
 			</tr>
 			<tr>
 					<td><code>anomaly_detection</code></td>
-					<td>執行異常分析</td>
+					<td>執行既定的異常分析</td>
 			</tr>
 			<tr>
 					<td><code>read_file</code></td>
-					<td>讀取允許存取的檔案</td>
+					<td>讀取 allowlist 中的檔案</td>
 			</tr>
 			<tr>
 					<td><code>export_report</code></td>
-					<td>產生分析報告</td>
+					<td>以驗證過的輸入產生報告</td>
 			</tr>
 	</tbody>
 </table>
-<p>實際可用工具應依部署版本、使用者權限與後端設定為準。</p>
-<h3 id="72-agent-的執行流程">7.2 Agent 的執行流程</h3>
+<p>工具名稱僅為示例；實際可用工具依部署與權限而定。</p>
+<h3 id="72-agent-執行流程">7.2 Agent 執行流程</h3>
 <pre class="mermaid">flowchart TD
     A[&#34;使用者提問&#34;] --&gt; B[&#34;Agent 協調器&#34;]
     B --&gt; C[&#34;理解意圖並選取工具&#34;]
@@ -469,106 +365,101 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
     F --&gt; G{&#34;是否需要更多證據？&#34;}
     G --&gt;|&#34;是&#34;| B
     G --&gt;|&#34;否&#34;| H[&#34;LLM 摘要與說明&#34;]
-    H --&gt; I[&#34;前端 SSE 串流&#34;]</pre><p>這個流程將語言理解與資料執行分開。LLM 可以決定要查詢哪些資料、如何組織分析步驟，但真正的 SQL 查詢、檔案存取與演算法計算仍由後端工具執行。</p>
-<p>這樣能降低模型憑空編造即時數值的風險，但不能完全消除幻覺。LLM 仍可能誤解工具結果、過度推論或產生缺乏證據的解釋，因此回答應盡可能引用查詢結果、時間範圍與資料來源。</p>
-<h3 id="73-為什麼不讓-agent-直接操作資料庫">7.3 為什麼不讓 Agent 直接操作資料庫？</h3>
-<p>直接將任意 SQL 或 Shell 權限交給 LLM，會使錯誤操作、權限越界與資料安全風險更難控制。</p>
-<p>因此，平台採取以下原則：</p>
-<ol>
-<li>工具由後端明確定義，不提供任意 Shell 執行能力。</li>
-<li>資料查詢限制在允許的範圍內。</li>
-<li>SQL 使用參數化方式，並限制唯讀查詢的能力。</li>
-<li>每次工具執行仍須遵守使用者的身分與資源權限。</li>
-<li>對重要操作記錄請求、工具執行結果與錯誤資訊。</li>
-</ol>
-<p>SQL 設為唯讀並不會自動變安全。查詢仍應限制可存取的資料表、欄位、執行時間與回傳資料量，並避免洩漏敏感資訊。</p>
-<h3 id="74-llm-推理與確定性執行的分工">7.4 LLM 推理與確定性執行的分工</h3>
-<p>這套架構的核心是將不同類型的工作交給適合的元件：</p>
+    H --&gt; I[&#34;前端 SSE 串流&#34;]</pre><p>LLM 決定查詢與分析步驟；SQL、檔案存取與運算由後端工具執行。這能降低即時數值被憑空編造的風險，但<strong>不能消除幻覺</strong>；回答應引用查詢結果、時間範圍與資料來源。</p>
+<h3 id="73-工具治理與安全">7.3 工具治理與安全</h3>
+<p>模型提出動作，後端強制執行規則：</p>
 <ul>
-<li><strong>LLM：</strong> 理解問題、規劃步驟、選擇工具與整理結果。</li>
-<li><strong>Python Tools：</strong> 執行資料查詢、數值運算與演算法。</li>
-<li><strong>Backend：</strong> 管理身分、權限、參數驗證與執行邊界。</li>
-<li><strong>Frontend：</strong> 顯示推理過程、查詢結果與維護建議。</li>
+<li>參數依 schema 驗證；重大操作要求確認。</li>
+<li>每次工具呼叫檢查使用者、資產與資料權限。</li>
+<li>檔案、工具與查詢資源採 allowlist。</li>
+<li>SQL 參數化、唯讀，限制時間與輸出大小。</li>
+<li>記錄請求、結果與錯誤；結構化錯誤不洩漏敏感資訊。</li>
 </ul>
-<p>這不代表整體系統的結果是百分之百確定的，而是讓需要精確的資料取得與運算，盡量交給可測試、可驗證的程式處理。</p>
-<h3 id="75-sse-在-agent-互動中的角色">7.5 SSE 在 Agent 互動中的角色</h3>
-<p>Agent 執行可能包含多次工具呼叫與較長的推理過程。如果前端只能等待最終回應，使用者很難了解目前的執行狀態。SSE 允許伺服器透過單向 HTTP 連線持續傳送事件，適合用來顯示串流文字、狀態更新與工具執行結果。</p>
-<p>若未來需要瀏覽器與伺服器進行頻繁的雙向即時互動，再評估 WebSocket 是否更合適。</p>
+<p>提示詞與唯讀 SQL 都不是安全邊界；限制與強制執行須落在應用程式與工具。</p>
+<h3 id="74-推理與執行分工">7.4 推理與執行分工</h3>
+<p>LLM 負責理解任務、規劃與摘要；Python 工具負責查詢與運算；後端負責權限、驗證與執行邊界。這能讓運算可測試，但<strong>增加協調、延遲與失敗點</strong>；應與單一模型或確定性流程比較。</p>
+<h3 id="75-sse">7.5 SSE</h3>
+<p>SSE 以單向 HTTP 串流進度與部分結果，讓使用者看到多步執行狀態；實作需定義事件類型、錯誤、連線逾時與重連。串流<strong>不能取代後端日誌或持久化任務狀態</strong>；需要雙向互動時再評估 WebSocket。</p>
 <hr>
 <h2 id="8-部署與監控讓平台能在目標環境中運作">8. 部署與監控：讓平台能在目標環境中運作</h2>
 <p><img alt="部署與監控" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/08_deployment_monitoring.png"></p>
-<p>一個可以在開發環境成功執行的系統，不一定能直接部署到另一台設備或伺服器。部署設計需要處理依賴、環境設定、持久化資料、背景工作與更新流程。</p>
 <h3 id="81-docker-compose-容器化部署">8.1 Docker Compose 容器化部署</h3>
-<p>平台使用 Docker Compose 管理前端與後端服務。</p>
-<table>
-	<thead>
-			<tr>
-					<th>服務</th>
-					<th>主要職責</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>Frontend</td>
-					<td>React UI 與靜態資源服務</td>
-			</tr>
-			<tr>
-					<td>Backend</td>
-					<td>Flask API、資料處理與背景工作</td>
-			</tr>
-			<tr>
-					<td>Persistent Volumes</td>
-					<td>保存資料庫、模型檔與需要持久化的資料</td>
-			</tr>
-	</tbody>
-</table>
-<p>容器化的主要價值，是讓服務的執行環境更容易重現，並簡化部署與更新流程。但容器本身不會自動提供高可用性。若前後端都部署在單一主機，主機故障仍可能影響整套系統。</p>
+<p>Docker Compose 管理前端、後端與持久化 volume，統一依賴、port、環境變數與啟動順序。<strong>容器健康不等於應用正常</strong>；readiness check 應驗證關鍵依賴，資料放 volume。</p>
 <h3 id="82-執行時注入環境設定">8.2 執行時注入環境設定</h3>
-<p>前端與後端的連線位址不應被永久寫死在建置產物中。</p>
-<p>平台透過執行時設定注入機制，讓容器啟動時產生或載入 <code>env.js</code>，再由前端讀取 <code>window.ENV</code> 取得後端端點。</p>
-<p>概念如下：</p>
+<p>前端是靜態 bundle 且後端位址隨環境改變時，可用執行時 <code>env.js</code> 經 <code>window.ENV</code> 提供端點，避免每環境重建。設定須在應用程式讀取前載入並驗證，<strong>視為公開資訊，不得放入密鑰</strong>。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;Docker Image&#34;] --&gt; B[&#34;Container Entrypoint&#34;]
     B --&gt; C[&#34;執行時期環境變數&#34;]
     C --&gt; D[&#34;env.js&#34;]
     D --&gt; E[&#34;window.ENV&#34;]
-    E --&gt; F[&#34;前端 API 端點&#34;]</pre><p>這種設計讓同一份前端建置產物可以在不同環境使用不同的後端位址，減少因環境切換而重新編譯的需求。</p>
-<h3 id="83-apscheduler-與背景監控">8.3 APScheduler 與背景監控</h3>
-<p>平台利用 APScheduler 執行週期性任務，例如健康度檢查、模型異常推論與每日資料庫備份；符合條件的告警則可透過事件觸發通知。</p>
-<p>排程工作有幾個值得注意的工程問題：</p>
+    E --&gt; F[&#34;前端 API 端點&#34;]</pre><h3 id="83-監控">8.3 監控</h3>
 <ul>
-<li>單次任務執行時間是否超過排程間隔。</li>
-<li>任務失敗後是否會重試。</li>
-<li>同一任務是否可能重複執行。</li>
-<li>服務重新啟動後，任務狀態是否仍然一致。</li>
-<li>多個後端程序是否可能重複執行相同排程。</li>
+<li>API 請求量、延遲與錯誤率。</li>
+<li>資料接入延遲、佇列長度、批次大小與丟棄樣本數。</li>
+<li>模型推論時間與分析失敗率。</li>
+<li>背景任務開始時間、執行時間與結果。</li>
+<li>Agent 工具呼叫成功率、timeout 與成本。</li>
+<li>磁碟用量、資料庫成長與產物儲存。</li>
 </ul>
-<p>特別是在多副本部署時，不應直接假設每個 Flask 程序都能安全地啟動同一組排程器。此時可以考慮將排程工作移至獨立服務，並搭配分散式鎖或任務佇列。</p>
-<h3 id="84-監控不只是顯示儀表板">8.4 監控不只是顯示儀表板</h3>
-<p>平台透過健康度儀表板、告警事件與快取狀態，協助使用者了解設備與系統的運作情況。</p>
-<p>進一步的監控設計則應涵蓋：</p>
-<ul>
-<li>感測器資料是否持續進入。</li>
-<li>佇列長度與資料遺失情形。</li>
-<li>批次寫入延遲與資料庫錯誤率。</li>
-<li>模型推論延遲與異常比例。</li>
-<li>API 回應時間與錯誤率。</li>
-<li>背景任務是否持續成功執行。</li>
-<li>Agent 工具呼叫失敗率與整體回應時間。</li>
-</ul>
-<p>這些指標能幫助工程師區分設備異常、資料管線故障與應用服務故障，避免把所有問題都當成模型問題處理。</p>
+<p>監控應回答什麼失敗、在哪裡失敗、能否安全復原。</p>
 <hr>
 <h2 id="9-failure-handling--scalability從單機限制到橫向擴充">9. Failure Handling &amp; Scalability：從單機限制到橫向擴充</h2>
 <p><img alt="故障處理與擴展性" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/09_failure_scaling.png"></p>
-<p>單機架構的優點是部署簡單、依賴少、維運成本較低。但隨著資料量與併發請求增加，原本的簡化設計也會逐漸出現限制。</p>
-<h3 id="91-有界佇列的容量與資料完整性">9.1 有界佇列的容量與資料完整性</h3>
-<p>目前資料流透過記憶體佇列吸收短暫突發流量，再批次寫入 SQLite。這種方式能減少頻繁 I/O，但也有明確的容量限制。</p>
-<p>如果輸入速率長時間高於消化速率，佇列仍會持續接近滿載。對使用 <code>deque(maxlen=5000)</code> 的實作而言，舊資料可能被新資料覆蓋，因此不能只觀察程式是否仍在執行，還需要監控資料遺失與佇列滿載情形。</p>
-<p>當資料庫寫入失敗、程序重新啟動或設備斷電時，尚未寫入磁碟的資料也可能遺失。因此，可靠性設計應根據資料的重要性，決定是否需要磁碟緩衝、重試機制、持久化訊息佇列或資料補傳能力。</p>
-<h3 id="92-sqlite-的寫入併發限制">9.2 SQLite 的寫入併發限制</h3>
-<p>SQLite 適合許多單機與低維運負擔的應用，但它的寫入併發能力有限。當多個工作同時寫入資料，或高頻感測器資料與 API 請求競爭資料庫資源時，可能出現鎖定等待、寫入延遲或失敗。這不代表 SQLite 不適合 Edge AI，而是需要確認資料量、寫入模式、鎖定時間與查詢需求是否符合其使用範圍。對單機設備而言，簡單的資料庫加上適當批次寫入，可能比引入完整分散式資料平台更合理。</p>
-<h3 id="93-未來架構將接收計算與儲存解耦">9.3 未來架構：將接收、計算與儲存解耦</h3>
-<p>當系統需要處理更多設備、更高吞吐量或更嚴格的可靠性要求時，可以逐步演進至下列架構：</p>
+<p>故障處理必須設計進資料路徑，而不是事故後補。</p>
+<table>
+	<thead>
+			<tr>
+					<th>故障情境</th>
+					<th>風險</th>
+					<th>可能處置</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>緩衝區滿載</td>
+					<td>舊樣本可能被丟棄</td>
+					<td>追蹤丟棄數量；不能接受遺失時改用持久化緩衝</td>
+			</tr>
+			<tr>
+					<td>感測器或來源中斷</td>
+					<td>分析不完整或過期</td>
+					<td>追蹤資料新鮮度，標示缺資料，不把過期值當現況</td>
+			</tr>
+			<tr>
+					<td>模型執行失敗</td>
+					<td>缺少或無效結果</td>
+					<td>記錄失敗脈絡、有限重試，保留上次有效結果與時間</td>
+			</tr>
+			<tr>
+					<td>SQLite 寫入競爭</td>
+					<td>寫入延遲或失敗</td>
+					<td>減少競爭寫入、批次寫入、調整交易，或改用伺服器資料庫</td>
+			</tr>
+			<tr>
+					<td>排程任務重複執行</td>
+					<td>重複報表或工作</td>
+					<td>單一 scheduler 擁有者、冪等任務或協調機制</td>
+			</tr>
+			<tr>
+					<td>LLM／工具呼叫逾時</td>
+					<td>Agent 流程不完整</td>
+					<td>timeout、有限重試、結構化錯誤、顯示部分失敗狀態</td>
+			</tr>
+			<tr>
+					<td>網路中斷</td>
+					<td>遠端服務不可用</td>
+					<td>保留本地能力、排入可恢復工作、定義同步行為</td>
+			</tr>
+	</tbody>
+</table>
+<h3 id="91-分階段演進">9.1 分階段演進</h3>
+<p>擴充應回應量測到的限制，而不是技術流行。</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;Stage 1: Edge Monolith&#34;] --&gt; B[&#34;Stage 2: Decoupled Pipeline&#34;]
+    B --&gt; C[&#34;Stage 3: Cloud / Multi-Node Scale-Out&#34;]</pre><p><strong>Stage 1 — Edge monolith.</strong> 單機部署適合負載不大的 Flask、本地持久化與本地推論。</p>
+<p><strong>Stage 2 — Decoupled pipeline.</strong> 當接入與分析影響 API 回應時，加入持久化佇列與獨立 Worker；重試與背壓更容易設計。</p>
+<p><strong>Stage 3 — Cloud / multi-node scale-out.</strong> 當負載、可用性或併發需求提高時，考慮伺服器資料庫、共享任務協調、集中監控與水平擴充；延遲敏感的工作留在邊緣。</p>
+<p>MQTT、持久化訊息佇列、Redis、PostgreSQL 與 load balancer 是未來選項，不是目前元件。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;感測器 / 設備端裝置&#34;] --&gt; B[&#34;MQTT Broker&#34;]
     B --&gt; C[&#34;持久化訊息佇列&#34;]
@@ -579,159 +470,62 @@ $$<p>其中 \(d(x_i,y_j)\) 是兩個樣本點之間的局部距離。</p>
     E --&gt; H[&#34;Flask API&#34;]
     F --&gt; H
     G --&gt; H
-    H --&gt; I[&#34;前端&#34;]</pre><p>這是未來演進方向，而不是目前單機架構已經具備的所有能力。</p>
-<p>各元件的目的如下：</p>
-<table>
-	<thead>
-			<tr>
-					<th>元件</th>
-					<th>預期用途</th>
-			</tr>
-	</thead>
-	<tbody>
-			<tr>
-					<td>MQTT Broker</td>
-					<td>接收設備訊息與管理發佈／訂閱</td>
-			</tr>
-			<tr>
-					<td>Kafka／RabbitMQ 等</td>
-					<td>緩衝資料流、解耦生產者與消費者</td>
-			</tr>
-			<tr>
-					<td>Worker Cluster</td>
-					<td>平行處理特徵工程、推論與資料整理</td>
-			</tr>
-			<tr>
-					<td>PostgreSQL</td>
-					<td>支援較複雜的資料管理與併發需求</td>
-			</tr>
-			<tr>
-					<td>Redis</td>
-					<td>快取即時狀態與減少重複查詢</td>
-			</tr>
-			<tr>
-					<td>Load Balancer</td>
-					<td>將 API 請求分配至多個服務副本</td>
-			</tr>
-	</tbody>
-</table>
-<p>需要注意，訊息佇列能提供的持久性、重試與交付語意，取決於實際設定；即使採用可靠佇列，仍應設計冪等處理、重複訊息防護與失敗訊息處置。</p>
-<h3 id="94-不必為了擴充而一次重寫整套系統">9.4 不必為了擴充而一次重寫整套系統</h3>
-<p>比較務實的做法，是先量測瓶頸，再逐步解耦。</p>
-<p>例如：</p>
-<ol>
-<li>先確認資料庫寫入是否真的成為瓶頸。</li>
-<li>將耗時工作移出 API 請求流程。</li>
-<li>為資料接收與背景工作建立明確介面。</li>
-<li>將需要可靠交付的資料流改用持久化佇列。</li>
-<li>在必要時將資料庫與快取替換成更符合負載需求的服務。</li>
-<li>最後再評估多副本部署、負載平衡與容器編排。</li>
-</ol>
-<p>架構演進應該由實際需求驅動，而不是因為某種技術流行就提前引入。</p>
-<hr>
+    H --&gt; I[&#34;前端&#34;]</pre><hr>
 <h2 id="10-engineering-trade-offs技術選擇與架構演進">10. Engineering Trade-offs：技術選擇與架構演進</h2>
 <p><img alt="工程權衡" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/10_engineering_tradeoffs.png"></p>
-<p>系統設計不只是選擇技術，也是在不同的限制之間取得平衡。對 Edge AI 平台而言，部署便利性、離線運作、資料完整性、效能與維運成本都可能互相影響。</p>
-<h3 id="101-現行方案與未來演進">10.1 現行方案與未來演進</h3>
+<p>目標不是每層都用最先進的技術，而是目前可靠、未來有務實演進路徑。</p>
 <table>
 	<thead>
 			<tr>
-					<th>項目</th>
+					<th>領域</th>
 					<th>現行方案</th>
-					<th>主要限制</th>
-					<th>可能的演進方向</th>
+					<th>優點</th>
+					<th>取捨／下一步</th>
 			</tr>
 	</thead>
 	<tbody>
 			<tr>
-					<td>Backend</td>
+					<td>Web 後端</td>
 					<td>Flask</td>
-					<td>需要更清楚的服務邊界與背景工作隔離</td>
-					<td>重構 Service Layer，必要時評估 FastAPI</td>
+					<td>輕量、容易組織</td>
+					<td>長時間工作可能需要獨立 Worker</td>
 			</tr>
 			<tr>
-					<td>Database</td>
-					<td>SQLite 雙資料庫</td>
-					<td>寫入併發與單機故障範圍</td>
-					<td>PostgreSQL、備援與讀寫最佳化</td>
+					<td>持久化／排程／緩衝</td>
+					<td>SQLite、APScheduler、有界 deque</td>
+					<td>本地維運簡單</td>
+					<td>併發、重複任務與非持久化緩衝需明確處理</td>
 			</tr>
 			<tr>
-					<td>Background Jobs</td>
-					<td>APScheduler + Queue</td>
-					<td>多程序下的任務協調與可靠性</td>
-					<td>獨立 Worker、Celery 或 RQ</td>
+					<td>前端更新</td>
+					<td>REST API 與 SSE</td>
+					<td>熟悉的請求－回應模型，可選串流</td>
+					<td>需設計重連與任務狀態</td>
 			</tr>
 			<tr>
-					<td>Model Files</td>
-					<td>本機模型檔</td>
-					<td>版本、相依設定與追蹤能力有限</td>
-					<td>Model Registry，例如 MLflow</td>
+					<td>ML／PHM</td>
+					<td>特徵工程＋多種分析方法</td>
+					<td>結合可解釋訊號特徵與統計／ML 方法</td>
+					<td>需基準驗證與領域判讀</td>
 			</tr>
 			<tr>
-					<td>Event Streaming</td>
-					<td>SSE</td>
-					<td>主要支援伺服器至用戶端的單向串流</td>
-					<td>依雙向需求評估 WebSocket</td>
-			</tr>
-			<tr>
-					<td>ML</td>
-					<td>One-Class SVM 等</td>
-					<td>參數敏感、資料分布改變</td>
-					<td>更完整的模型驗證與 PHM 方法</td>
-			</tr>
-			<tr>
-					<td>Frontend State</td>
-					<td>React Context</td>
-					<td>大型共享狀態可能增加維護成本</td>
-					<td>Zustand 或 Redux 等方案</td>
-			</tr>
-			<tr>
-					<td>In-Memory Queue</td>
-					<td>deque</td>
-					<td>無法保證持久化交付</td>
-					<td>Durable Message Queue</td>
-			</tr>
-			<tr>
-					<td>Deployment</td>
+					<td>部署</td>
 					<td>Docker Compose</td>
-					<td>跨主機編排與自動復原能力有限</td>
-					<td>視規模評估 Kubernetes</td>
+					<td>可重現的單機部署</td>
+					<td>不是大型叢集的完整編排方案</td>
 			</tr>
 	</tbody>
 </table>
-<p>這張表不是說未來方案一定比較好，而是列出目前選擇的適用範圍，以及在什麼條件下可能需要改變。例如，Flask 本身並不等於缺乏擴充性；真正需要關注的是程式結構、部署方式、請求處理模型與背景工作如何分離。同樣地，React Context 也不一定需要被 Redux 取代，是否更換應由狀態複雜度與實際維護成本決定。</p>
-<h3 id="102-三階段架構演進">10.2 三階段架構演進</h3>
-<p>可以將未來的架構演進整理成三個階段：</p>
-<pre class="mermaid">flowchart LR
-    A[&#34;Phase 1：Edge Monolith 單機系統&#34;] --&gt; B[&#34;Phase 2：Decoupled Pipeline 解耦管線&#34;]
-    B --&gt; C[&#34;Phase 3：Cloud Scale-Out 雲端橫向擴充&#34;]</pre><p><strong>Phase 1 — Edge Monolith</strong></p>
-<p>使用 Flask、SQLite、設備端程式與 Docker Compose 建立可部署的單機系統。重點是讓核心資料流與模型工作流程穩定運作。</p>
-<p><strong>Phase 2 — Decoupled Pipeline</strong></p>
-<p>將資料接收、背景計算與 API 請求進一步解耦。針對可靠性需求引入持久化佇列、獨立 Worker 與更明確的錯誤處理流程。</p>
-<p><strong>Phase 3 — Cloud Scale-Out</strong></p>
-<p>當設備數量、資料吞吐量或可用性需求達到單機架構的限制時，再評估 PostgreSQL、Redis、多副本 API 與 Kubernetes 等技術。</p>
-<p>這三個階段不一定是所有系統都必須經過的固定路線。部分設備可能長期使用單機架構就足夠；另一些系統則可能因為資料完整性或高可用性要求，必須提早採用更可靠的儲存與訊息傳遞機制。</p>
-<h3 id="103-我認為最重要的設計原則">10.3 我認為最重要的設計原則</h3>
-<p><strong>Design for today&rsquo;s constraints, keep a path to tomorrow&rsquo;s scale.</strong></p>
-<p>好的架構不代表使用最多的元件，而是能清楚說明：</p>
-<ul>
-<li>為什麼現在選擇這個方案。</li>
-<li>它解決了哪些實際問題。</li>
-<li>它有哪些限制與失敗模式。</li>
-<li>當需求改變時，哪些模組可以被替換或擴充。</li>
-</ul>
-<p>對 Edge AI 而言，離線能力、部署簡單性與資料可靠性可能比一開始就追求大規模水平擴充更重要。</p>
+<p><strong>把「現在已有」與「未來可能」分開</strong>，避免把 roadmap 當成已具備的生產能力。</p>
 <hr>
-<h2 id="結語真正的價值在於把模型整合成工程系統">結語：真正的價值在於把模型整合成工程系統</h2>
-<p>回顧這個專案，我認為最大的挑戰並不是單獨實作某個演算法，而是如何讓感測器資料、模型推論、後端 API、設備部署、監控與 AI Agent 在同一套系統中協同運作。</p>
-<p>這個平台帶給我的幾點經驗：</p>
+<h2 id="結語">結語</h2>
 <ol>
-<li><strong>模型需要完整的資料與部署流程。</strong> 模型在實驗環境中表現良好，只是整個生命週期的一部分。要讓模型真正進入設備應用，還需要特徵設定、版本管理、推論介面、監控與錯誤處理。</li>
-<li><strong>AI Agent 的可靠性取決於工具與系統邊界。</strong> LLM 可以協助工程師理解問題，但不應取代需要精確執行的資料查詢與數值計算。透過受控工具、後端驗證與可追溯的執行結果，才能讓 Agent 更有機會成為可靠的工程助手。</li>
-<li><strong>系統效能必須搭配可觀測性。</strong> 緩衝區、批次寫入、快取與背景排程都能改善部分工作負載，但每種設計也會引入新的限制。只有持續量測延遲、錯誤率、資料完整性與資源使用情況，才能判斷這些選擇是否真的有效。</li>
-<li><strong>架構演進應由瓶頸與需求驅動。</strong> SQLite、Flask 與 Docker Compose 可以是合理的起點，前提是理解它們的適用範圍，並在需求超出限制時有計畫地演進。</li>
+<li><strong>模型需要完整的資料與部署流程。</strong> 實驗室表現只是起點，特徵設定、版本管理、推論介面、監控與錯誤處理才決定它能否進入設備。</li>
+<li><strong>Agent 的可靠性取決於工具與系統邊界。</strong> LLM 負責理解與規劃，權限、驗證與工具執行必須留在後端。</li>
+<li><strong>效能設計必須可觀測。</strong> 緩衝、批次、快取與排程都會引入新限制，只有持續量測才能判斷是否有效。</li>
+<li><strong>架構演進由瓶頸與需求驅動。</strong> SQLite、Flask 與 Docker Compose 可以是合理起點，但要在需求超出限制前規劃下一步。</li>
 </ol>
-<p>對我而言，這個專案的核心不是使用了多少種框架，而是建立了一套從感測器資料到工程決策的完整技術脈絡，並在實際限制下思考資料處理、模型應用、系統可靠性與未來擴充。這也是我希望持續深化的方向：不只完成單一功能，而是能夠理解並設計一套可維護、可觀測、可驗證，而且能隨需求成長的 AI 工程系統。</p>
+<p>把模型整合成可維護、可觀測、可驗證的工程系統，才是真正的價值。</p>
 <hr>
 <blockquote>
 <p><strong>版權與使用條款：</strong> 本文所有圖表版權歸作者所有，轉載請註明出處與原作者。內容已全面進行去識別化與虛擬化處理，僅供技術交流與架構展示使用，不構成任何營業秘密洩露。文中所列未來架構屬於可能的演進方向，不代表已全部實作或部署。</p>

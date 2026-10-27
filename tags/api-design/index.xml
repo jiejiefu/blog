@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Api-Design on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/api-design/</link><description>Recent content in Api-Design on Jay Fu 的科技部落格</description><generator>Hugo -- 0.168.0</generator><language>zh-tw</language><lastBuildDate>Sun, 25 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/api-design/index.xml" rel="self" type="application/rss+xml"/><item><title>Jev 深度解析：不聊天、只做決定的 System One 模型，如何把 AI 變成程式裡的一個 if</title><link>https://jiejiefu.github.io/blog/posts/jev-system-one-decision-model/</link><pubDate>Sun, 25 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/jev-system-one-decision-model/</guid><description>Jev 不生成文字，只吃 state 與 typed questions，回傳可直接餵給程式的答案與 confidence。本文拆解 Choice、Score、Noul、平行批次、70–500ms 的真實邊界，以及把它放進 agent guardrail 時會踩的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+  <p class="tldr__label">TL;DR</p>
+  <p><strong>Jev 是 TypeSafe 的第一個 System One 模型：你給它一段 state 和一組有型別的 questions，它回傳有型別的 answers、機率分布，部分題型還有 confidence。它不寫文章、不接話、不生成程式碼。</strong></p>
+<p><strong>它解決的不是「AI 不夠聰明」，而是「AI 回傳一段字串，程式還要 parse、validate、祈禱它不要亂」。</strong> Jev 把輸出空間事先鎖死，讓程式可以直接 <code>if</code>、<code>switch</code>、排序、路由。</p>
+<p>這篇不把它捧成「LLM 殺手」。它比較像把 LLM 從某些 workflow 位置拿掉：需要生成的地方留給 LLM，需要一個快速、可校準的判斷時，交給 Jev。</p>
+
+</aside>
+
+<h2 id="1-先講結論它把生成換成決策">1. 先講結論：它把「生成」換成「決策」</h2>
+<p>一般 LLM 的流程是：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">state → 生成一段文字 → parse → validate → 程式才能用
+</span></span></code></pre></div><p>Jev 的流程是：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">state + typed questions → typed answers → 程式直接用
+</span></span></code></pre></div><p>差別不只是快。<strong>字串是萬用的，所以它也什麼都可能變成</strong>：一段很順但錯的解釋、一個格式跑掉的 JSON、一次不必要的拒答。Jev 的輸出被限制在你事先定義的選項或級別裡，所以它不可能吐出 schema 外的型別；但這不代表它不會判斷錯。</p>
+<p>官方說它「不會幻覺」，精確的意思是：<strong>它不會在格式上幻覺</strong>。答案仍然可能是錯的，confidence 也不是正確率。這兩件事要分開看。</p>
+<blockquote>
+<p>System One 這個名字來自 Kahneman 的《快思慢想》；Jev 則取自經濟學家 William Stanley Jevons。命名想表達的是：把「快速、直覺式的判斷」變成一種可被軟體依賴的介面。</p>
+</blockquote>
+<h2 id="2-一次請求長什麼樣">2. 一次請求長什麼樣</h2>
+<p>Jev 的 API 很短：一個 <code>state</code>、一組 <code>questions</code>、一個 <code>model</code>。</p>
+<pre class="mermaid">flowchart LR
+    S[State&lt;br/&gt;字串或 JSON] --&gt; J[Jev]
+    Q[Typed questions&lt;br/&gt;Choice / Score / Noul] --&gt; J
+    J --&gt; P[平行、獨立評估]
+    P --&gt; A[Typed answers&lt;br/&gt;+ probabilities]
+    A --&gt; C[confidence]
+    C --&gt; R[程式碼&lt;br/&gt;if / switch / routing]</pre><details class="code-fold" open>
+  <summary class="code-fold__summary">
+    <span class="code-fold__label">最小範例（Python SDK）</span>
+    <span class="code-fold__meta">python · 29 行</span>
+    <span class="code-fold__toggle" aria-hidden="true"></span>
+  </summary>
+  <div class="code-fold__body">
+    <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">typesafe_sdk</span> <span class="kn">import</span> <span class="n">Choice</span><span class="p">,</span> <span class="n">Noul</span><span class="p">,</span> <span class="n">Score</span><span class="p">,</span> <span class="n">TypeSafeClient</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">ticket</span> <span class="o">=</span> <span class="s2">&#34;API 從 20 分鐘前開始全部回 500，我們現在無法出貨。&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">with</span> <span class="n">TypeSafeClient</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&#34;jev-latest&#34;</span><span class="p">)</span> <span class="k">as</span> <span class="n">client</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">r</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">system_one</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="n">state</span><span class="o">=</span><span class="p">{</span><span class="s2">&#34;ticket&#34;</span><span class="p">:</span> <span class="n">ticket</span><span class="p">},</span>
+</span></span><span class="line"><span class="cl">        <span class="n">questions</span><span class="o">=</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="s2">&#34;team&#34;</span><span class="p">:</span> <span class="n">Choice</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">                <span class="n">instructions</span><span class="o">=</span><span class="s2">&#34;Which team should handle this?&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">criteria</span><span class="o">=</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">                    <span class="s2">&#34;billing&#34;</span><span class="p">:</span> <span class="s2">&#34;Payment, invoice, or subscription issues&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                    <span class="s2">&#34;technical&#34;</span><span class="p">:</span> <span class="s2">&#34;Bugs or integration problems&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                    <span class="s2">&#34;account&#34;</span><span class="p">:</span> <span class="s2">&#34;Login, profile, or permissions&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="p">},</span>
+</span></span><span class="line"><span class="cl">            <span class="p">),</span>
+</span></span><span class="line"><span class="cl">            <span class="s2">&#34;urgent&#34;</span><span class="p">:</span> <span class="n">Noul</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">                <span class="n">instructions</span><span class="o">=</span><span class="s2">&#34;Does the message convey time pressure?&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="p">),</span>
+</span></span><span class="line"><span class="cl">            <span class="s2">&#34;frustration&#34;</span><span class="p">:</span> <span class="n">Score</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">                <span class="n">instructions</span><span class="o">=</span><span class="s2">&#34;How frustrated is the customer?&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">criteria</span><span class="o">=</span><span class="p">[</span><span class="s2">&#34;Calm&#34;</span><span class="p">,</span> <span class="s2">&#34;Frustrated but civil&#34;</span><span class="p">,</span> <span class="s2">&#34;Very angry&#34;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">            <span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="p">},</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">answers</span><span class="p">[</span><span class="s2">&#34;team&#34;</span><span class="p">]</span><span class="o">.</span><span class="n">choice</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">answers</span><span class="p">[</span><span class="s2">&#34;team&#34;</span><span class="p">]</span><span class="o">.</span><span class="n">confidence</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">answers</span><span class="p">[</span><span class="s2">&#34;urgent&#34;</span><span class="p">]</span><span class="o">.</span><span class="n">noul</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">answers</span><span class="p">[</span><span class="s2">&#34;frustration&#34;</span><span class="p">]</span><span class="o">.</span><span class="n">score</span><span class="p">)</span>
+</span></span></code></pre></div>
+  </div>
+</details>
+
+<p>幾個實務上的邊界：</p>
+<table>
+	<thead>
+			<tr>
+					<th>項目</th>
+					<th>目前狀態</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>輸入</td>
+					<td>文字、JSON、字串陣列；<strong>不支援圖片、音訊、影片</strong></td>
+			</tr>
+			<tr>
+					<td>Context</td>
+					<td>64k per-request / 32k per-question；長 context 模式可到 262k，但更慢、更不準</td>
+			</tr>
+			<tr>
+					<td>模型</td>
+					<td>Jev 1.14（2026-10-14 釋出）；1.13 同價</td>
+			</tr>
+			<tr>
+					<td>價格</td>
+					<td>每百萬 input tokens <strong>$0.042</strong>（每十億 $42）；output 免費</td>
+			</tr>
+			<tr>
+					<td>延遲</td>
+					<td>官方量測 <strong>70–500ms</strong></td>
+			</tr>
+			<tr>
+					<td>版本</td>
+					<td><code>jev-latest</code> 會隨新版本移動；調過 threshold 就該 pin 版本</td>
+			</tr>
+	</tbody>
+</table>
+<blockquote>
+<p>想把 Jev 接進專案，官方也有 agent skill：<code>npx skills add typesafe-ai/skills --skill typesafe-ai</code>。它會把 API 形狀、題型與 pattern 一起帶給 coding agent。</p>
+</blockquote>
+<h2 id="3-三種題型選錯就會難用">3. 三種題型，選錯就會難用</h2>
+<p>Jev 只有三個 primitive。真正的設計工作不是「怎麼寫 prompt」，而是<strong>把一個模糊判斷拆成正確的題型</strong>。</p>
+<table>
+	<thead>
+			<tr>
+					<th>題型</th>
+					<th>什麼時候用</th>
+					<th>回傳</th>
+					<th>上限／注意</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>Choice</strong></td>
+					<td>答案是固定、無順序的選項</td>
+					<td><code>choice</code>、<code>probabilities</code>、<code>confidence</code></td>
+					<td>最多 255 個選項；選項描述要能互相區隔</td>
+			</tr>
+			<tr>
+					<td><strong>Score</strong></td>
+					<td>答案是有順序的程度</td>
+					<td><code>score</code>、<code>probabilities</code>、<code>confidence</code></td>
+					<td>官方上限 10 級；<code>score</code> 可以是小數</td>
+			</tr>
+			<tr>
+					<td><strong>Noul</strong></td>
+					<td>只有是／否的命題</td>
+					<td><code>noul</code>（0–1）</td>
+					<td>沒有獨立 <code>confidence</code>；一個問題只問一個命題</td>
+			</tr>
+	</tbody>
+</table>
+<pre class="mermaid">flowchart TD
+    A[你要模型回答什麼？] --&gt; B{答案是固定選項？}
+    B --&gt;|是| C[Choice&lt;br/&gt;最多 255 個選項]
+    B --&gt;|否| D{有順序或程度？}
+    D --&gt;|是| E[Score&lt;br/&gt;最多 10 級]
+    D --&gt;|否| F{只有是或否？}
+    F --&gt;|是| G[Noul&lt;br/&gt;0 到 1]
+    F --&gt;|否| H[拆成多個問題&lt;br/&gt;或改用生成模型]</pre><p>三個最常見的選錯方式：</p>
+<ul>
+<li><strong>拿 Choice 問程度。</strong> 「這客戶多生氣？」應該是 Score，不是 <code>calm / angry / very angry</code> 的 Choice。</li>
+<li><strong>拿 Noul 問程度。</strong> Noul 的 0.8 是「這個命題為真的機率」，不是「強度 80%」。要程度就用 Score。</li>
+<li><strong>把多個判斷塞進一題。</strong> 「這份履歷好嗎？」同時混了經驗、領域、地點、薪資。拆成多題，再用程式加權，才會可控。</li>
+</ul>
+<p>Score 還有一個很容易踩的坑：<strong>每個級別是獨立判斷的，模型看不到級別編號，也看不到隔壁級別。</strong> 所以 <code>criteria: [&quot;0&quot;, &quot;1&quot;, &quot;2&quot;]</code> 幾乎一定不穩；要寫「什麼情況算這一級」，不是寫數字。</p>
+<h2 id="4-為什麼快為什麼便宜">4. 為什麼快、為什麼便宜</h2>
+<p>先看最實際的數：同一個決策，LLM 的 end-to-end 延遲是 <strong>3–329 秒</strong>，Jev 是 <strong>70–500ms</strong>；input 價格是 <strong>$0.042 / MTok</strong>，而且 output 免費。</p>
+<p><img alt="Jev 與前沿 LLM 的延遲、價格差距" loading="lazy" src="/blog/posts/jev-system-one-decision-model/images/01_latency_cost.webp"></p>
+<p><em>圖一：左邊是 end-to-end 延遲，右邊是 input token 價格。LLM 的延遲區間取自 TypeSafe 引用的 benchmark，價格為前沿模型常見區間；不代表所有模型、所有任務。</em></p>
+<p>真正讓成本拉開的，不只是單價，而是<strong>同一個 state 不必重送 N 次</strong>。官方用 GDPR 維基百科文章做了一個 13 題的 cookbook：</p>
+<ul>
+<li>文件：53,777 字元</li>
+<li>題目：8 個 Noul、2 個 Choice、3 個 Score</li>
+<li>逐題送出：13 次呼叫，每次都重送整份文件</li>
+<li>一次送出：1 次呼叫，13 題平行評估</li>
+</ul>
+<p>結果是 <strong>12.2x 便宜、10.0x 快</strong>，而且 5 次重複實驗的回答沒有因為批次而改變。</p>
+<p><img alt="13 題一次送出與逐題送出的成本、延遲比較" loading="lazy" src="/blog/posts/jev-system-one-decision-model/images/03_parallel_batching.webp"></p>
+<p><em>圖二：批次把文件成本從 13 次壓成 1 次。注意「10x 快」是逐題<strong>序列</strong>呼叫的比較；如果你把 13 個請求並行送出，延遲差距會縮小，但 token 成本不會。</em></p>
+<p>官方另外公布了一組更複雜的 workflow eval：<strong>193.6x faster、444.6x cheaper</strong>。這個數字來自 4 個 workflow，官方自己說可能是 real-world 偏高的一端；首頁的 40x–200x、40x–444.6x 又是不同基準。<strong>看到倍數先問「跟什麼比、怎麼跑」，不要直接把數字的最高值當通則。</strong></p>
+<h2 id="5-confidence-不是裝飾是路由條件">5. Confidence 不是裝飾，是路由條件</h2>
+<p>Choice 和 Score 都會回傳 <code>probabilities</code> 與 <code>confidence</code>。<code>confidence</code> 是把整個分布壓成 0–1 的一個統計量：全部集中在一個答案時是 1，平均分散時接近 0。</p>
+<p>以 Choice 為例，若有 \(n\) 個選項、最高機率是 \(p_{\max}\)：</p>
+$$
+\text{confidence} = \frac{p_{\max} - \frac{1}{n}}{1 - \frac{1}{n}}
+$$<p>官方範例的分布是 <code>returns 0.61 / billing 0.35 / shipping 0.04</code>，三個選項：</p>
+$$
+\frac{0.61 - \frac{1}{3}}{1 - \frac{1}{3}} \approx 0.415
+$$<p>所以回傳的 <code>confidence</code> 是 <strong>0.42</strong>。這不是「42% 正確率」，而是「最高選項只比平均高出一些」。</p>
+<p><img alt="Choice 的 confidence 由機率分布決定" loading="lazy" src="/blog/posts/jev-system-one-decision-model/images/02_confidence_distribution.webp"></p>
+<p><em>圖三：同樣三個選項，分布越集中，confidence 越高。最下面那列幾乎平手，confidence 只有 0.01。</em></p>
+<p>Noul 沒有獨立的 <code>confidence</code>，因為它只有是／否兩個結果；如果你硬要換算成同一把尺：</p>
+$$
+\text{confidence} = |2p - 1|
+$$<p><code>p = 0.9</code> 會得到 0.8，<code>p = 0.5</code> 會得到 0。<strong>Score 的公式又不一樣</strong>：因為級別有順序，官方用「機率加權的平均距離」來算，會懲罰離峰值較遠的機率。不要拿 Choice 的公式套 Score。</p>
+<p>拿到 confidence 之後，程式通常分三條路：</p>
+<pre class="mermaid">flowchart TD
+    A[answer + confidence] --&gt; B{confidence 高於門檻？}
+    B --&gt;|是| C[自動執行]
+    B --&gt;|否| D{風險高嗎？}
+    D --&gt;|是| E[人工覆核]
+    D --&gt;|否| F[要求確認或收集更多資訊]</pre><p>門檻不是一個全站共用的數字。官方建議依風險調整：低風險、可回復的操作可以寬鬆；高風險、不可逆的操作應該更嚴格，甚至要求人工確認。文件裡的 0.5 只是一個「明顯不確定就不要猜」的起步地板，不是通用答案。</p>
+<p>還有一個很重要的區別：<strong>confidence 高只代表分布集中，不代表答案正確。</strong> 一個模型可以非常有信心地錯。confidence 能幫你決定「要不要動作」，但不能取代 ground truth 驗證。</p>
+<h2 id="6-它不該當-agent該當-agent-的-guardrail">6. 它不該當 Agent，該當 Agent 的 guardrail</h2>
+<p>Jev 沒有工具呼叫、沒有記憶、沒有「下一步要做什麼」。它不是 agent，也不負責 chain-of-thought。它只回答你問的那個問題。</p>
+<p>這反而是它最好用的地方：<strong>把 agent 的自由度收回來，讓程式保有控制流。</strong></p>
+<pre class="mermaid">flowchart LR
+    A[使用者輸入] --&gt; B[程式碼&lt;br/&gt;驗證、權限、狀態]
+    B --&gt; C[Jev&lt;br/&gt;分類 / 評分 / 是否放行]
+    C --&gt; D{程式碼決策}
+    D --&gt;|高信心| E[執行工具]
+    D --&gt;|低信心| F[人工覆核或詢問]
+    D --&gt;|需要生成| G[LLM]</pre><pre class="mermaid">sequenceDiagram
+    participant U as 使用者
+    participant A as Agent
+    participant J as Jev
+    participant T as 工具
+    U-&gt;&gt;A: 要求執行高風險動作
+    A-&gt;&gt;J: 這個動作需要人工核准嗎？
+    J--&gt;&gt;A: Noul 機率
+    alt 機率高且超過門檻
+        A-&gt;&gt;T: 執行
+    else 不確定或機率低
+        A--&gt;&gt;U: 要求確認或拒絕
+    end</pre><p>適合放 Jev 的位置：</p>
+<ul>
+<li>分類與路由：這是哪一類工單、該進哪個流程</li>
+<li>評分與排序：嚴重度、風險、品質、優先級</li>
+<li>Guardrail：這段 LLM 輸出是否違反政策、是否該攔下來</li>
+<li>驗證：抽取出來的欄位是否真的被文件支持</li>
+<li>即時判斷：使用者輸入後 100ms 內就要決定下一步</li>
+</ul>
+<p>不適合的位置也很明確：</p>
+<ul>
+<li>寫文章、寫程式、寫解釋</li>
+<li>多步推理、算術、日期先後、跨段代名詞</li>
+<li>需要「先想一想再回答」的任務</li>
+<li>把大量無關內容塞進 state，期待它自己找到重點</li>
+</ul>
+<p>官方對 Jev 的定位是 <strong>atomic gut-check</strong>：一個很懂領域的人，在幾秒內可以做出的判斷。如果一個問題需要 extended reasoning，正確做法是拆成多個問題，或留給 LLM，而不是叫 Jev「想清楚一點」。</p>
+<h2 id="7-實務上最容易踩的六個坑">7. 實務上最容易踩的六個坑</h2>
+<ol>
+<li><strong>用數字當 Score 的級別。</strong> <code>[&quot;0&quot;, &quot;1&quot;, &quot;2&quot;]</code> 沒有語意，模型只能猜。寫「什麼情況算這一級」。</li>
+<li><strong>把 Noul 當程度量表。</strong> Noul 的 0.8 是命題為真的機率，不是強度。要程度就用 Score。</li>
+<li><strong>不同長度的 Score 直接相加。</strong> 3 級和 4 級的 <code>score</code> 範圍不同，先除以最高級別歸一化，再加權。</li>
+<li><strong>全站共用一個 threshold。</strong> 高風險與低風險的容忍度不同；threshold 應該跟動作綁在一起。</li>
+<li><strong>用 <code>jev-latest</code> 卻調了 threshold。</strong> alias 會隨版本移動，答案與 confidence 可能跟著變；要 pin 版本。</li>
+<li><strong>忽略語言與領域。</strong> 官方明確說英文是目前最準的語言，CJK 有支援但沒有同等準確度；上線前一定用自己的資料測。</li>
+</ol>
+<p>第 3 點值得用一張圖說明：</p>
+<p><img alt="Score 原始總分與歸一化後的排名反轉" loading="lazy" src="/blog/posts/jev-system-one-decision-model/images/04_score_normalization.webp"></p>
+<p><em>圖四：示意。3 級與 4 級的原始分數不能直接相加；先除以該題最高級別，再加權，排序才不會被級距大小綁架。</em></p>
+<p>還有一個觀念上的坑：<strong>「type-safe」不等於「truth-safe」。</strong> Jev 保證答案落在你給的型別裡，不保證那個答案符合現實。這是它比 LLM 可靠的地方，也是它仍然需要驗證的地方。</p>
+<p><img alt="type-safe 只保證格式合法，不保證語意正確" loading="lazy" src="/blog/posts/jev-system-one-decision-model/images/05_type_safe_vs_truth_safe.webp"></p>
+<p><em>圖五：type-safe 只涵蓋右半邊；truth-safe 是另一個維度。Jev 把失敗模式移到右下角——可預測，但仍要驗證。</em></p>
+<h2 id="8-結論不是每個-ai-都需要會聊天">8. 結論：不是每個 AI 都需要會聊天</h2>
+<p>Jev 的價值不是「比 GPT 聰明」，而是把 AI 從：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">生成一段話 → parse → validate → 希望它不要亂
+</span></span></code></pre></div><p>改成：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">給定 state 與問題 → 直接拿到可分支的答案
+</span></span></code></pre></div><p>它不會取代 LLM。它會把 LLM 從 workflow 裡一些不需要生成的位置拿掉，讓那些位置變成比較穩、比較快、比較便宜的另一種呼叫。</p>
+<p>如果你手上有一個決策，可以拆成 3–10 個 atomic questions，而且每個問題的答案空間是固定的，那 Jev 很可能值得試。如果答案需要長篇推理、需要生成、或你連「什麼叫好」都還說不清楚，先別急著把 prompt 換成 API。</p>
+<p><img alt="Jev 與 LLM 的決策邊界" loading="lazy" src="/blog/posts/jev-system-one-decision-model/images/06_decision_boundary.webp"></p>
+<p><em>圖六：概念示意。答案可列舉、且能拆成單步判斷時，Jev 是 workflow 裡的一顆 if；需要生成或多步推理時，才交給 LLM。</em></p>
+<p><strong>不是每個 AI 都需要會聊天。有些 AI，只需要在程式裡當一個很會判斷的 <code>if</code>。</strong></p>
+<hr>
+<h2 id="參考資料">參考資料</h2>
+<ul>
+<li><a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">Introducing System One Models &amp; Jev</a> — TypeSafe AI，2026-09-15</li>
+<li><a href="https://docs.typesafe.ai/">Jev Documentation: Introduction</a> — state、questions、primitives</li>
+<li><a href="https://docs.typesafe.ai/concepts/system-one">System One</a> — 與 LLM 的差異、定位</li>
+<li><a href="https://docs.typesafe.ai/introduction/quickstart">Quick Start</a> — API 形狀與 SDK 範例</li>
+<li><a href="https://docs.typesafe.ai/primitives/choice">Choice</a>／<a href="https://docs.typesafe.ai/primitives/score">Score</a>／<a href="https://docs.typesafe.ai/primitives/noul">Noul</a> — 題型與回傳值</li>
+<li><a href="https://docs.typesafe.ai/confidence">Confidence</a> — 三種題型的 confidence 公式與路由建議</li>
+<li><a href="https://docs.typesafe.ai/models">Models</a> — Jev 1.14、價格、context、語言支援</li>
+<li><a href="https://docs.typesafe.ai/cookbooks/parallel_questions">Parallel questions cookbook</a> — 13 題、12.2x / 10.0x 的實驗</li>
+<li><a href="https://docs.typesafe.ai/concepts/how-to-build-with-system-one">How to build with System One</a> — 拆題、組合、confidence gate</li>
+</ul>
+<blockquote>
+<p>本文以官方 blog、docs 與 cookbook 為主要來源。API 形狀、價格與模型版本可能變動，實作前請以當下官方文件為準；文中倍數與延遲皆為官方量測或官方引用之 benchmark，不代表你的環境。</p>
+</blockquote>
+]]></content:encoded></item></channel></rss>
