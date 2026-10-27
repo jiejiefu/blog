@@ -1,88 +1,58 @@
 WEBVTT
 
-00:00:00.001 --> 00:00:02.461
-This article documents the
+00:00:00.001 --> 00:00:02.021
+This article expands an
 
-00:00:02.461 --> 00:00:03.521
-Smart Fab Edge AI
+00:00:02.021 --> 00:00:03.481
+11-slide interview deck into
 
-00:00:03.521 --> 00:00:04.981
-system architecture I presented
+00:00:03.481 --> 00:00:04.361
+a technical reference
 
-00:00:04.981 --> 00:00:06.210
-in an interview presentation,
+00:00:04.361 --> 00:00:05.461
+on the Smart Fab Edge
 
-00:00:06.210 --> 00:00:08.401
-expanding the original 11-slide
+00:00:05.461 --> 00:00:07.541
+AI architecture. The appendix explains
 
-00:00:08.401 --> 00:00:09.501
-deck into a more
+00:00:07.541 --> 00:00:08.621
+how to read the figures.
 
-00:00:09.501 --> 00:00:11.630
-comprehensive technical reference.
+00:00:08.621 --> 00:00:10.450
+It covers real-time processing,
 
-00:00:11.630 --> 00:00:13.981
-The project metrics cited in
+00:00:10.450 --> 00:00:13.001
+anomaly detection, Remaining Useful
 
-00:00:13.981 --> 00:00:15.621
-each section are collected in
+00:00:13.001 --> 00:00:14.941
+Life (RUL) prediction,
 
-00:00:15.621 --> 00:00:16.741
-the appendix at the end,
+00:00:14.941 --> 00:00:17.741
+edge deployment, industrial knowledge retrieval,
 
-00:00:16.741 --> 00:00:19.170
-together with their measurement caveats.
+00:00:17.741 --> 00:00:18.921
+and AI agent boundaries.
 
-00:00:19.170 --> 00:00:20.961
-Starting with equipment sensor
+00:00:18.921 --> 00:00:20.721
+The real question is not
 
-00:00:20.961 --> 00:00:22.121
-data, the article walks
+00:00:20.721 --> 00:00:21.681
+how to deploy models,
 
-00:00:22.121 --> 00:00:23.650
-through real-time data processing,
+00:00:21.681 --> 00:00:22.521
+but how to run them
 
-00:00:23.650 --> 00:00:27.581
-anomaly detection, Remaining Useful Life
+00:00:22.521 --> 00:00:23.670
+under constrained resources —
 
-00:00:27.581 --> 00:00:28.421
-(RUL) prediction, edge deployment,
+00:00:23.670 --> 00:00:26.821
+balancing latency, compute, reliability,
 
-00:00:28.421 --> 00:00:30.521
-industrial knowledge retrieval, and the
-
-00:00:30.521 --> 00:00:32.330
-decision boundaries of AI agents.
-
-00:00:32.330 --> 00:00:34.661
-The question it actually tries
-
-00:00:34.661 --> 00:00:35.961
-to answer is not simply
-
-00:00:35.961 --> 00:00:36.961
-how to deploy AI
-
-00:00:36.961 --> 00:00:38.061
-models in a factory,
-
-00:00:38.061 --> 00:00:39.161
-but how to keep them
-
-00:00:39.161 --> 00:00:41.310
-running under constrained resources —
-
-00:00:41.310 --> 00:00:43.741
-trading off latency, compute, reliability,
-
-00:00:43.741 --> 00:00:45.001
+00:00:26.821 --> 00:00:28.390
 and operating cost —
 
-00:00:45.001 --> 00:00:46.681
-while integrating with existing
+00:00:28.390 --> 00:00:30.550
+while integrating with existing controls,
 
-00:00:46.681 --> 00:00:48.950
-equipment controls, maintenance workflows,
-
-00:00:48.950 --> 00:00:51.197
-and factory information systems.
+00:00:30.550 --> 00:00:33.277
+maintenance workflows, and factory systems.

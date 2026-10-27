@@ -760,7 +760,7 @@
 .post-audio__cue {
     margin: 0.85rem auto 0;
     max-width: 44rem;
-    min-height: 3.1em;
+    min-height: 1.55em;
     font-size: 0.95rem;
     line-height: 1.55;
     color: var(--secondary);

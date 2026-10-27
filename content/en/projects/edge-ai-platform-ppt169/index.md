@@ -11,35 +11,30 @@ tags:
   - AI Agent
   - Backend Engineering
   - System Design
-description: "An end-to-end look at a semiconductor equipment Edge AI and PHM platform, covering sensor processing, machine learning, Flask services, AI agents, edge deployment, failure handling, and system evolution."
+description: "System design for a semiconductor equipment Edge AI and PHM platform, from sensor data to governed AI agents."
 cover:
-  image: "https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/images/01_project_overview.png"
-  alt: "Semiconductor Equipment Edge AI Platform"
+  image: "https://jiejiefu.github.io/blog/projects/edge-ai-platform-ppt169/images/cover.jpg"
+  alt: "Terminal showing the edge-ai-01 five-layer stack, bounded deque buffer and governed agent tools"
   hidden: false
 ---
 
 {{< tldr >}}
-- An Edge AI platform is an end-to-end engineering system: data ingestion, feature engineering, inference, monitoring, and human workflows must all hold together.
-- The design uses five layers: React/MUI presentation, Flask APIs, analytics, edge execution, and SQLite/file persistence.
-- A bounded deque batches recent samples (for example, 500 records or about five seconds) before feature extraction; it is a buffer, not a durable queue.
-- PHM combines signal features (RMS, FFT), One-Class SVM, DTW, and PCA drift monitoring, with interpretation left to engineers.
-- AI agents are controlled application clients: the backend enforces tool allowlists, authorization, validation, and audit logging, not the LLM prompt.
-- Deployment starts as a Docker Compose edge monolith and should scale to decoupled workers only when measurements justify it.
+- Five layers: React/MUI, Flask APIs, analytics, edge execution, and SQLite persistence.
+- A bounded deque batches recent samples (500 records or ~5s) but is not a durable queue.
+- PHM uses RMS/FFT, One-Class SVM, DTW, and PCA drift monitoring; engineers interpret results.
+- AI agents are controlled clients: the backend enforces allowlists, authorization, validation, and audit logging.
+- Deployment starts as a Docker Compose edge monolith; decouple workers only when measurements justify it.
 
-**Bottom line:** Reliability comes from traceable data, explicit failure behavior, and governed agents — not from a single model or framework.
+**Bottom line:** Reliability comes from traceable data, explicit failure behavior, and governed agents.
 {{< /tldr >}}
 
-Building an Edge AI platform is not just about deploying a machine-learning model close to a machine. In a semiconductor manufacturing environment, the platform must connect sensor data, feature engineering, model inference, health monitoring, user workflows, and maintenance decisions into a system that can be operated and maintained reliably.
-
-This article introduces an Edge AI / Prognostics and Health Management (PHM) platform from a system-design perspective. It covers the architecture, data flow, analytical methods, backend implementation, AI-agent integration, deployment, failure handling, and the trade-offs behind the design.
-
-The emphasis is on how the components work together — not simply on listing technologies.
+This article describes an Edge AI / Prognostics and Health Management (PHM) platform from a system-design perspective: architecture, data flow, analytical methods, backend, AI agents, deployment, failure handling, and trade-offs.
 
 ## 1. Project Overview
 
 ![Project overview: Semiconductor Equipment Edge AI Platform](images/01_project_overview.png)
 
-The platform is designed to turn equipment signals into information that engineers can use to investigate equipment health and plan maintenance. Its main workflow can be summarized as:
+The platform turns equipment signals into information engineers can use to investigate health and plan maintenance. The main workflow:
 
 ```mermaid
 flowchart LR
@@ -51,7 +46,7 @@ flowchart LR
     F --> G[Engineering Decision]
 ```
 
-At a high level, the platform provides four capabilities:
+The platform provides four capabilities:
 
 | Capability | Purpose |
 | --- | --- |
@@ -60,25 +55,25 @@ At a high level, the platform provides four capabilities:
 | Health monitoring | Track health scores, historical changes, and potential abnormal conditions |
 | AI-assisted workflows | Retrieve relevant data, summarize findings, and help engineers investigate the next step |
 
-The AI agent is an assistance layer, not an autonomous replacement for engineering judgment. Decisions that can affect production equipment should stay subject to validation and human oversight.
+The AI agent is an assistance layer, not an autonomous replacement for engineering judgment.
 
 ## 2. Why Edge AI?
 
 ![Why an Edge AI Platform](images/02_why.png)
 
-A model is only one part of a production system. The surrounding data path, deployment process, integration points, and operational controls often determine whether an AI solution is useful in practice.
+A model is only one part of a production system; the data path and operational controls decide whether it is useful.
 
 ### 2.1 Common engineering challenges
 
-**Integration complexity.** Data acquisition, preprocessing, model execution, APIs, dashboards, and alerts may be implemented by different components. Without clear interfaces, even a small change can require updates across multiple modules.
+**Integration complexity.** Data acquisition, preprocessing, model execution, APIs, dashboards, and alerts often live in different components; without clear interfaces, a small change can ripple across modules.
 
-**Data lineage.** Engineers need to understand where a feature or score came from, which source data was used, and which model or configuration produced the result. Without traceability, it is difficult to reproduce an analysis or compare results over time.
+**Data lineage.** Engineers need to know which data, model, and configuration produced a feature or score; without traceability, analyses are hard to reproduce or compare.
 
-**Deployment latency.** A solution that works in a development environment can still be difficult to package, configure, install, and update consistently at an equipment site.
+**Deployment latency.** A solution that works in development can still be hard to package, configure, install, and update at a site.
 
 ### 2.2 The intended improvement
 
-The platform aims to standardize the path from data ingestion to operational use.
+The platform standardizes the path from ingestion to operational use.
 
 | Engineering area | Intended outcome |
 | --- | --- |
@@ -87,34 +82,32 @@ The platform aims to standardize the path from data ingestion to operational use
 | Data lineage | Make analysis inputs, outputs, and model versions easier to trace |
 | Maintenance workflow | Present data and analysis in a form that supports investigation and follow-up |
 
-The project materials include illustrative figures: a deployment cycle shortened from 28 days to 1 day, an 85% reduction in integration code, and 100% lineage synchronization within the measured scope. Read them only alongside their definitions, measurement periods, and comparison baselines; without those, they are internal estimates rather than verified results.
+The source slides show three metrics — deployment cycle, integration code, and lineage synchronization — to be read with their definitions and baselines; they do not prove model accuracy or data quality.
 
 ## 3. System Architecture
 
 ![System assembly and architecture design](images/03_system_architecture.png)
 
-The platform can be understood as five cooperating layers: presentation, API services, analytics, edge execution, and persistence.
-
 ```mermaid
 flowchart TB
-    subgraph UI["Presentation Layer"]
+    subgraph UI["L1 User & Frontend"]
         A["React + MUI"]
         B["Workflow UI / React Flow"]
     end
-    subgraph API["API and Application Layer"]
+    subgraph API["L2 Backend Core"]
         C["Flask REST APIs"]
         D["Authentication and Job Coordination"]
     end
-    subgraph ML["Analytics Layer"]
+    subgraph ML["L3 ML & Analytics"]
         E["Feature Engineering"]
         F["ML / PHM Algorithms"]
         G["Health Score and Drift Analysis"]
     end
-    subgraph EDGE["Edge Execution Layer"]
+    subgraph EDGE["L4 Edge Execution"]
         H["Sensor / File Inputs"]
         I["Edge Runtime and Inference"]
     end
-    subgraph DATA["Persistence Layer"]
+    subgraph DATA["L5 Data & Persistence"]
         J["edge_ai.db"]
         K["vibration.db"]
         L["Model and Analysis Artifacts"]
@@ -132,55 +125,61 @@ flowchart TB
     F --> L
 ```
 
-### 3.1 Presentation layer
+### 3.1 Five layers
 
-The web interface uses React and Material UI (MUI) to present equipment information, analysis results, and operational workflows. React Flow can be used to represent workflows or agent execution paths visually.
+| Layer | Responsibility |
+| -- | -- |
+| L1 Frontend | React UI, dashboard, and agent UI |
+| L2 Backend | Flask APIs, authentication, and tool coordination |
+| L3 Analytics | Feature engineering, model training, and anomaly detection |
+| L4 Edge | Sensor access, edge runtime, and inference |
+| L5 Data | SQLite, model files, and history |
 
-The frontend should focus on user interaction and presentation. It should not become the source of truth for model execution, access control, or data integrity.
+Layering is a responsibility boundary, not independent microservices: the frontend does not access the database directly, and inference is separate from UI so it can be reused.
 
-### 3.2 API and application layer
+Edge execution runs locally to keep high-frequency samples off the central service; the split depends on latency, compute, network, data volume, and deployment.
 
-The Flask backend exposes REST APIs and coordinates application-level operations, such as authentication, analysis requests, data retrieval, and report generation.
+### 3.2 Frontend and backend collaboration
 
-Keeping these responsibilities behind a stable API allows the frontend, analysis modules, and edge processes to evolve without every component needing to know the implementation details of the others.
+The frontend uses React 18, Material UI, and React Flow; the backend uses Flask REST APIs with Blueprints for sensors, models, devices, users, and agents.
 
-### 3.3 Analytics layer
+- **REST API:** query data, update settings, submit training jobs.
+- **Polling:** fetch equipment status periodically.
+- **SSE:** receive server events and agent streams.
 
-This layer contains signal processing, feature extraction, anomaly detection, health scoring, and data-drift analysis. It should expose well-defined inputs and outputs so that algorithms can be tested independently from the web application.
+### 3.3 Performance metrics
 
-### 3.4 Edge execution layer
-
-The edge runtime handles local execution and interaction with the available sensor-data sources. Local processing can reduce dependence on continuous network connectivity and avoid sending every high-frequency raw sample to a central service.
-
-The exact division between local and centralized processing depends on latency, compute resources, network reliability, data volume, and deployment constraints.
-
-### 3.5 Persistence layer
-
-The current design uses SQLite databases for application and vibration-related data, along with files for model or analysis artifacts. This is a pragmatic starting point for a local or single-node deployment, but it introduces concurrency and lifecycle considerations as workload grows.
+Latency metrics need consistent start and end points, must distinguish average, P95, P99, and cold start, and should not be summed across sources.
 
 ## 4. End-to-End Data Flow
 
 ![End-to-end data flow](images/04_end_to_end_data_flow.png)
 
-A typical processing path consists of ingestion, buffering, persistence, feature extraction, model analysis, health assessment, and follow-up action.
+The data flow defines how data enters, is processed, and stays stable under bursts.
 
 ```mermaid
-flowchart TD
-    A["Sensor / File Input"] --> B["In-Memory Buffer"]
-    B --> C{"Batch Trigger"}
-    C -->|"Time or size threshold"| D["Persist / Prepare Batch"]
-    D --> E["Feature Extraction"]
-    E --> F["ML / PHM Analysis"]
-    F --> G["Health Score and Anomaly Results"]
-    G --> H["Dashboard / Report / Alert"]
-    H --> I["Engineer Review and Action"]
+flowchart LR
+    A["Sensor /<br/>File Input"] --> B["In-Memory<br/>Buffer"]
+    B --> C{"Batch<br/>Trigger<br/>(time or size)"}
+```
+
+```mermaid
+flowchart LR
+    D["Persist /<br/>Prepare Batch"] --> E["Feature<br/>Extraction"]
+    E --> F["ML / PHM<br/>Analysis"]
+```
+
+```mermaid
+flowchart LR
+    G["Health Score<br/>and Anomaly<br/>Results"] --> H["Dashboard /<br/>Report / Alert"]
+    H --> I["Engineer<br/>Review and<br/>Action"]
 ```
 
 ### 4.1 Buffering and batching
 
-A bounded Python `deque`, for example `deque(maxlen=5000)`, can be used to hold recent samples before processing. A batch may be triggered by a time interval (for example, approximately five seconds) or a record-count threshold (for example, 500 records), depending on the implementation.
+Sensors produce data continuously; a bounded `deque(maxlen=5000)` buffers samples and flushes up to 500 records to SQLite every ~5s or when the batch threshold is reached, keeping high-frequency I/O from competing with queries.
 
-A bounded deque automatically discards the oldest entries when it reaches capacity. It is therefore a useful short-term buffer, but it is **not** a durable message queue. If samples must survive process crashes or temporary downstream failures, the system needs an explicit persistence and replay strategy.
+At capacity it discards the oldest samples: a useful memory bound, **not a durable queue**. If every sample must survive, add a persistent queue, overflow handling, backpressure, and loss monitoring.
 
 ```mermaid
 flowchart LR
@@ -191,26 +190,26 @@ flowchart LR
 
 ### 4.2 Feature extraction and analysis
 
-The batch is transformed into signal features and passed to the relevant analytical methods. The output may include feature values, anomaly indicators, a health score, and supporting metadata.
+The batch yields features, anomaly indicators, a health score, and metadata.
 
 ### 4.3 Results and action
 
-The platform presents results through dashboards, reports, or alerts. The purpose is not merely to generate a score; it is to give engineers enough context to inspect the evidence, understand the potential issue, and decide what to do next.
+The platform presents results through dashboards, reports, or alerts; **anomaly detection identifies deviation, while root-cause analysis explains it** and needs history, equipment knowledge, and engineer validation—not a score alone.
 
 ## 5. Machine Learning and PHM Methods
 
 ![ML & PHM Pipeline](images/05_ml_phm_pipeline.png)
 
-PHM systems combine domain knowledge, signal processing, statistical analysis, and machine learning. No single algorithm can reliably answer every equipment-health question.
+PHM systems combine domain knowledge, signal processing, statistical analysis, and machine learning. No single algorithm answers every equipment-health question.
 
 ### 5.1 Signal features
 
-Common time-domain features include:
+Common signal features include:
 
-- **RMS (root mean square):** summarizes signal magnitude and is often used to monitor vibration energy.
+- **RMS (root mean square):** summarizes magnitude; often used for vibration energy.
 - **Peak:** captures the largest absolute amplitude in a window.
-- **Kurtosis:** describes aspects of a distribution's tail behavior and can help identify impulsive signals. Its interpretation depends on the data distribution and implementation.
-- **FFT (Fast Fourier Transform):** transforms a time-domain signal into frequency-domain components, helping reveal dominant frequencies and changes in spectral structure.
+- **Kurtosis:** measures tail behavior and can flag impulsive signals. Interpretation depends on the distribution and implementation.
+- **FFT (Fast Fourier Transform):** converts a time-domain signal into frequency components, revealing dominant frequencies and spectral changes.
 
 For a signal \(x = [x_1, x_2, \ldots, x_N]\), RMS is defined as:
 
@@ -222,15 +221,15 @@ Feature definitions, window sizes, sampling rates, units, and preprocessing shou
 
 ### 5.2 One-Class SVM for anomaly detection
 
-One-Class Support Vector Machine (One-Class SVM) can learn the boundary of data considered normal and flag observations that fall outside that boundary. It is useful when labeled fault examples are limited.
+One-Class Support Vector Machine (One-Class SVM) learns the boundary of normal data and flags observations outside it. It suits cases with few labeled faults.
 
 Important considerations include:
 
-- Fit the model on a representative baseline of normal operation.
+- Fit on a representative baseline of normal operation.
 - Scale features consistently.
-- Tune parameters such as `nu` and `gamma` using validation data and operational feedback.
-- Monitor false positives and false negatives; an anomaly score is not automatically a diagnosis.
-- Revisit the baseline when operating conditions or equipment configurations change.
+- Tune `nu` and `gamma` with validation data and feedback.
+- Monitor false positives and negatives; an anomaly score is not a diagnosis.
+- Revisit the baseline when conditions or equipment change.
 
 ```mermaid
 flowchart LR
@@ -242,21 +241,21 @@ flowchart LR
 
 ### 5.3 Dynamic Time Warping (DTW)
 
-Dynamic Time Warping measures similarity between sequences that may differ in timing or duration. It can be useful when comparing signal patterns whose important events do not occur at exactly the same time.
+Dynamic Time Warping measures similarity between sequences that differ in timing or duration. It helps compare patterns whose events are shifted in time.
 
-A DTW implementation uses a cumulative-cost matrix. A typical recurrence is:
+DTW uses a cumulative-cost matrix with recurrence:
 
 $$
 D(i,j) = d(x_i,y_j) + \min\left\{ D(i-1,j),\; D(i,j-1),\; D(i-1,j-1) \right\}
 $$
 
-where \(d(x_i,y_j)\) is the local distance between two points. Constraints such as a warping window can reduce computation and prevent implausible alignments. DTW is not a universal anomaly detector; its usefulness depends on the selected reference sequences, distance function, normalization, and domain.
+where \(d(x_i,y_j)\) is the local distance. A warping window cuts computation and prevents implausible alignments. **DTW is not universal**; results depend on references, distance metric, normalization, and domain.
 
 ### 5.4 PCA for data-drift monitoring
 
-Principal Component Analysis (PCA) projects correlated features into a lower-dimensional space. Comparing current data with a reference baseline can help identify distribution changes.
+Principal Component Analysis (PCA) projects correlated features into fewer dimensions. Comparing current data with a baseline reveals distribution changes.
 
-A drift signal does not necessarily mean equipment failure. It may also reflect a changed recipe, sensor replacement, a different operating regime, or a preprocessing change. Drift should trigger investigation and contextual checks rather than an automatic conclusion.
+Drift does not mean failure; a changed recipe, sensor replacement, operating regime, or preprocessing change can all produce it.
 
 ```mermaid
 flowchart LR
@@ -275,7 +274,7 @@ flowchart LR
 | DTW | Compare sequences with temporal misalignment | Can be computationally expensive and reference-dependent |
 | PCA | Monitor multivariate structure and potential drift | Drift is not equivalent to failure |
 
-A practical PHM workflow combines these methods with engineering context, historical evidence, and validation.
+The methods are complementary; validate combinations against the equipment and data.
 
 ## 6. Backend Design
 
@@ -283,15 +282,11 @@ A practical PHM workflow combines these methods with engineering context, histor
 
 ### 6.1 Flask application structure
 
-Flask Blueprints can separate API areas by responsibility — for example, authentication, equipment data, analysis, reports, and agent operations. This makes the application easier to test and maintain than a single large route module.
-
-The backend should validate request parameters, enforce authorization, handle errors consistently, and return predictable response formats. Long-running analysis should be treated differently from short synchronous API requests.
+Flask Blueprints separate API areas by responsibility: sensor data, ML analysis, edge management, maintenance, agent, and user/admin. Blueprints organize routes; **they do not fix coupling**. When business logic concentrates in one module, extract a service layer and data-access layer.
 
 ### 6.2 Authentication and authorization
 
-The platform uses LDAP / Active Directory integration for organizational identity and JWTs for authenticated requests.
-
-These mechanisms serve different purposes: directory authentication verifies a user's identity, while a token carries authenticated-session claims to subsequent API calls. Authorization is still checked for each protected operation. Tokens need appropriate expiry and signing configuration, and secrets must never be hard-coded into source code or container images.
+LDAP / AD verifies identity; JWTs authenticate later API calls. Authorization is checked per protected operation. Tokens need expiry and signing; secrets must never be hard-coded. **A valid token still requires role and resource checks**; hiding a button is not authorization.
 
 ```mermaid
 flowchart LR
@@ -303,24 +298,14 @@ flowchart LR
 
 ### 6.3 SQLite and data separation
 
-The design separates application data and vibration data into two SQLite databases, such as:
+- `edge_ai.db` — application records, configuration, model history.
+- `vibration.db` — vibration data and alerts.
 
-- `edge_ai.db` — application records, configuration, and workflow-related information.
-- `vibration.db` — vibration-related data and analysis inputs.
-
-SQLAlchemy can manage database interactions, and SQLite's `ATTACH DATABASE` feature can support selected cross-database queries. However, separate database files do not remove all consistency or concurrency concerns. Cross-database operations, transaction boundaries, backups, schema migrations, and recovery procedures need explicit testing.
-
-SQLite is suitable for many local deployments. If concurrent writes or multi-node access become substantial, a client-server database such as PostgreSQL may be a more appropriate next step.
+SQLAlchemy manages access; `ATTACH DATABASE` supports cross-database queries. **Separate files do not provide cross-database atomicity**; transactions, backups, migrations, and concurrent writes still need testing.
 
 ### 6.4 Scheduled tasks and model history
 
-APScheduler can run periodic jobs such as drift checks, report generation, or maintenance summaries. The job should be designed to tolerate retries, failures, and partial completion.
-
-Starting the scheduler in multiple web-worker processes can cause the same job to run more than once unless scheduling is coordinated. For multi-process deployments, consider a dedicated scheduler process or another mechanism that ensures a single active job owner.
-
-Model-build history should record enough metadata to reproduce an analysis, such as model version, training-data reference, configuration, creation time, and evaluation results. The exact fields depend on the platform's traceability requirements.
-
-A build also needs explicit states, so that a failed run is distinguishable from one that never started:
+APScheduler runs periodic jobs such as drift checks, reports, or maintenance summaries. Jobs must tolerate retries, failures, and partial completion. Starting the scheduler in **multiple web workers can duplicate jobs**; use a dedicated scheduler or single-owner mechanism. Model-build history records model version, training-data reference, configuration, timestamp, and evaluation results. Builds need explicit states so a failed run differs from one that never started:
 
 ```mermaid
 stateDiagram-v2
@@ -333,7 +318,24 @@ stateDiagram-v2
 
 ![AI Agent architecture](images/07_ai_agent_architecture.png)
 
-An AI agent can help users navigate the platform by translating a natural-language request into a controlled sequence of data retrieval and analysis operations. The LLM should not be the only component responsible for correctness or security.
+An AI agent translates a natural-language request into a controlled sequence of data retrieval and analysis. The constraints are permissions, traceability, and execution boundaries.
+
+### 7.1 Example tools
+
+The agent may expose:
+
+| Tool | Responsibility |
+| --- | --- |
+| `get_health_score` | Health score and context |
+| `get_vibration_data` | Authorized vibration data |
+| `run_sql_query_safe` | Constrained read-only query |
+| `anomaly_detection` | Defined anomaly workflow |
+| `read_file` | Allowlisted files |
+| `export_report` | Report from validated inputs |
+
+Tool names are illustrative; only implemented tools are available.
+
+### 7.2 Agent flow
 
 ```mermaid
 flowchart TD
@@ -348,46 +350,27 @@ flowchart TD
     H --> I["Response / Report for Human Review"]
 ```
 
-### 7.1 Example tools
+The LLM plans and selects tools; the backend executes SQL, file access, and computation. This reduces fabricated live values but **does not eliminate hallucination**; answers should cite query results, time ranges, and data sources.
 
-Depending on the actual deployment, the agent may expose tools such as:
+### 7.3 Tool governance and safety
 
-| Tool | Responsibility |
-| --- | --- |
-| `get_health_score` | Retrieve a health score and its relevant context |
-| `get_vibration_data` | Fetch authorized vibration data for a specified asset or time range |
-| `run_sql_query_safe` | Execute a constrained, read-only query against approved data |
-| `anomaly_detection` | Run a defined anomaly-analysis workflow |
-| `read_file` | Read permitted files from an allowlisted location |
-| `export_report` | Generate a report using validated inputs |
+The model proposes actions; the backend enforces the rules:
 
-Tool names are illustrative; only tools that are actually implemented are available in the deployed version.
-
-### 7.2 Tool governance and safety
-
-The model should propose an action, but the backend should enforce the rules. At minimum:
-
-- Validate arguments against a schema.
-- Authenticate the user and authorize access to the requested asset and data.
+- Validate arguments against a schema; require confirmation for consequential actions.
+- Authenticate the user and authorize the requested asset and data.
 - Use allowlists for files, tools, and queryable resources.
-- Restrict database operations; do not allow arbitrary destructive SQL.
-- Apply timeouts, output-size limits, and audit logging.
-- Return structured errors that the agent can handle without exposing secrets.
-- Require explicit confirmation for consequential actions where appropriate.
+- Restrict database operations; no arbitrary destructive SQL.
+- Apply timeouts, output-size limits, and audit logging; return structured errors without exposing secrets.
 
-A prompt instruction alone is not a security boundary. Enforcement belongs in the application and tool implementation.
+A prompt instruction is not a security boundary; enforcement belongs in the application and tools.
 
-### 7.3 Separate planning from execution
+### 7.4 Planning vs execution
 
-One possible design uses a larger model for high-level planning and a smaller model for tool-oriented execution. For example, a planner model can break a request into subtasks, while an executor selects from approved tools and handles structured results.
+The LLM understands the request, plans, and summarizes; Python tools execute queries and computation; the backend enforces permissions, validation, and execution boundaries. This makes computation testable but **adds orchestration, latency, and failure points**; compare it with a single-model or deterministic workflow.
 
-This split can help separate reasoning from action execution, but it also adds orchestration complexity, latency, and more failure points. It should be evaluated against a simpler single-model or deterministic workflow rather than assumed to be better by default.
+### 7.5 Server-Sent Events (SSE)
 
-### 7.4 Server-Sent Events (SSE)
-
-Server-Sent Events can stream progress or partial results from the backend to the frontend over an HTTP connection. This is useful when an agent performs multiple steps and the user should see that work is progressing.
-
-The implementation should define event types, error behavior, connection timeouts, and client reconnection semantics. Streaming text to the interface does not replace backend logging or durable job state.
+SSE streams progress and partial results over HTTP, so users see multi-step work as it happens. Define event types, error behavior, timeouts, and reconnection. Streaming **does not replace backend logging or durable job state**; evaluate WebSocket only if bidirectional interaction is needed.
 
 ## 8. Deployment and Observability
 
@@ -395,15 +378,11 @@ The implementation should define event types, error behavior, connection timeout
 
 ### 8.1 Docker Compose
 
-Docker Compose can package the web application and its supporting services for repeatable deployment on a single host. It helps standardize runtime dependencies, ports, environment variables, volumes, and startup relationships.
-
-A container being healthy does not guarantee that the whole application is functioning correctly. Readiness checks should verify the dependencies that matter, and persistent data should be stored in appropriate volumes rather than only in a container's writable layer.
+Docker Compose manages frontend, backend, and persistent volumes, standardizing dependencies, ports, environment variables, and startup order. **A healthy container does not mean the application works**; readiness checks should verify critical dependencies, and data belongs in volumes.
 
 ### 8.2 Runtime frontend configuration
 
-When the frontend is deployed as a static bundle and its backend URL varies by environment, a runtime configuration file such as `env.js` can expose the value through `window.ENV`. This avoids rebuilding the bundle for every environment.
-
-The runtime configuration must be loaded before application code reads it, validated at startup, and treated as public configuration. Do not put passwords, API secrets, or other credentials in browser-visible variables.
+When the frontend is a static bundle and the backend URL varies by environment, a runtime `env.js` can expose the endpoint through `window.ENV`, avoiding a rebuild per environment. Load it before application code, validate it at startup, and treat it as public. **Never put secrets in browser-visible variables**.
 
 ```mermaid
 flowchart LR
@@ -416,36 +395,34 @@ flowchart LR
 
 ### 8.3 Monitoring
 
-Useful operational signals include:
-
 - API request rate, latency, and error rate.
-- Data-ingestion delay, batch size, and dropped-sample counts.
+- Ingestion delay, queue depth, batch size, and dropped samples.
 - Model execution duration and analysis failures.
 - Scheduler job start time, duration, and outcome.
-- Agent tool-call success rate, timeouts, and token or inference cost where available.
-- Disk usage, database growth, and artifact-storage health.
+- Agent tool-call success rate, timeouts, and cost.
+- Disk usage, database growth, and artifact storage.
 
-Observability should help answer three questions: what failed, where it failed, and whether the system can safely recover.
+Observability should answer three questions: what failed, where, and whether the system can recover safely.
 
 ## 9. Failure Handling and Scaling
 
 ![Failure handling and scalability](images/09_failure_scaling.png)
 
-Failure handling should be designed into the data path, rather than added only after an incident.
+Failure handling must be designed into the data path, not added after an incident.
 
-| Failure scenario | Risk | Possible mitigation |
+| Failure | Risk | Mitigation |
 | --- | --- | --- |
-| Buffer reaches capacity | Old samples may be discarded | Track overflow/drop counts; use durable buffering if loss is unacceptable |
-| Sensor or source becomes unavailable | Incomplete or stale analysis | Track freshness, surface missing-data status, and avoid treating stale values as current |
-| Model execution fails | Missing or invalid result | Record failure context, apply bounded retries, and preserve the previous valid result with a clear timestamp |
-| SQLite write contention | Delayed or failed writes | Reduce competing writers, batch writes, tune transactions, or migrate to a server database |
-| Scheduled task runs twice | Duplicate reports or work | Use a single scheduler owner, idempotent jobs, or a distributed coordination mechanism |
-| LLM or tool call times out | Incomplete agent workflow | Apply timeouts, bounded retries, structured error handling, and a user-visible partial/failure state |
-| Network connectivity is interrupted | Remote service unavailable | Keep appropriate local capabilities, queue recoverable work, and define synchronization behavior |
+| Buffer full | Old samples may be dropped | Track drops; use durable buffering if loss is unacceptable |
+| Source unavailable | Stale or incomplete analysis | Track freshness; surface missing data; do not treat stale values as current |
+| Model fails | Missing or invalid result | Record context, bounded retries, keep the last valid result with a timestamp |
+| SQLite contention | Delayed or failed writes | Reduce competing writers, batch writes, tune transactions, or migrate |
+| Duplicate scheduled task | Duplicate reports or work | Single scheduler owner, idempotent jobs, or coordination |
+| LLM or tool timeout | Incomplete agent workflow | Timeouts, bounded retries, structured errors, visible partial state |
+| Network interrupted | Remote service unavailable | Keep local capabilities, queue recoverable work, define synchronization |
 
 ### 9.1 Evolve in stages
 
-Scaling should respond to measured constraints, not to technology fashion.
+Scaling should respond to measured constraints, not technology fashion.
 
 ```mermaid
 flowchart LR
@@ -453,13 +430,13 @@ flowchart LR
     B --> C["Stage 3: Cloud / Multi-Node Scale-Out"]
 ```
 
-**Stage 1 — Edge monolith.** A compact Flask application, local persistence, and local inference can be effective for a single-node deployment with modest workload.
+**Stage 1 — Edge monolith.** A compact Flask app, local persistence, and local inference suit a single node with modest load.
 
-**Stage 2 — Decoupled pipeline.** When ingestion and analysis interfere with API responsiveness, introduce durable queues and separate workers. This makes retries and backpressure easier to control.
+**Stage 2 — Decoupled pipeline.** When ingestion and analysis hurt API responsiveness, add durable queues and separate workers; retries and backpressure become easier.
 
-**Stage 3 — Cloud or multi-node scale-out.** When workload, availability, or concurrent access demands it, consider a client-server database, shared job coordination, centralized observability, and horizontally scalable services. The edge component can remain responsible for latency-sensitive local functions.
+**Stage 3 — Cloud or multi-node scale-out.** When workload, availability, or concurrency demands it, consider a server database, shared job coordination, centralized observability, and horizontal scaling; keep latency-sensitive work at the edge.
 
-Potential technologies such as MQTT, durable message brokers, Redis, PostgreSQL, and load balancers are options for future evolution — not proof that the current deployment already uses them.
+MQTT, durable brokers, Redis, PostgreSQL, and load balancers are future options, not current components.
 
 ```mermaid
 flowchart LR
@@ -479,34 +456,27 @@ flowchart LR
 
 ![Engineering trade-offs](images/10_engineering_tradeoffs.png)
 
-Every architecture reflects constraints. The objective is not to select the most sophisticated technology in every layer, but to make the current system reliable while preserving a practical path forward.
+The goal is not the most sophisticated technology in every layer, but a reliable current system with a practical path forward.
 
 | Area | Current approach | Benefit | Trade-off / next consideration |
 | --- | --- | --- | --- |
 | Web backend | Flask | Lightweight and straightforward to organize | Long-running tasks may need separate workers |
-| Persistence | SQLite | Simple local deployment and low operational overhead | Concurrent writes and multi-node access are limited |
-| Scheduling | APScheduler | Convenient for periodic jobs | Multi-process execution needs coordination |
-| Data buffering | Bounded `deque` | Fast and simple in-memory buffering | Not durable; old entries are discarded at capacity |
+| Persistence / scheduling / buffering | SQLite, APScheduler, bounded deque | Simple local operation | Concurrency, duplicate jobs, and non-durable buffering need explicit handling |
 | Frontend updates | REST APIs and SSE | Familiar request-response model with optional streaming | Reconnection and job state must be designed |
 | ML / PHM | Feature engineering plus multiple analytical methods | Combines interpretable signal features with statistical and ML methods | Requires baseline validation and domain-specific interpretation |
 | Deployment | Docker Compose | Repeatable single-host deployment | Not a complete orchestration solution for large clusters |
 
-A useful engineering principle is to separate **what exists today** from **what may be introduced later**. This distinction makes the design easier to review and prevents a roadmap from being mistaken for a production capability.
+Separate **what exists today** from **what may come later**; this keeps a roadmap from being mistaken for a production capability.
 
 ## 11. Conclusion
 
-An Edge AI platform is an end-to-end engineering system. Its value comes from connecting sensor data, signal processing, model execution, backend services, deployment, monitoring, and human workflows into a coherent operational path.
+1. **Design the complete data path and make results traceable.** A model is only useful when its inputs, outputs, errors, and context are handled reliably, with versioning and lineage for comparison.
+2. **Treat AI agents as controlled application clients.** The backend, not the prompt, enforces permissions, validation, and tool safety.
+3. **Make failure behavior explicit.** Buffers, schedulers, databases, network dependencies, and model calls all need defined failure semantics.
+4. **Scale based on evidence.** Start with deployment constraints, then decouple or replace components when measurements justify it.
 
-The main lessons are:
-
-1. **Design the complete data path.** A model is useful only when its inputs, outputs, errors, and operational context are handled reliably.
-2. **Make data and results traceable.** Versioning and lineage are essential for debugging and comparing analyses.
-3. **Treat AI agents as controlled application clients.** The backend — not the LLM prompt — must enforce permissions, validation, and tool safety.
-4. **Make failure behavior explicit.** Buffers, schedulers, databases, network dependencies, and model calls all need defined failure semantics.
-5. **Scale based on evidence.** Begin with a design that matches the deployment constraints, then decouple or replace components when measurements justify the change.
-
-The most valuable work is often not a single algorithm or framework. It is the engineering judgment required to make the components work together safely, predictably, and maintainably.
+The value is not the number of frameworks, but the engineering judgment to make them work together safely and predictably.
 
 ---
 
-> **Terms of use:** This article is written for technical exchange and system-design discussion. Identifying information about companies, customers and internal projects has been removed, and the data and scenarios have been de-identified or virtualized. The architectures described as future evolution are possible directions, not claims that all of them have been implemented or deployed. The use and redistribution of the text and diagrams follows the licensing terms published by the author.
+> **Terms of use:** For technical exchange only. Company, customer, and internal-project identifiers are removed; data and scenarios are de-identified or virtualized. Future architectures are possible directions, not deployment claims. Licensing follows the author's published terms.
