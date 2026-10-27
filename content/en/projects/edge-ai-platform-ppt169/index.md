@@ -28,6 +28,8 @@ cover:
 **Bottom line:** Reliability comes from traceable data, explicit failure behavior, and governed agents.
 {{< /tldr >}}
 
+{{< audio src="audio/morty-too-long-dont-read.m4a" caption="TL;DR — narrated by Morty" >}}
+
 This article describes an Edge AI / Prognostics and Health Management (PHM) platform from a system-design perspective: architecture, data flow, analytical methods, backend, AI agents, deployment, failure handling, and trade-offs.
 
 ## 1. Project Overview

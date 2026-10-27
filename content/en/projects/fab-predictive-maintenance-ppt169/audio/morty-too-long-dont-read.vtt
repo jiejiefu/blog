@@ -1,0 +1,58 @@
+WEBVTT
+
+00:00:00.001 --> 00:00:01.081
+TL;DR
+
+00:00:01.081 --> 00:00:03.341
+Six-layer architecture: sensing → streaming
+
+00:00:03.341 --> 00:00:04.141
+→ signal processing →
+
+00:00:04.141 --> 00:00:05.441
+PHM → Edge Agent
+
+00:00:05.441 --> 00:00:07.130
+→ MES/EAP safety integration.
+
+00:00:07.130 --> 00:00:09.450
+Two-stage detection (Isolation Forest →
+
+00:00:09.450 --> 00:00:11.901
+Autoencoder) plus RUL prediction turns
+
+00:00:11.901 --> 00:00:13.641
+raw signals into maintenance planning;
+
+00:00:13.641 --> 00:00:15.721
+figures are project-specific.
+
+00:00:15.721 --> 00:00:17.221
+Models ship through shadow
+
+00:00:17.221 --> 00:00:19.370
+deployment, canary rollout (5%
+
+00:00:19.370 --> 00:00:20.530
+→ 20% → 100%),
+
+00:00:20.530 --> 00:00:22.281
+then monitoring and rollback.
+
+00:00:22.281 --> 00:00:24.441
+Edge Agent, Industrial RAG, and
+
+00:00:24.441 --> 00:00:25.901
+MLOps connect evidence to
+
+00:00:25.901 --> 00:00:28.061
+workflows, but safety-critical control
+
+00:00:28.061 --> 00:00:29.601
+stays outside the LLM.
+
+00:00:29.601 --> 00:00:31.821
+Make each layer observable, verifiable,
+
+00:00:31.821 --> 00:00:34.259
+and recoverable before expanding autonomy.

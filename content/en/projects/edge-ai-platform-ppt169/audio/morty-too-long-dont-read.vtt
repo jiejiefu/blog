@@ -1,0 +1,61 @@
+WEBVTT
+
+00:00:00.001 --> 00:00:00.821
+TL;DR
+
+00:00:00.821 --> 00:00:02.061
+Five layers: React/MUI, Flask
+
+00:00:02.061 --> 00:00:02.501
+APIs, analytics, edge execution,
+
+00:00:02.501 --> 00:00:03.581
+and SQLite persistence.
+
+00:00:03.581 --> 00:00:05.481
+A bounded deque batches
+
+00:00:05.481 --> 00:00:07.221
+recent samples (500 records
+
+00:00:07.221 --> 00:00:08.141
+or ~5s) but is
+
+00:00:08.141 --> 00:00:09.021
+not a durable queue.
+
+00:00:09.021 --> 00:00:12.421
+PHM uses RMS/FFT, One-Class SVM,
+
+00:00:12.421 --> 00:00:13.701
+DTW, and PCA drift
+
+00:00:13.701 --> 00:00:16.681
+monitoring; engineers interpret results.
+
+00:00:16.681 --> 00:00:18.801
+AI agents are controlled clients:
+
+00:00:18.801 --> 00:00:21.081
+the backend enforces allowlists, authorization,
+
+00:00:21.081 --> 00:00:23.130
+validation, and audit logging.
+
+00:00:23.130 --> 00:00:24.641
+Deployment starts as a Docker
+
+00:00:24.641 --> 00:00:26.921
+Compose edge monolith; decouple workers
+
+00:00:26.921 --> 00:00:28.901
+only when measurements justify it.
+
+00:00:28.901 --> 00:00:31.601
+Bottom line: Reliability comes from
+
+00:00:31.601 --> 00:00:33.181
+traceable data, explicit failure
+
+00:00:33.181 --> 00:00:34.530
+behavior, and governed agents.

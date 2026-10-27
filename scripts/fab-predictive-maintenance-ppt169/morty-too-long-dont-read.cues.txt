@@ -1,0 +1,8 @@
+TL;DR
+
+Six-layer architecture: sensing → streaming → signal processing → PHM → Edge Agent → MES/EAP safety integration.
+Two-stage detection (Isolation Forest → Autoencoder) plus RUL prediction turns raw signals into maintenance planning; 
+figures are project-specific.
+Models ship through shadow deployment, canary rollout (5% → 20% → 100%), then monitoring and rollback.
+Edge Agent, Industrial RAG, and MLOps connect evidence to workflows, but safety-critical control stays outside the LLM.
+Make each layer observable, verifiable, and recoverable before expanding autonomy.

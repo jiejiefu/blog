@@ -25,13 +25,11 @@ cover:
 Make each layer observable, verifiable, and recoverable before expanding autonomy.
 {{< /tldr >}}
 
+{{< audio src="audio/morty-too-long-dont-read.m4a" caption="TL;DR — narrated by Morty" >}}
+
 ## Introduction
 
-This article expands an 11-slide interview deck into a technical reference on the Smart Fab Edge AI architecture. The appendix explains how to read the figures.
-
-It covers real-time processing, anomaly detection, Remaining Useful Life (RUL) prediction, edge deployment, industrial knowledge retrieval, and AI agent boundaries. The real question is not how to deploy models, but how to run them under constrained resources — balancing latency, compute, reliability, and operating cost — while integrating with existing controls, maintenance workflows, and factory systems.
-
-{{< audio src="audio/morty-introduction.m4a" caption="Introduction — narrated by Morty" >}}
+This article turns an 11-slide interview deck into a technical reference on the Smart Fab Edge AI architecture: real-time processing, anomaly detection, remaining useful life (RUL) prediction, edge deployment, industrial knowledge retrieval, and AI agent boundaries. The hard part is not deployment but running models under tight latency, compute, and cost constraints while meeting reliability requirements and integrating with existing controls, maintenance workflows, and factory systems.
 
 > **Intellectual Property and Usage Notice:** This article is for technical exchange, architecture discussion, and demonstration of personal capability. The content has been de-identified. It contains no confidential customer data, trade secrets, or non-public project information. Use and redistribution of the text and diagrams are subject to the author's published licensing terms.
 
@@ -41,12 +39,12 @@ It covers real-time processing, anomaly detection, Remaining Useful Life (RUL) p
 
 ![Cover: Smart Fab Edge-AI Predictive Maintenance and Autonomous Decision Agent System](images/01_cover.png)
 
-Semiconductor lines have many equipment types, high-frequency sensor data, expensive downtime, and strict latency and reliability requirements for some control loops. The architecture therefore pairs edge computing with centralized management: latency-sensitive work stays in the factory, while centralized services handle management. Firewall and audit rules also make sending data off-site for real-time analysis impractical.
+Semiconductor lines combine many equipment types, high-rate sensors, expensive downtime, and strict latency and reliability requirements on some control loops. The architecture therefore pairs edge computing with centralized management: latency-sensitive work stays in the factory, while centralized services handle model management, cross-equipment analytics, and deployment. Firewall and audit rules make off-site real-time analysis impractical.
 
-- **Data governance and security:** Classify and control access to sensor data, equipment information, and maintenance records; process sensitive data in-factory and follow internal rules for cross-system transfers.
-- **Edge resources:** Choose model size, inference frequency, and buffering against each device's CPU, memory, and accelerators.
-- **Detection usability:** Beyond accuracy, evaluate false-positive and false-negative rates, alert volume, and on-site workload.
-- **Safety and fault isolation:** AI assesses anomalies and recommends maintenance; safety-critical control stays with validated control systems and safety mechanisms.
+- **Data governance and security:** Classify sensor data, equipment information, and maintenance records; process sensitive data in-factory and follow internal rules for transfers.
+- **Edge resources:** Size models, inference frequency, and buffering against each device's CPU, memory, and accelerators.
+- **Detection usability:** Beyond accuracy, weigh false-positive/negative rates, alert volume, and on-site workload.
+- **Safety and fault isolation:** AI assesses anomalies and recommends maintenance; safety-critical control stays with validated systems and safety mechanisms.
 
 ---
 
@@ -54,7 +52,7 @@ Semiconductor lines have many equipment types, high-frequency sensor data, expen
 
 ![End-to-end technical architecture map](images/02_architecture.png)
 
-The architecture has six layers. The first three answer where data comes from, how it is organized, and how it becomes a judgment; the last three answer who receives that judgment, under what permissions, and how it connects to existing systems.
+The architecture has six layers. The first three handle acquisition, streaming, and feature extraction; the fourth forms a judgment; the fifth turns it into tasks; the sixth handles system integration and safety control.
 
 | Layer | Name | Key Technologies and Responsibilities |
 | --- | --- | --- |
@@ -65,11 +63,7 @@ The architecture has six layers. The first three answer where data comes from, h
 | 05 | Edge Agent and Task Orchestration | State management, tool routing, workflow orchestration, and model selection |
 | 06 | Integration and Safety Control | SECS/GEM, MES/EAP APIs, authorization, and safety middleware |
 
-Edge devices handle low-latency processing and inference. The central platform manages models, runs cross-equipment analytics and training, and coordinates deployment.
-
-These components need not form a linear pipeline; the right combination depends on data frequency, latency, and deployment environment.
-
-Even if a model returns in milliseconds, end-to-end latency must include acquisition, signal processing, inference, communication, and controller execution.
+Edge devices handle low-latency processing and inference; the central platform manages models, cross-equipment analytics, and deployment. Kafka handles messaging, InfluxDB stores time series, and ring buffers cap memory for continuous streams. These components need not form one path; the mix follows data rate, latency, and deployment constraints. Even if a model returns in milliseconds, end-to-end latency must include acquisition, signal processing, inference, communication, and controller execution.
 
 ---
 
@@ -77,11 +71,11 @@ Even if a model returns in milliseconds, end-to-end latency must include acquisi
 
 ![High-throughput data streaming and signal processing](images/03_streaming.png)
 
-In high-frequency sensing, the first challenge is rarely model accuracy — it is processing a continuous stream of incoming data.
+In high-frequency sensing, the challenge is rarely accuracy — it is the continuous stream.
 
 ### Data Volume and Scope
 
-Take 20 machines, three sensor channels each, sampled continuously at 2 kHz, with each sample stored as 4 bytes.
+Assume 20 machines, three channels each, 2 kHz continuous sampling, and 4 bytes per sample.
 
 Per second:
 
@@ -95,9 +89,9 @@ $$
 480{,}000 \times 86{,}400 = 41{,}472{,}000{,}000\ \text{bytes/day}
 $$
 
-That is about **41.47 GB/day** in decimal units (1 GB = \(10^9\) bytes). This counts raw values only — not timestamps, packet overhead, indexes, storage formats, or other metadata. With those, real traffic or storage can approach 50 GB/day.
+That is about **41.47 GB/day** in decimal units (1 GB = \(10^9\) bytes). This counts raw values only — not timestamps, packet overhead, indexes, storage formats, or metadata. With those costs, 50 GB/day is a reasonable planning figure; the exact number depends on format and retention.
 
-The 20-machine figure is an illustrative calculation, not a scale claim. **Managed fleet size** (how many machines the system can connect to) and **high-frequency processing scale** (how many actually stream raw waveforms at 2 kHz) are different metrics. Managing 500+ machines does not mean all of them stream raw waveforms at that rate.
+The 20-machine figure is illustrative, not a scale claim. **Managed fleet size** (machines connected) and **high-frequency processing scale** (machines streaming raw waveforms at 2 kHz) are different metrics; the latter depends on how many machines sample at high frequency, channel count, sampling rate, and retention policy. Managing 500+ machines does not mean all stream at that rate.
 
 ### Signal Processing Pipeline
 
@@ -106,12 +100,11 @@ The 20-machine figure is an illustrative calculation, not a scale claim. **Manag
 3. **Feature extraction:** Apply FFT, wavelet transforms, and statistics to compute RMS, spectral entropy, and band energy.
 4. **Output:** Emit fixed-format feature vectors for anomaly detection and health models.
 
-A model might consume a 64-dimensional feature vector instead of the full waveform, cutting downstream compute. Suitability still depends on the anomaly pattern — information lost during extraction cannot be recovered later.
+A 64-dimensional feature vector can replace the full waveform and cut downstream compute, but suitability depends on anomaly type and model requirements; lost information cannot be recovered.
 
 ### Edge Optimization
 
-- Process in batches or windows instead of sample by sample.
-- Use preallocated ring buffers to cut allocation and copying.
+- Process in batches or windows; use preallocated ring buffers to cut allocation and copying.
 - Separate high-frequency signal processing from lower-frequency state analysis.
 - Apply different retention and transmission policies to raw data, features, and events.
 - Monitor queue length, data loss, CPU usage, and end-to-end latency.
@@ -122,23 +115,23 @@ A model might consume a 64-dimensional feature vector instead of the full wavefo
 
 ![Two-stage anomaly detection](images/04_anomaly_detection.png)
 
-Equipment failure datasets are heavily imbalanced: normal data is easy to collect, real failures are rare. Pure supervised learning therefore lacks enough labeled failures.
+Equipment failure datasets are heavily imbalanced: normal data is easy to collect, real failures are rare, so supervised learning lacks enough labeled failures.
 
-False alarms are the other practical problem. Most come from material changeover or warm-up, when the vibration spectrum briefly departs from its usual distribution. The model scores it as anomalous and fires repeatedly while the machine is fine — enough noise for on-site staff to start ignoring the system.
+False alarms are the other practical problem. Most come from material changeover or warm-up, when the vibration spectrum briefly departs from normal. The model fires repeatedly while the machine is fine — enough noise for staff to start ignoring it.
 
-This architecture therefore separates cheap initial screening from deeper assessment.
+The architecture therefore separates cheap initial screening from deeper assessment.
 
 ### Stage 1: Rapid Screening
 
-Isolation Forest flags samples that differ from observed data. It is lightweight enough for some resource-constrained edge environments. Its job is to shortlist data for investigation, not to declare failure.
+Isolation Forest flags samples that differ from observed data. It is lightweight enough for constrained edge environments; its job is to shortlist data, not declare failure.
 
 ### Stage 2: In-Depth Assessment
 
 An Autoencoder measures reconstruction error against learned normal patterns. Thresholds can be set per equipment type, operating state, and sensor channel, so normal process transitions and load changes are not classified as failures.
 
-### Alert Consolidation
+### Alert Consolidation and Suppression
 
-Alert management cannot rely on model output alone. It must also consider repeated alerts from the same machine, alert duration and severity, the machine's operating and maintenance state, and whether an alert is already acknowledged or tied to a work order. A five-minute duplicate-suppression window per equipment and anomaly type is a reasonable starting point, with exceptions preserved for severity escalation and safety events.
+Alert management cannot rely on model output alone: consider repeated alerts, duration and severity, operating and maintenance state, and whether an alert is already acknowledged or tied to a work order. A five-minute duplicate-suppression window per equipment and anomaly type is a reasonable start, with exceptions for severity escalation and safety events; do not hide new risks just to reduce notifications.
 
 ---
 
@@ -152,23 +145,21 @@ Equipment health management (PHM) combines sensor features, equipment history, f
 
 ### RUL Model Design
 
-- **Statistical / survival analysis:** e.g. Weibull distributions, given appropriate assumptions.
+- **Statistical / survival analysis:** e.g. Weibull survival distributions under suitable assumptions to describe time to failure.
 - **Time-series models:** LSTM or Transformer, tracking how health indicators evolve.
-- **Domain features:** band energy, spectral entropy, vibration amplitude, and load, to sharpen recognition of real failure modes.
+- **Domain features:** band energy, spectral entropy, vibration amplitude, and load to sharpen failure-mode recognition.
 
-A Weibull distribution alone does not make a single machine's RUL accurate; per-machine prediction still needs observations and validation.
+Each approach fits different conditions. A Weibull distribution alone cannot guarantee an accurate RUL for one machine; prediction still needs observations and validation.
 
-### From Prediction to Planning
+### From Prediction to Maintenance Planning
 
-RUL matters because it lets maintenance teams plan people, spare parts, and downtime in advance.
+RUL is for planning labor, spare parts, and downtime, not just a time value.
 
 - **Routine monitoring:** RUL > 30 days — keep tracking at the established cadence.
 - **Advance preparation:** 7–30 days — verify spare parts and maintenance resources.
 - **Priority assessment:** < 7 days — schedule an engineering inspection and evaluate the maintenance window.
 
-These thresholds are illustrative. Real ones depend on failure consequences, spare-part lead times, prediction uncertainty, and production scheduling. For safety-critical equipment, continued operation must not rest on the RUL estimate alone.
-
-Root Mean Squared Error (RMSE) is an aggregate metric: it weights large misses more heavily and is not a per-prediction guarantee.
+These thresholds are illustrative; real ones depend on failure consequences, spare-part lead times, prediction uncertainty, and production scheduling. Safety-critical equipment must not keep running on the RUL estimate alone. RUL is an estimate, not a guarantee; keep human review in the maintenance window and never turn it directly into a shutdown command.
 
 ---
 
@@ -176,25 +167,23 @@ Root Mean Squared Error (RMSE) is an aggregate metric: it weights large misses m
 
 ![Edge deployment and low-code platform](images/06_edge_deployment.png)
 
-After training, the next problem is deploying reliably across devices and lines — and restoring the previous version when an update fails. In a factory this is more than packaging a container: OS, hardware architecture, drivers, inference-engine versions, and equipment protocols all affect whether the model runs.
+After training, the next problem is deploying reliably across devices and lines — and restoring the previous version when an update fails. In a factory this is more than packaging a container: OS, hardware architecture, drivers, inference-engine versions, and equipment protocols all affect whether the model runs. The process has four stages.
 
 ### 1. Standardized Packaging
 
-Bundle the model, inference application, dependencies, and config into a versioned, traceable artifact. Run compatibility tests per hardware platform.
+Bundle the model, inference application, dependencies, and config into a versioned, traceable artifact, with compatibility tests per hardware platform.
 
 ### 2. Shadow Deployment
 
-Run the new model alongside the current model or rules without affecting production control. Compare outputs, latency, resource use, and representative failure cases. Cover a representative range of operating conditions; two weeks is a reference, not a rule for equipment with rare failures.
+Run the new model alongside the current model or rules without affecting production control. The shadow period should cover representative equipment states and compare outputs, latency, resource use, and failure cases; two weeks is a reference period, not a fixed rule, and equipment with rare failures needs a longer shadow period.
 
-### 3. Canary Release
+### 3. Staged Canary Release
 
 Deploy to a small subset, then expand — for example 5%, 20%, then 100%, with explicit acceptance criteria at each stage.
 
 ### 4. Monitoring and Rollback
 
-Track inference failure rate, latency, resource use, and output distribution. If a threshold is crossed, stop the rollout and revert to a validated version.
-
-On top of this, a self-service interface lets production engineers with the right permissions select versions, inspect deployment status, and roll back without touching model internals.
+Track inference failure rate, latency, resource use, and output distribution. If a threshold is crossed, stop the rollout and revert to a validated version following a predefined process.
 
 ---
 
@@ -202,23 +191,19 @@ On top of this, a self-service interface lets production engineers with the righ
 
 ![Edge Agent](images/07_edge_agent.png)
 
-An Edge Agent turns sensor data, model inference, equipment states, and maintenance procedures into an executable, traceable workflow.
-
-It does not need an LLM for every decision. For tasks with strict latency and well-defined inputs and outputs, conventional logic or lightweight models are easier to test and validate. Agents fit cross-tool coordination, information integration, and multi-step execution.
+An Edge Agent turns sensor data, model inference, equipment states, and maintenance procedures into a traceable workflow. It does not need a large language model (LLM) for every decision: tasks with clear latency requirements and fixed inputs/outputs are easier to test with conventional logic or lightweight models. Agents fit cross-tool coordination and multi-step execution.
 
 ### Task Allocation at the Edge
 
 - **Real-time signal processing:** Acquisition, feature extraction, and necessary low-latency inference at the edge.
-- **State assessment and orchestration:** Combine anomaly scores, RUL, equipment state, and maintenance records to decide whether further inspection or a work order is needed.
-- **Equipment control and safety:** Executed by systems with explicit control logic and validated safety mechanisms. Free-form text or unvalidated model output must never become a high-risk control command.
+- **State assessment and orchestration:** Combine anomaly scores, RUL, equipment state, and maintenance records to decide on inspection or a work order.
+- **Equipment control and safety:** Execution belongs to systems with explicit control logic and validated safety mechanisms. Free-form text or unvalidated model output must never become a high-risk control command.
 
-Workflow frameworks such as LangGraph manage agent state, tool calls, retries, and branches. A model router can pick a model or rule engine based on task complexity, latency, and available compute. Neither guarantees real-time behavior or safety — execution time, error handling, resource limits, and exceptional paths still need testing.
+Workflow frameworks such as LangGraph manage state, tool calls, retries, and branches; a model router picks a model or rule engine by task complexity, latency, and compute. The framework itself does not guarantee real-time behavior or safety.
 
 ### Handling Disconnections
 
-The network is down. Should the Agent keep working or stop?
-
-Essential monitoring and local state assessment keep running on predefined rules when upstream is lost. If the system cannot confirm its own state, it enters a predefined degraded mode — and what each device does in that mode comes from equipment-specific risk analysis, not from a general-purpose Agent.
+Essential monitoring and local state assessment keep running on predefined rules when upstream is lost. If the system cannot confirm its own state, it enters a predefined degraded mode; what each device does then comes from equipment-specific risk analysis, not a general-purpose Agent. Some equipment may need to derate; others should stop specific actions or hand control back to existing controllers.
 
 Keep three concepts distinct:
 
@@ -226,7 +211,7 @@ Keep three concepts distinct:
 2. **Task success:** Can the Agent complete tool calls, state updates, and work orders?
 3. **Equipment safety:** Do existing controllers still protect the equipment during failures?
 
-Task success cannot substitute for safety validation. For OHT and other high-risk equipment, safety must rest on independent mechanisms and verification.
+The three are evaluated differently; task success cannot substitute for safety validation. For overhead hoist transport (OHT) and other high-risk equipment, safety must rest on independent mechanisms and verification.
 
 ---
 
@@ -234,25 +219,21 @@ Task success cannot substitute for safety validation. For OHT and other high-ris
 
 ![Industrial RAG](images/08_industrial_rag.png)
 
-Factory knowledge lives beyond equipment manuals — in maintenance logs, fault analysis reports, engineering notes, and historical work orders. Formats, naming, and quality are inconsistent. Dumping documents into a vector database can produce fluent answers that are neither correct nor applicable to the equipment's current state.
-
-Industrial RAG is therefore about traceability first: connecting questions, retrieved evidence, and source documents.
+Factory knowledge lives in manuals, maintenance logs, fault reports, engineering notes, and work orders. Formats and quality vary, and dumping documents into a vector database can produce fluent answers that are neither correct nor applicable to the current equipment state. Industrial retrieval-augmented generation (RAG) is therefore about traceability: connecting questions, retrieved evidence, and source documents.
 
 ### Knowledge Pipeline
 
 1. **Document preparation and access control:** Convert formats, remove duplicates, identify versions, handle sensitive data, and preserve provenance and permissions.
 2. **Semantic chunking and indexing:** Split documents by structure and content, then generate vector representations.
-3. **Hybrid retrieval:** Combine BM25, vector search, and metadata filtering to cope with terminology, equipment IDs, and near-duplicate documents.
+3. **Hybrid retrieval:** Combine BM25, vector search, and metadata filtering to handle terminology, equipment IDs, and near-duplicate documents.
 4. **Reranking:** Reassess candidate relevance to the question.
-5. **Answer generation and citations:** Generate from retrieved evidence and cite original documents, versions, and pages so users can verify.
+5. **Answer generation and citations:** Generate answers from retrieved evidence and cite documents, versions, and pages so users can verify.
 
 ### Enterprise Constraints
 
-Deploying RAG in a factory raises questions about document-level permissions in retrieval results, whether the model can reach unauthorized data, and how conflicting or outdated documents are handled.
+Deploying RAG in a factory means enforcing document-level permissions, preventing unauthorized data access, and handling conflicting or outdated documents.
 
-Maintenance recommendations should clearly separate what the source documents state from what the model inferred. When evidence is insufficient, the system should say so rather than invent a complete-looking procedure.
-
-Indexes and query logs need retention periods, auditing, and access permissions matched to data sensitivity.
+Maintenance recommendations should separate source statements from model inference; when evidence is insufficient, the system should say so rather than invent a procedure. Retrieved documents and tool outputs must be treated as untrusted input; prompt injection or poisoned documents must not expand permissions or trigger control actions. Index and query logs also need retention periods, audits, and access controls matched to data sensitivity.
 
 ---
 
@@ -262,24 +243,22 @@ Indexes and query logs need retention periods, auditing, and access permissions 
 
 The model performs well on the test set. Then what?
 
-Component wear, maintenance activity, load changes, or process changes can shift the data distribution away from training. Deployed models therefore need continuous monitoring and a workflow connecting detection, evaluation, and version updates.
+Component wear, maintenance activity, load changes, or process changes shift the input distribution away from the training set. Models therefore need continuous monitoring and a workflow connecting detection, evaluation, and updates.
 
 ### Drift Monitoring
 
-Depending on the data, use PSI, the KS test, or other distribution-difference measures against a baseline. PSI above 0.25 is a common warning threshold, but exceeding it does not mean the model has failed; thresholds should follow data distributions, feature behavior, and validation results.
-
-Monitor missing data, sensor anomalies, inference latency, and output distribution too, so sensor failures are not misread as model drift. A seven-day rolling baseline must not slowly absorb developing anomalies. More robust: dynamic baselines by operating mode, plus anomaly checks and explicit baseline-update conditions.
+Use PSI (Population Stability Index), the KS test, or other distribution-difference measures against a baseline. PSI above 0.25 is a common warning threshold, but exceeding it does not mean the model failed; set thresholds from data distributions, feature behavior, and validation results. Also monitor missing data, sensor anomalies, inference latency, and output distribution, so sensor failures are not misread as drift. A seven-day rolling baseline must not absorb developing anomalies; use dynamic baselines by operating mode, with anomaly checks and explicit update conditions.
 
 ### Model Update Workflow
 
-- Periodically evaluate data quality and model performance.
-- Build candidate models for confirmed issues.
-- Validate against historical data and relevant simulated scenarios.
-- Compare old and new in shadow mode.
-- Release incrementally after required reviews.
-- Preserve version, data provenance, parameters, and validation records for traceability and rollback.
+A more complete workflow includes:
 
-Automation is not about replacing a model the moment drift appears. It is about shortening detection, evaluation, and deployment while keeping the process controlled and auditable.
+- Periodically evaluate data quality and model performance.
+- Build candidates for confirmed issues; validate on historical and simulated data.
+- Compare old and new in shadow mode, then release incrementally after review.
+- Preserve version, provenance, parameters, and validation records for traceability and rollback.
+
+Automation does not replace a model the moment drift appears; it shortens detection, evaluation, and deployment while keeping the process controlled and auditable.
 
 ---
 
@@ -287,32 +266,33 @@ Automation is not about replacing a model the moment drift appears. It is about 
 
 ![Strategic impact and growth plan (2026–2027)](images/10_star_impact.png)
 
-These components must be integrated through clear data interfaces, access control, and error handling. Wiring services together does not by itself create an autonomous decision system.
+The preceding sections cover streaming, anomaly detection and RUL, Agent coordination, RAG, and MLOps—each addressing a different layer.
+
+These components must be integrated through clear data interfaces, access control, and error handling. Wiring services together does not create an autonomous decision system.
 
 ### Version 1.0: Observable, Predictable, Maintainable Foundation
 
-The first phase gives every component defined inputs and outputs, measurable monitoring, and failure handling, then validates performance on a limited set of devices and lines.
+Phase 1 gives every component defined inputs and outputs, measurable monitoring metrics, and failure handling, then validates on a limited set of devices and lines.
 
 | System | Phase 1 Focus | Evaluation Metrics |
 | --- | --- | --- |
 | Real-time streaming platform | Establish data acquisition and feature-processing pipelines | Throughput, data loss rate, end-to-end latency |
 | Anomaly detection | Reduce invalid alerts while preserving important events | False positive rate, false negative rate, F1 score |
-| RUL prediction | Estimate equipment health and remaining useful life | RMSE, prediction intervals, maintenance decision effectiveness |
+| RUL prediction | Estimate equipment health and remaining useful life | RMSE (root mean squared error), prediction intervals, maintenance decision effectiveness |
 | Edge Agent | Coordinate models, tools, and maintenance workflows | Task success rate, latency, failure recovery capability |
 | Industrial RAG | Establish document retrieval and answer traceability | Retrieval quality, answer correctness, citation traceability |
 | MLOps | Establish model versioning and release workflows | Deployment cycle, rollback time, version traceability completeness |
 
 ### Version 2.0: From Single-Equipment Analytics to Cross-Equipment Collaboration
 
-Once data processing, model quality, and deployment are stable per device, explore collaboration across devices and lines:
+Explore collaboration across devices and lines only after data processing, model quality, and deployment are stable per device:
 
-- Extend real-time processing to more devices while evaluating bandwidth and compute for higher sampling rates.
-- Combine multiple sensors to improve detection of complex, multi-factor anomalies.
+- Extend processing to more devices and combine sensors to catch complex anomalies, while evaluating bandwidth and compute at higher sampling rates.
 - Integrate RUL with spare-parts management, maintenance scheduling, and work-order systems.
 - Build an equipment knowledge graph for relationship queries across documents and devices.
 - Let Edge Agents exchange states and task results within their authorized boundaries.
 
-Longer term, an **Edge Agent Swarm** could let multiple agents collaborate across devices or tasks. That adds state consistency, task conflicts, communication failures, access control, and error propagation — so responsibilities, permitted actions, and failure handling must be defined before expanding autonomy.
+Longer term, an **Edge Agent Swarm** could let agents collaborate across devices or tasks, but it introduces state-consistency problems, task conflicts, communication failures, access-control gaps, and error propagation; define responsibilities, permitted actions, and failure handling first.
 
 ---
 
@@ -320,21 +300,19 @@ Longer term, an **Edge Agent Swarm** could let multiple agents collaborate acros
 
 ![Thank You](images/11_thanks.png)
 
-Building an Edge-AI system for a smart factory is more than combining sensors, machine-learning models, and an agent framework. The real work is system engineering: reliable data acquisition, models that run within constrained resources, anomaly results worth trusting, safe recovery from failed deployments, and AI recommendations that fit into equipment and maintenance workflows without breaking existing safety mechanisms.
+Building a smart-factory Edge AI system is more than combining sensors, models, and an agent framework. The real work is system engineering: reliable data, models that run within constrained resources, trustworthy anomaly results, safe recovery from failed deployments, and AI recommendations that do not break existing safety mechanisms.
 
-Predictive maintenance and autonomous decision agents are not two separate capabilities. The former provides condition and risk information; the Agent turns it into traceable workflows. Data governance, model monitoring, and safety controls keep the whole system reliable over time.
-
-The priority is not full autonomy from day one. Make each component observable, verifiable, and recoverable first, then expand the scope of AI-assisted decisions — because **AI capability and system responsibility boundaries must be defined together for the technology to work on the factory floor.**
+Predictive maintenance and autonomous decision agents are not separate: the former provides condition and risk information, and the Agent turns it into traceable workflows. Data governance, model monitoring, and safety controls keep the system reliable. The priority is not full autonomy from day one — make each component observable, verifiable, and recoverable first, then expand AI-assisted decisions. That is also what it takes for AI to reach the factory floor.
 
 ---
 
-## Appendix: How to Read the Numbers
+## Appendix: A Minimum Checklist for Performance Figures
 
-Figures here come from past project experience and interview material. They explain design trade-offs; they are not performance promises.
+This article deliberately omits project-specific performance figures and keeps only reproducible estimates and design thresholds. If such figures are cited, the following four checks are the minimum.
 
-- **Source and scope.** Some original test records are no longer retrievable, and none of these numbers has been independently revalidated. Company, customer, equipment, and system details are de-identified or generalized.
-- **Measurement basis matters more than the number.** Latency and cold start depend on start and end points. A false-positive rate depends on whether the denominator is normal samples or all alerts. Availability depends on the window and criteria. Document counts and container image size are equally ambiguous: source documents, versions, or chunks; one service or the full runtime. Read averages with their distribution and tail.
+- **Source and scope.** Confirm whether the original test records are retrievable and whether the numbers were independently validated. Company, customer, equipment, and system details should be de-identified or generalized.
+- **Measurement basis matters more than the number.** The same metric can vary by an order of magnitude depending on definitions: latency and cold start on start and end points, false-positive rate on the denominator, availability on the measurement window and criteria, and document counts and image size on what is included. Pair averages with distributions and tail values.
 - **Improvement is not attributable to a single cause.** Downtime, maintenance cost, abnormal-stop rate, and hours saved are shaped by workflows, spare-parts strategy, equipment upgrades, and staffing. If the model's contribution cannot be isolated, do not credit all of it to AI.
-- **Not industry benchmarks.** These figures hold for specific equipment, loads, and deployment conditions. Another line or failure mode can produce entirely different results.
+- **Not an industry benchmark.** Figures hold for specific equipment, load, and deployment conditions; another line or failure mode can produce very different results.
 
 Nothing here is a basis for operating specific equipment, implementing safety controls, or making maintenance decisions.

@@ -1,0 +1,8 @@
+TL;DR
+
+Five layers: React/MUI, Flask APIs, analytics, edge execution, and SQLite persistence.
+A bounded deque batches recent samples (500 records or ~5s) but is not a durable queue.
+PHM uses RMS/FFT, One-Class SVM, DTW, and PCA drift monitoring; engineers interpret results.
+AI agents are controlled clients: the backend enforces allowlists, authorization, validation, and audit logging.
+Deployment starts as a Docker Compose edge monolith; decouple workers only when measurements justify it.
+Bottom line: Reliability comes from traceable data, explicit failure behavior, and governed agents.
