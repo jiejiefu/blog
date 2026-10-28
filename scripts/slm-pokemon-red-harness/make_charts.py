@@ -79,8 +79,8 @@ def style_axes(ax):
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
     ax.spines["bottom"].set_color("#d0d0d8")
-    ax.tick_params(axis="x", colors=MUTED, labelsize=12, length=0)
-    ax.tick_params(axis="y", colors=INK, labelsize=14, length=0)
+    ax.tick_params(axis="x", colors=MUTED, labelsize=13.5, length=0)
+    ax.tick_params(axis="y", colors=INK, labelsize=15, length=0)
 
 
 def save(fig, name):
@@ -116,7 +116,7 @@ def make_spatial_memory():
         1, 3, figsize=(13.76, 5.6), dpi=100, constrained_layout=False
     )
     fig.patch.set_facecolor("white")
-    fig.subplots_adjust(left=0.03, right=0.985, top=0.82, bottom=0.16, wspace=0.10)
+    fig.subplots_adjust(left=0.03, right=0.985, top=0.80, bottom=0.19, wspace=0.10)
 
     order = [38, 37, 0]
 
@@ -219,7 +219,7 @@ def make_spatial_memory():
                 text,
                 ha="center",
                 va="bottom",
-                fontsize=9,
+                fontsize=15,
                 color="#b45309",
                 fontproperties=FONT,
                 zorder=7,
@@ -245,9 +245,9 @@ def make_spatial_memory():
             ax.annotate(
                 "最後位置",
                 (int(final["x"]), int(final["y"])),
-                xytext=(12, -19),
+                xytext=(14, -24),
                 textcoords="offset points",
-                fontsize=9,
+                fontsize=15,
                 color=RED,
                 fontproperties=FONT,
                 zorder=9,
@@ -263,7 +263,7 @@ def make_spatial_memory():
             f"{style['name']}（map {map_id}）\n"
             f"{len(cells)} 格 · {len(edges)} 阻擋 · {len(doors)} warp",
             fontproperties=FONT,
-            fontsize=13,
+            fontsize=16,
             color=INK,
             pad=14,
         )
@@ -298,17 +298,17 @@ def make_spatial_memory():
         ncol=4,
         frameon=False,
         prop=FONT,
-        fontsize=10,
-        bbox_to_anchor=(0.5, 0.065),
+        fontsize=14,
+        bbox_to_anchor=(0.5, 0.075),
     )
     fig.text(
         0.5,
-        0.02,
+        0.018,
         "格子座標為 (x, y)；只畫出實際走過的範圍。",
         ha="center",
         va="bottom",
         fontproperties=FONT,
-        fontsize=9.5,
+        fontsize=14.5,
         color=MUTED,
     )
     save(fig, "01_spatial_memory.webp")
@@ -336,7 +336,7 @@ def make_latency_budget():
         gridspec_kw={"width_ratios": [1.35, 1], "wspace": 0.18},
     )
     fig.patch.set_facecolor("white")
-    fig.subplots_adjust(left=0.07, right=0.98, top=0.82, bottom=0.16)
+    fig.subplots_adjust(left=0.07, right=0.98, top=0.80, bottom=0.19)
 
     ax.step(latency, cdf, where="post", color=INDIGO, linewidth=2.8, zorder=4)
     ax.axvspan(1.0, 2.0, color=RED, alpha=0.09, linewidth=0, zorder=0)
@@ -347,7 +347,7 @@ def make_latency_budget():
         ha="center",
         va="bottom",
         fontproperties=FONT,
-        fontsize=10,
+        fontsize=13,
         color=RED,
     )
 
@@ -362,7 +362,7 @@ def make_latency_budget():
             y,
             label,
             fontproperties=FONT,
-            fontsize=10,
+            fontsize=13,
             color=INK,
         )
 
@@ -373,17 +373,17 @@ def make_latency_budget():
     ax.set_ylim(0, 100)
     ax.set_xticks([0.4, 0.5, 1, 2, 5])
     ax.set_xticklabels(["0.4", "0.5", "1", "2", "5"])
-    ax.set_yticks([0, 25, 50, 75, 95, 100])
+    ax.set_yticks([0, 25, 50, 75, 100])
     ax.set_xlabel(
-        "秒（對數刻度）", fontproperties=FONT, fontsize=12, color=MUTED, labelpad=8
+        "秒（對數刻度）", fontproperties=FONT, fontsize=13.5, color=MUTED, labelpad=8
     )
     ax.set_ylabel(
-        "累積比例（%）", fontproperties=FONT, fontsize=12, color=MUTED, labelpad=8
+        "累積比例（%）", fontproperties=FONT, fontsize=13.5, color=MUTED, labelpad=8
     )
     ax.set_title(
         f"Ollama 往返延遲分布（{len(latency)} 筆）",
         fontproperties=FONT,
-        fontsize=14,
+        fontsize=17,
         color=INK,
         pad=12,
     )
@@ -396,7 +396,7 @@ def make_latency_budget():
         ha="right",
         va="bottom",
         fontproperties=FONT,
-        fontsize=9,
+        fontsize=14.5,
         color=MUTED,
         bbox=dict(boxstyle="round,pad=0.35", facecolor="white", edgecolor=GRID),
     )
@@ -409,7 +409,7 @@ def make_latency_budget():
     ax2.set_xlabel(
         "Game Boy 幀（60 Hz）",
         fontproperties=FONT,
-        fontsize=12,
+        fontsize=13.5,
         color=MUTED,
         labelpad=8,
     )
@@ -431,7 +431,7 @@ def make_latency_budget():
         ha="center",
         va="center",
         fontproperties=FONT,
-        fontsize=10,
+        fontsize=13,
         color="white",
     )
     ax2.text(
@@ -441,7 +441,7 @@ def make_latency_budget():
         ha="center",
         va="center",
         fontproperties=FONT,
-        fontsize=10,
+        fontsize=13,
         color=INK,
     )
     ax2.text(
@@ -451,7 +451,7 @@ def make_latency_budget():
         ha="right",
         va="center",
         fontproperties=FONT,
-        fontsize=10,
+        fontsize=12,
         color=INK,
     )
 
@@ -470,7 +470,7 @@ def make_latency_budget():
         ha="center",
         va="center",
         fontproperties=FONT,
-        fontsize=9.5,
+        fontsize=13,
         color="white",
     )
     ax2.text(
@@ -480,7 +480,7 @@ def make_latency_budget():
         ha="center",
         va="center",
         fontproperties=FONT,
-        fontsize=9.5,
+        fontsize=13,
         color=INK,
     )
     ax2.text(
@@ -490,45 +490,46 @@ def make_latency_budget():
         ha="right",
         va="center",
         fontproperties=FONT,
-        fontsize=10,
+        fontsize=12,
         color=INK,
     )
 
     ax2.annotate(
         "太快：只轉向",
         xy=(6, 1.62),
-        xytext=(1.4, 2.32),
+        xytext=(1.4, 2.28),
         fontproperties=FONT,
-        fontsize=9.5,
+        fontsize=15,
         color=MUTED,
         arrowprops=dict(
-            arrowstyle="-", color=GRAY, linewidth=1, linestyle=(0, (3, 3))
+            arrowstyle="-",
+            color=GRAY,
+            linewidth=1,
+            linestyle=(0, (3, 3)),
+            relpos=(1.0, 0.0),
         ),
     )
     ax2.annotate(
         "太慢：一步變兩步",
         xy=(24, 1.62),
-        xytext=(18.4, 2.32),
+        xytext=(23.0, 2.28),
+        ha="right",
         fontproperties=FONT,
-        fontsize=9.5,
+        fontsize=15,
         color=MUTED,
         arrowprops=dict(
-            arrowstyle="-", color=GRAY, linewidth=1, linestyle=(0, (3, 3))
+            arrowstyle="-",
+            color=GRAY,
+            linewidth=1,
+            linestyle=(0, (3, 3)),
+            relpos=(1.0, 0.0),
         ),
     )
     ax2.axvline(24, color=INK, linewidth=1.1, linestyle=(0, (4, 3)), zorder=2)
-    ax2.text(
-        24.6,
-        0.42,
-        "24 幀 = 400 ms",
-        fontproperties=FONT,
-        fontsize=10,
-        color=INK,
-    )
     ax2.set_title(
         "按鍵時序：方向鍵 24 幀 = 400 ms",
         fontproperties=FONT,
-        fontsize=14,
+        fontsize=17,
         color=INK,
         pad=12,
     )
@@ -540,7 +541,7 @@ def make_latency_budget():
         ha="center",
         va="bottom",
         fontproperties=FONT,
-        fontsize=9.5,
+        fontsize=14.5,
         color=MUTED,
     )
     save(fig, "02_latency_budget.webp")
@@ -564,7 +565,7 @@ def make_action_mix():
 
     fig, ax = plt.subplots(figsize=(13.76, 4.2), dpi=100)
     fig.patch.set_facecolor("white")
-    fig.subplots_adjust(left=0.16, right=0.86, top=0.80, bottom=0.20)
+    fig.subplots_adjust(left=0.16, right=0.86, top=0.80, bottom=0.24)
 
     rows = [
         ("舊管線\n132 episodes", old_counts, 132, "1 種動作"),
@@ -597,7 +598,7 @@ def make_action_mix():
                     ha="center",
                     va="center",
                     fontproperties=FONT,
-                    fontsize=11 if width > 15 else 9.5,
+                    fontsize=14 if width > 15 else 13,
                     color="white" if action in ("UP", "DOWN", "RIGHT") else INK,
                     linespacing=1.25,
                     zorder=4,
@@ -606,17 +607,17 @@ def make_action_mix():
 
     ax.set_yticks(ypos)
     ax.set_yticklabels(
-        [row[0] for row in rows], fontproperties=FONT, fontsize=13, linespacing=1.45
+        [row[0] for row in rows], fontproperties=FONT, fontsize=15, linespacing=1.45
     )
     ax.set_xlim(0, 112)
     ax.set_xticks([0, 25, 50, 75, 100])
     ax.set_xticklabels(["0%", "25%", "50%", "75%", "100%"])
-    ax.set_xlabel("動作比例", fontproperties=FONT, fontsize=12, color=MUTED, labelpad=8)
+    ax.set_xlabel("動作比例", fontproperties=FONT, fontsize=13.5, color=MUTED, labelpad=8)
     ax.set_ylim(-0.55, 1.55)
     ax.set_title(
         "動作分布：從單一 A 到四種方向鍵",
         fontproperties=FONT,
-        fontsize=15,
+        fontsize=18,
         color=INK,
         pad=14,
     )
@@ -629,7 +630,7 @@ def make_action_mix():
             ha="left",
             va="center",
             fontproperties=FONT,
-            fontsize=11,
+            fontsize=14,
             color=MUTED,
         )
 
@@ -638,17 +639,17 @@ def make_action_mix():
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
     ax.spines["bottom"].set_color("#d0d0d8")
-    ax.tick_params(axis="x", colors=MUTED, labelsize=12, length=0)
-    ax.tick_params(axis="y", colors=INK, labelsize=13, length=0)
+    ax.tick_params(axis="x", colors=MUTED, labelsize=13.5, length=0)
+    ax.tick_params(axis="y", colors=INK, labelsize=15, length=0)
 
     fig.text(
         0.16,
-        0.055,
+        0.05,
         "長度為比例；區塊內為次數。舊管線的 A 佔 100%，新管線出現四種方向鍵。",
         ha="left",
         va="bottom",
         fontproperties=FONT,
-        fontsize=9.5,
+        fontsize=14.5,
         color=MUTED,
     )
     save(fig, "03_action_mix.webp")
@@ -714,11 +715,11 @@ def draw_frame(ax, width, height, title, subtitle):
         xy=(tile_x + 4, tile_y + 4),
         xytext=(tile_x + 20, tile_y + 24),
         fontproperties=FONT,
-        fontsize=8.5,
+        fontsize=14,
         color=RED,
         arrowprops=dict(arrowstyle="-", color=RED, linewidth=0.8),
     )
-    ax.set_title(title, fontproperties=FONT, fontsize=12.5, color=INK, pad=7)
+    ax.set_title(title, fontproperties=FONT, fontsize=15, color=INK, pad=7)
     ax.text(
         0.5,
         -0.10,
@@ -727,7 +728,7 @@ def draw_frame(ax, width, height, title, subtitle):
         ha="center",
         va="top",
         fontproperties=FONT,
-        fontsize=9.5,
+        fontsize=15,
         color=MUTED,
     )
 
@@ -776,7 +777,7 @@ def draw_tile(ax, tile_w, tile_h, label, note):
         ha="center",
         va="top",
         fontproperties=FONT,
-        fontsize=10.5,
+        fontsize=14,
         color=INK,
     )
     ax.text(
@@ -787,7 +788,7 @@ def draw_tile(ax, tile_w, tile_h, label, note):
         ha="center",
         va="top",
         fontproperties=FONT,
-        fontsize=9,
+        fontsize=14,
         color=MUTED,
     )
 
@@ -801,9 +802,9 @@ def make_resolution_loss():
         height_ratios=[0.75, 1.25],
         left=0.06,
         right=0.94,
-        top=0.86,
-        bottom=0.14,
-        hspace=0.34,
+        top=0.84,
+        bottom=0.17,
+        hspace=0.38,
         wspace=0.16,
     )
 
@@ -828,7 +829,7 @@ def make_resolution_loss():
     fig.suptitle(
         "同一個 8×8 字元，在三種縮放下的樣子",
         fontproperties=FONT,
-        fontsize=15,
+        fontsize=18,
         color=INK,
         y=0.97,
     )
