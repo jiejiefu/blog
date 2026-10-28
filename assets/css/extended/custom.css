@@ -898,3 +898,10 @@
         transition: none;
     }
 }
+
+.post-content .katex-display {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25rem 0 0.35rem;
+}
