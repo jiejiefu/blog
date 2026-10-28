@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Backend Engineering on Jay Fu's Tech Blog</title><link>https://jiejiefu.github.io/blog/en/tags/backend-engineering/</link><description>Recent content in Backend Engineering on Jay Fu's Tech Blog</description><generator>Hugo -- 0.168.0</generator><language>en</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/en/tags/backend-engineering/index.xml" rel="self" type="application/rss+xml"/><item><title>Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions</title><link>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</guid><description>System design for a semiconductor equipment Edge AI and PHM platform, from sensor data to governed AI agents.</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Backend Engineering on Jay Fu's Tech Blog</title><link>https://jiejiefu.github.io/blog/en/tags/backend-engineering/</link><description>Recent content in Backend Engineering on Jay Fu's Tech Blog</description><generator>Hugo -- 0.169.0</generator><language>en</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/en/tags/backend-engineering/index.xml" rel="self" type="application/rss+xml"/><item><title>Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions</title><link>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</guid><description>System design for a semiconductor equipment Edge AI and PHM platform, from sensor data to governed AI agents.</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <ul>
 <li>Five layers: React/MUI, Flask APIs, analytics, edge execution, and SQLite persistence.</li>
@@ -9,6 +9,20 @@
 </ul>
 <p><strong>Bottom line:</strong> Reliability comes from traceable data, explicit failure behavior, and governed agents.</p>
 </aside>
+
+<figure class="post-audio" data-post-audio>
+    <audio
+        class="post-audio__player"
+        src="/blog/en/projects/edge-ai-platform-ppt169/audio/morty-too-long-dont-read.m4a"
+        type="audio/mp4"
+        controls
+        preload="metadata" data-audio-captions="/blog/en/projects/edge-ai-platform-ppt169/audio/morty-too-long-dont-read.vtt" aria-label="TL;DR — narrated by Morty"
+    >
+        <a href="/blog/en/projects/edge-ai-platform-ppt169/audio/morty-too-long-dont-read.m4a" download>Download</a>
+    </audio>
+    <div class="post-audio__cue" data-audio-cue hidden aria-hidden="true"></div>
+    <figcaption class="post-audio__caption">TL;DR — narrated by Morty</figcaption>
+</figure>
 
 <p>This article describes an Edge AI / Prognostics and Health Management (PHM) platform from a system-design perspective: architecture, data flow, analytical methods, backend, AI agents, deployment, failure handling, and trade-offs.</p>
 <h2 id="1-project-overview">1. Project Overview</h2>
