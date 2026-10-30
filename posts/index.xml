@@ -1,26 +1,56 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Posts on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/posts/</link><description>Recent content in Posts on Jay Fu 的科技部落格</description><generator>Hugo -- 0.169.0</generator><language>zh-tw</language><lastBuildDate>Tue, 27 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>DeepSeek-V4.1-Flash：把 global KV 壓到 890 bytes/token，骨幹反而大了近一倍</title><link>https://jiejiefu.github.io/blog/posts/deepseek-v4-1-flash/</link><pubDate>Tue, 27 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/deepseek-v4-1-flash/</guid><description>DeepSeek-V4.1-Flash 用 CED 把 decoder 的 global KV 從 encoder 長出來、用 CSA2 跨層共享 KV 與 index、再把 global KV 壓到 FP4，做到 890 bytes/token。本文拆解 40 層配置、FP4 位元帳、SWA Bounded Replay 的近似代價，以及 1017 更新後與 Anthropic Opus-5 的 4 勝 4 負。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
-  <p><strong>DeepSeek-V4.1-Flash 最值得看的是它把「每個 token 的 global KV」壓到 890 bytes——大約是上一代 V4-Flash 的 1/4、V1 的 1/437；benchmark 反而其次。</strong> 同時，它的 backbone 從 284B 長到 552B，將近一倍。</p>
-<p>這不是單點技巧。它同時動了三層：<strong>CED</strong> 讓 decoder 的 global KV 直接從 encoder 最後一層投影出來，prefill 的 global 分支只跑一半的層；<strong>CSA2</strong> 讓相鄰層共用 main KV、indexer K 與 Top-K，但不共用 query；<strong>FP4</strong> 把 KV 從 FP8 再砍一半。部署時再用 <strong>SWA Bounded Replay</strong> 把短期窗口移出 SSD，persistent KV 降到 1/8。</p>
-<p>代價寫在論文裡：SWA 重建是近似的、CSA2 的 sparse selection 可能選錯、1M prefill 仍然不便宜。這篇把那些「可以省」與「不能假設」的地方分開講。</p>
+  <p>V4.1-Flash 把 global KV 壓到 <strong>890 bytes</strong>。
+這是每個 token 的用量。
+大約是 V4-Flash 的 1/4，V1 的 1/437。
+同期 backbone 從 284B 長到 552B，接近一倍。
+這個反差比 benchmark 更說明問題。</p>
+<p>壓縮分三層。
+CED 讓 decoder 的 global KV 從 encoder 投影。
+來源是最後一層。
+prefill 的 global 分支只跑一半的層。
+CSA2 讓相鄰層共用 main KV、indexer K 與 Top-K。
+但它們不共用 query。
+FP4 再把 KV 從 FP8 砍一半。
+部署時用 SWA Bounded Replay 把短期窗口移出 SSD。
+persistent KV 降到 1/8。</p>
+<p>代價論文有寫。
+SWA 重建是近似的。
+sparse selection 可能選錯。
+1M prefill 也不便宜。
+下面把「可以省」與「不能假設」分開講。</p>
 
 </aside>
 
-<p>2026 年 9 月 10 日，DeepSeek 發布 V4.1-Flash。官方新聞稿主打「smarter, faster, more efficient」，技術報告的標題則是 <strong>Pushing the Limits of KV Cache Compression</strong>。這個順序本身說明問題：長 context 的競爭，已經從「模型能吃多長」變成「<strong>同一個 1M context，要佔多少記憶體、重算多少次、付多少 cache miss</strong>」。</p>
-<p>但它在壓 KV 的同時，把 backbone 從 284B 拉到 552B。骨幹變大、cache 變小，是怎麼同時成立的？</p>
+<p>2026 年 9 月 10 日，DeepSeek 發布 V4.1-Flash。
+新聞稿主打「smarter, faster, more efficient」。
+技術報告的標題是 Pushing the Limits of KV Cache Compression。
+兩句話擺在一起，重點就換了。
+長 context 的競爭不再問「模型能吃多長」。
+現在問同一份 1M context 要佔多少記憶體。
+還要問它重算幾次。
+以及每次 cache miss 付多少錢。</p>
+<p>但它在壓 KV 的同時，把 backbone 從 284B 拉到 552B。
+骨幹變大、cache 變小，怎麼同時成立？</p>
 <h2 id="1-先把規格講清楚748b763b與那張-1m-的帳單">1. 先把規格講清楚：748B、763B，與那張 1M 的帳單</h2>
-<p>先把容易混淆的數字分開。</p>
 <p>2026 年 9 月 10 日的論文版寫的是：</p>
 <ul>
-<li><strong>552B backbone parameters</strong></li>
-<li><strong>196B Engram parameters</strong></li>
-<li>兩者相加 <strong>748B</strong></li>
-<li>prefill 每 token 啟用 <strong>8B</strong>，decode 每 token 啟用 <strong>16B</strong></li>
-<li>context 上限 <strong>1M</strong>，最大輸出 <strong>384K</strong></li>
+<li>552B backbone parameters</li>
+<li>196B Engram parameters</li>
+<li>兩者相加 748B</li>
+<li>prefill 每 token 啟用 8B，decode 每 token 啟用 16B</li>
+<li>context 上限 1M，最大輸出 384K</li>
 </ul>
-<p>到了 2026 年 10 月 17 日的 <code>DeepSeek-V4.1-Flash-1017</code>，Hugging Face 上的 safetensors 張量總和是 <strong>763,205,315,794</strong>，也就是約 <strong>763B</strong>。</p>
-<p><strong>這 15B 的差額，官方沒有給出完整明細。</strong> 我不會把它解讀成「backbone 又大了 15B」——比較合理的理解是：763B 是 1017 checkpoint 實際儲存的張量總和，而 748B 是論文用「backbone + Engram」兩個主要區塊描述的帳。兩者不是同一個口徑。</p>
-<p>真正要記住的是這兩件事：</p>
+<p>10 月 17 日換成 <code>DeepSeek-V4.1-Flash-1017</code>。
+數字不一樣。
+Hugging Face 上的 safetensors 張量加總約 <strong>763B</strong>。
+精確數字是 763,205,315,794。</p>
+<p>15B 的差額，官方沒有給明細。
+不能解讀成 backbone 又大了 15B。
+比較合理的理解是口徑不同。
+763B 是 1017 checkpoint 的張量總和。
+748B 是論文用「backbone + Engram」描述的帳。</p>
+<p>兩代規格如下：</p>
 <table>
 	<thead>
 			<tr>
@@ -55,20 +85,31 @@
 <blockquote>
 <p>本文參數用 <code>B</code> 代表 billion；KV 大小一律寫 <code>bytes</code>，例如 <code>890 bytes/token</code>，避免和參數的 B 混淆。</p>
 </blockquote>
-<p>骨幹確實從 284B 長到 552B，1.94 倍；但 prefill 每 token 啟用反而從 13B 降到 8B。這是 CED 的直接結果：<strong>prefill 的 global 分支只跑一半的層</strong>。</p>
-<p>763B 的總量仍然是個巨獸。890 bytes/token 省的是 <strong>KV</strong>，不是權重；把 763B checkpoint 放進單機，和把 1M context 的 KV 放進 HBM，是兩個不同的問題。</p>
+<p>骨幹長了 1.94 倍，prefill 每 token 啟用反而降到 8B。
+這是 CED 的直接結果。
+global 分支只跑 20 層。</p>
+<p>763B 的總量還是巨獸。
+890 bytes/token 省的是 KV，不是權重。
+把 checkpoint 塞進單機，是一個問題。
+把 1M context 的 KV 放進 HBM（GPU 的高頻寬記憶體），是另一個問題。</p>
 <h2 id="2-為什麼此刻要壓-kvagent-把工作負載變成-input-heavy">2. 為什麼此刻要壓 KV：agent 把工作負載變成 input-heavy</h2>
-<p><strong>Agent 讓 inference 的形狀變了。</strong></p>
-<p>一般聊天是「短輸入、長輸出」；agent 是「長輸入、多次工具呼叫、每次都可能 cache miss」。一輪任務裡，模型要持續讀取工具輸出、重送 context、再生成下一步。輸入可以遠長於輸出，而且 <strong>prefill 不是一次，是很多次</strong>。</p>
-<p>論文指出：</p>
+<p>Agent 改變了 inference 的形狀。</p>
+<p>一般聊天是短輸入、長輸出。
+agent 是長輸入、多次工具呼叫。
+每次工具呼叫都可能 cache miss。
+一輪任務裡，模型反覆讀工具輸出。
+重送 context，再生成下一步。
+輸入可以遠長於輸出。
+prefill 不是跑一次，是跑很多次。</p>
+<p>論文的原話是：</p>
 <blockquote>
 <p>prefill remains computationally expensive, and large KV caches continue to strain HBM and SSD capacity and data-transfer bandwidth.</p>
 </blockquote>
-<p>三個瓶頸彼此牽連：</p>
+<p>瓶頸有三個，而且互相牽連：</p>
 <ol>
-<li><strong>HBM 容量</strong>：global KV 必須隨時可讀，放不下就只能排隊或降 batch。</li>
-<li><strong>SSD 容量與頻寬</strong>：persistent KV 用來做 prefix reuse，放不下就 cache miss。</li>
-<li><strong>傳輸頻寬</strong>：KV 在 HBM、host memory、SSD 之間搬移，搬得越多，延遲越難藏。</li>
+<li>HBM 容量：global KV 必須隨時可讀。放不下就排隊或降 batch。</li>
+<li>SSD 容量與頻寬：persistent KV 用來做 prefix reuse。放不下就 cache miss。</li>
+<li>傳輸頻寬：KV 在 HBM、host memory、SSD 之間搬。搬越多，延遲越難藏。</li>
 </ol>
 <p>換成 1M context，差距很具體：</p>
 <ul>
@@ -83,9 +124,12 @@
         </figcaption>
 </figure>
 
-<p>圖用 log scale；389 GB 到 890 MB 的差距，意味著<strong>同一個 HBM 預算可以多放約 4 倍的 1M context 請求</strong>（只算 KV）。對 serving 來說，這比 benchmark 多兩分更直接。</p>
+<p>圖用 log scale。
+這裡只算 KV。
+對 serving 來說，這比 benchmark 多兩分更值錢。</p>
 <h2 id="3-kv-的三個乘法維度">3. KV 的三個乘法維度</h2>
-<p>要壓 KV，其實只有三個地方可以動手，而且它們是相乘的：</p>
+<p>KV 的壓縮只有三個維度。
+三者相乘。</p>
 <table>
 	<thead>
 			<tr>
@@ -112,25 +156,39 @@
 			</tr>
 	</tbody>
 </table>
-<p>多數方法只動其中一個維度。<strong>CSA2 的野心是三個一起動</strong>：跨層共用 main KV 與 indexer K、允許跨層重用 Top-K、再用 hierarchical indexer 把候選池縮小。</p>
-<p>論文對 prior work 的批評：</p>
+<p>多數方法只動其中一個。
+CSA2 三個一起動。
+它跨層共用 main KV 與 indexer K。
+也允許跨層重用 Top-K。
+再用 hierarchical indexer 縮小候選池。</p>
+<p>論文對既有做法的批評：</p>
 <ul>
-<li>IndexCache 只省 index 計算，<strong>不省 main KV 儲存</strong>。</li>
-<li>YOIO 全層共用一組 routing，<strong>表達力受限</strong>。</li>
-<li>HySparse 的 hybrid 設計<strong>仍保留 full attention layer</strong>。</li>
-<li>更重要的是：<strong>沒有人同時覆蓋三個維度</strong>。</li>
+<li>IndexCache 只省 index 計算，不省 main KV。</li>
+<li>YOIO 全層共用一組 routing，表達力受限。</li>
+<li>HySparse 的 hybrid 設計仍保留 full attention layer。</li>
+<li>沒有人同時覆蓋三個維度。</li>
 </ul>
-<p>但取捨是真的：<strong>省 index 不等於省 KV，省 KV 也不等於省 prefill。</strong> 三個成本要分開算。</p>
+<p>省 index 不等於省 KV。
+省 KV 也不等於省 prefill。
+三個成本要分開算。</p>
 <h2 id="4-ceddecoder-的-global-kv-從第-20-層長出來">4. CED：decoder 的 global KV 從第 20 層長出來</h2>
-<p>V4.1-Flash 最反直覺的設計是 <strong>Causal Encoder-Decoder（CED）</strong>。</p>
-<p>一般 decoder-only Transformer 的每一層，都用「這一層自己的 hidden state」算 KV。CED 把 40 層切成兩半：前 20 層是 <strong>causal encoder</strong>，後 20 層是 <strong>decoder</strong>。對於 global attention，decoder 的 KV 改由 encoder 最後一層投影出來：</p>
+<p>V4.1-Flash 最反直覺的設計是 CED。
+全名 Causal Encoder-Decoder。</p>
+<p>一般 decoder-only 模型每層自己算 KV。
+KV 來自該層的 hidden state。
+CED 把 40 層切成兩半。
+前 20 層是 causal encoder。
+後 20 層是 decoder。
+global attention 的 KV 改由 encoder 最後一層投影：</p>
 $$
 C_l = H_{L/2} W_l^{KV}, \qquad Z_l = H_{L/2} W_l^{Z}, \qquad l > \frac{L}{2}
-$$<p>其中 \(C_l\) 是第 \(l\) 層的 KV entry，\(Z_l\) 是對應的壓縮權重，\(W_l^{KV}\) 與 \(W_l^{Z}\) 是<strong>每一層不同</strong>的投影矩陣。也就是說：</p>
+$$<p>\(C_l\) 是第 \(l\) 層的 KV entry。
+\(Z_l\) 是對應的壓縮權重。
+\(W_l^{KV}\) 與 \(W_l^{Z}\) 每層不同。</p>
 <ul>
-<li><strong>KV 的來源是同一個</strong>：encoder 最後一層的 \(H_{20}\)。</li>
-<li><strong>每一層的投影不同</strong>：decoder 層仍然可以學到自己想要的 KV 子空間。</li>
-<li><strong>decoder 不需要為了 global KV 再跑一次 20 層</strong>：prefill 只要把 encoder 跑完，就能「長出」decoder 的 global KV。</li>
+<li>KV 來源相同：都是 encoder 最後一層的 \(H_{20}\)。</li>
+<li>每層投影不同：decoder 仍能學到自己的 KV 子空間。</li>
+<li>decoder 不必重跑 20 層：prefill 跑完 encoder，就能長出 global KV。</li>
 </ul>
 <div class="mermaid">flowchart TB
     P[Prompt tokens] --&gt; E[Encoder layers 1-20]
@@ -142,18 +200,26 @@ $$<p>其中 \(C_l\) 是第 \(l\) 層的 KV entry，\(Z_l\) 是對應的壓縮權
 <p>Prefill 的複雜度因此從 \(O(NL)\) 降到：</p>
 $$
 O\left(\frac{NL}{2} + n_{\mathrm{win}}\frac{L}{2}\right) \approx O\left(\frac{NL}{2}\right)
-$$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層自己的 hidden state」算出來的，不能從 encoder 投影。所以 prefill 還是要為 decoder 的 SWA 跑一小段——論文只跑最後 \(n_{\mathrm{win}}=128\) 個 token。</p>
-<p><strong>CED 讓 global KV 變淺，但沒有讓 SWA 變淺。</strong> decoder 的 global attention 只看到 encoder 最後一層；每一層的 local attention 仍穿過完整 40 層。global 記憶用共享、便宜的方式產生，local 細節則逐層保留。論文說這是在 YOCO 上加強 KV 容量與生成深度，指的就是這件事。</p>
-<p>代價有三個：</p>
+$$<p>第二項是 SWA 的 replay。
+decoder 的 SWA KV 仍由自己的 hidden state 算出。
+它不能從 encoder 投影。
+prefill 還是要為 SWA 跑一小段。
+論文只跑最後 \(n_{\mathrm{win}}=128\) 個 token。</p>
+<p>CED 只讓 global 分支變淺。
+local attention 仍逐層跑完 40 層。
+論文說這是 YOCO 的加強版，補上 KV 容量與生成深度。</p>
+<p>代價有三個。</p>
 <ul>
-<li><strong>global KV 的表徵深度被固定在第 20 層</strong>。decoder 不能再用自己的 hidden state 去豐富 global KV。</li>
-<li><strong>SWA 仍然是逐層的</strong>，所以 prefill 不能真的只跑 20 層；還要為 decoder 的 SWA 補 128 個 token 的 replay。</li>
-<li><strong>這個近似在短 prompt、多輪對話時最敏感</strong>，因為每一輪的 uncached suffix 可能很短，但 decoder 還是要 replay 一次。</li>
+<li>表徵深度鎖在第 20 層。decoder 不能用 hidden state 豐富 global KV。</li>
+<li>SWA 仍逐層。prefill 不能真的只跑 20 層，還要補 128 個 token 的 replay。</li>
+<li>短 prompt、多輪對話最敏感。uncached suffix 可能很短，decoder 還是要 replay。</li>
 </ul>
-<p>論文只說這個設計「nearly halves prefill computation」，沒說 global attention 變免費。</p>
+<p>論文只說它「nearly halves prefill computation」。
+它沒說 global attention 變免費。</p>
 <h2 id="5-csa2共享-kv共享-index但不共享-query">5. CSA2：共享 KV、共享 index，但不共享 query</h2>
-<p>CED 解決的是 <strong>prefill 的計算</strong>；CSA2 解決的是 <strong>KV 的儲存與 decode 的 index 計算</strong>。</p>
-<p>CSA2 把每個 CSA2 layer 靜態指派成三種模式之一：</p>
+<p>CED 解決 prefill 的計算。
+CSA2 解決 KV 儲存與 decode 的 index 計算。</p>
+<p>CSA2 的每一層固定是三種模式之一：</p>
 <table>
 	<thead>
 			<tr>
@@ -166,21 +232,21 @@ $$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層�
 	</thead>
 	<tbody>
 			<tr>
-					<td><strong>Full</strong></td>
+					<td>Full</td>
 					<td>自己算</td>
 					<td>從 main KV 投影</td>
 					<td>自己選</td>
 					<td>完整的 CSA2 路徑：global Q、main KV、indexer Q/K、Top-K</td>
 			</tr>
 			<tr>
-					<td><strong>Reindex</strong></td>
+					<td>Reindex</td>
 					<td>重用前一層</td>
 					<td>重用前一層</td>
-					<td><strong>自己重選</strong></td>
+					<td>自己重選</td>
 					<td>自己的 indexer Q，對共享的 indexer K 重新打分</td>
 			</tr>
 			<tr>
-					<td><strong>Reuse</strong></td>
+					<td>Reuse</td>
 					<td>重用前一層</td>
 					<td>重用前一層</td>
 					<td>重用前一層</td>
@@ -188,7 +254,10 @@ $$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層�
 			</tr>
 	</tbody>
 </table>
-<p>三種模式都有一個共同點：<strong>每個 layer 都保留自己的 global Q 與 SWA KV。</strong> 共享的是「被查詢的 cache」與「查詢的索引」，不是「查詢本身」。</p>
+<p>三種模式有一個共同點。
+每個 layer 都保留自己的 global Q 與 SWA KV。
+共享的是被查詢的 cache 與索引。
+不共享 query 本身。</p>
 <div class="mermaid">flowchart LR
     F[Full] --&gt;|產生| KV[Main KV + indexer K]
     F --&gt;|計算| IDX[Top-K indices]
@@ -199,11 +268,13 @@ $$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層�
     Q[每一層自己的 global Q] --&gt; A[Sparse attention]
     KV --&gt; A
     IDX --&gt; A</div>
-<p>這個設計的關鍵是 <strong>把「cache 共享」與「index 共享」解耦</strong>。</p>
+<p>關鍵在於把 cache 共享與 index 共享解耦。</p>
 <ul>
-<li>如果只共享 cache、不共享 index，每一層都要重跑 indexer，decode 的 index 成本還是 \(O(N)\)。</li>
-<li>如果只共享 index、不共享 cache，KV 儲存完全沒省。</li>
-<li>CSA2 讓 Reindex 模式「共享 cache、但重選 index」，讓 Reuse 模式「兩者都共享」。於是 <strong>儲存與計算可以分別調整</strong>。</li>
+<li>只共享 cache，每層都要重跑 indexer。decode 的 index 成本仍是 \(O(N)\)。</li>
+<li>只共享 index，KV 儲存完全沒省。</li>
+<li>Reindex 共享 cache、重選 index。</li>
+<li>Reuse 兩者都共享。</li>
+<li>儲存與計算因此能分開調。</li>
 </ul>
 <h3 id="40-層的實際配置">40 層的實際配置</h3>
 <p>論文給的 40 層配置：</p>
@@ -234,11 +305,11 @@ $$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層�
 	</tbody>
 </table>
 <ul>
-<li><strong>40 層 = 20 encoder + 20 decoder</strong>，hidden dim \(d=5120\)。</li>
-<li>所有 CSA2 layer：indexer <strong>32 heads × 128 dim</strong>，sparse attention 取 <strong>Top-512</strong>。</li>
-<li>Query 端：<strong>64 heads × 512 dim</strong>，query compression dim <strong>1280</strong>；輸出投影 <strong>8 組</strong>，每組 intermediate <strong>1024</strong>。</li>
+<li>40 層 = 20 encoder + 20 decoder，hidden dim \(d=5120\)。</li>
+<li>所有 CSA2 layer：indexer 32 heads × 128 dim，sparse attention 取 Top-512。</li>
+<li>Query 端：64 heads × 512 dim，query compression dim 1280；輸出投影 8 組，每組 intermediate 1024。</li>
 <li>SWA window \(n_{\mathrm{win}}=128\)。</li>
-<li>MoE：<strong>1 shared expert + 384 routed experts</strong>，每 token 啟用 <strong>6 個 routed</strong>，expert intermediate dim <strong>2304</strong>。</li>
+<li>MoE：1 shared expert + 384 routed experts，每 token 啟用 6 個 routed，expert intermediate dim 2304。</li>
 </ul>
 <figure>
     <img loading="lazy" src="images/03_layer_layout.webp"
@@ -247,32 +318,50 @@ $$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層�
         </figcaption>
 </figure>
 
-<p>圖中灰色方塊是「純 SWA 層」，不是所有 SWA 分支。每一層都有一個 SWA 分支；前 2 層只是沒有 global attention，只有 SWA。</p>
+<p>灰色只代表沒有 global attention，不代表沒有 SWA。
+每一層都有 SWA，前 2 層只是少了 global。</p>
 <h3 id="為什麼-encoder-用-decoder-用-">為什麼 encoder 用 \(m=2\)、decoder 用 \(m=1\)？</h3>
-<p>encoder 與 decoder 的任務不同：</p>
+<p>兩邊的任務不同。</p>
 <ul>
-<li><strong>encoder 的任務是建立 global KV</strong>。把每 2 個 token 壓成 1 個 entry，可以讓 global KV 的 sequence 維度直接減半；encoder 只需要「記得住」，不需要在每一個位置上都做極細的檢索。</li>
-<li><strong>decoder 的任務是逐 token 生成與檢索</strong>。\(m=1\) 代表不做 sequence 壓縮，保留每個位置一個 entry；decoder 的節省主要來自 <strong>跨層共享</strong>（Full/Reindex/Reuse）與 <strong>FP4</strong>，而不是 sequence 壓縮。</li>
+<li>encoder 建立 global KV。每 2 個 token 壓成 1 個 entry，sequence 維度直接減半。encoder 只需記得住，不必每個位置都細查。</li>
+<li>decoder 逐 token 生成與檢索。\(m=1\) 不做 sequence 壓縮，每個位置保留一個 entry。節省來自跨層共享與 FP4。</li>
 </ul>
-<p><strong>encoder 用 compression 換容量，decoder 用 sharing 換精細度。</strong> 這也解釋了為什麼 decoder 的 global KV 可以只有 890 bytes/token，但 attention 仍然能選到 Top-512。</p>
+<p>encoder 用壓縮換容量。
+decoder 用共享換精細度。
+這解釋了 890 bytes/token 的來源。
+它也解釋 attention 為何還能選到 Top-512。</p>
 <h3 id="與-v4-的差別拿掉-hca">與 V4 的差別：拿掉 HCA</h3>
-<p>V4 用的是 <strong>CSA + HCA 的 hybrid</strong>：CSA 負責壓縮的 sparse attention，HCA 負責「重度壓縮」的 global 通道。V4.1-Flash 改成 <strong>pure CSA2</strong>，把 HCA 拿掉。</p>
-<p>簡化不一定會變好。論文說，V4.1 把 V4 的 global branch 簡化成純 CSA2，同時保留 SWA 的 local processing。好處是：</p>
+<p>V4 用的是 CSA + HCA 的 hybrid。
+CSA 負責壓縮的 sparse attention。
+HCA 負責重度壓縮的 global 通道。
+V4.1-Flash 改成 pure CSA2，拿掉 HCA。</p>
+<p>簡化不一定會變好。
+SWA 的 local processing 留著。
+好處是：</p>
 <ul>
 <li>少一種 layer type，實作與 kernel 都簡單。</li>
 <li>不需要在 CSA 與 HCA 之間做 routing / 混合。</li>
 <li>跨層共享的規則可以統一。</li>
 </ul>
-<p>代價是：<strong>global 通道的表達力要靠 CSA2 的 Full/Reindex/Reuse 配置補回來。</strong> 論文說效能沒有掉，甚至更好；但這是整體訓練與資料的結果，不能單獨歸因於「拿掉 HCA」。</p>
+<p>代價是表達力下降。
+global 通道要靠 Full/Reindex/Reuse 的配置補回來。
+論文說效能沒掉，甚至更好。
+但這是整體訓練與資料的結果。
+不能單獨歸因於拿掉 HCA。</p>
 <h2 id="6-hierarchical-sparse-indexer把-decode-的-index-成本關進候選池">6. Hierarchical Sparse Indexer：把 decode 的 index 成本關進候選池</h2>
-<p>CSA2 已經讓很多層不用重算 index，但 <strong>Reindex 層還是要重新打分</strong>。在 1M context 下，如果每一層都掃過所有可看見的 main KV，這個 \(O(N)\) scanning 仍然是 decode 的 bottleneck。</p>
-<p>Hierarchical Sparse Indexer 把 decode 的 index 成本拆成三階段：</p>
+<p>CSA2 讓很多層不用重算 index。
+Reindex 層還是要重新打分。
+1M context 下，每層若掃過所有 main KV，成本仍是 \(O(N)\)。
+這會變成 decode 的 bottleneck。</p>
+<p>Hierarchical Sparse Indexer 把 index 成本拆成三階段：</p>
 <ol>
-<li><strong>Full</strong>：decoder 的第一個 Full 層掃過所有可看見的 main KV，選出自己的 Top-512；同時用 blockwise max 選出分數最高的 block。</li>
-<li><strong>Reindex</strong>：把選中 block 覆蓋的位置收成 <strong>candidate pool</strong>，後續 Reindex 層只在 pool 裡打分，選自己的 Top-512。</li>
-<li><strong>Reuse</strong>：完全不做 index，直接沿用最新的 Top-K。</li>
+<li>Full：第一個 Full 層掃過所有 main KV，選出 Top-512。同時用 blockwise max 選出高分 block。</li>
+<li>Reindex：把選中 block 的位置收成 candidate pool。後續 Reindex 層只在 pool 裡打分。</li>
+<li>Reuse：不做 index，直接沿用最新的 Top-K。</li>
 </ol>
-<p>候選池上限是 <strong>2,048 個 block × 8 個位置 = 16,384 個 candidate positions</strong>；最後的 attention 仍然只讀 Top-512。</p>
+<p>候選池上限是 2,048 × 8。
+也就是 16,384 個 candidate positions。
+最後的 attention 仍只讀 Top-512。</p>
 <figure>
     <img loading="lazy" src="images/06_sparse_indexer_pool.webp"
          alt="Hierarchical Sparse Indexer 流程：1M context 經 Full 層掃描，以 blockwise max 選出 16,384 個 candidate positions，Reindex 只在候選池打分，Reuse 層直接沿用 Top-K"/> <figcaption>
@@ -280,29 +369,33 @@ $$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層�
         </figcaption>
 </figure>
 
-<p>這樣一來，<strong>第一個 Full 層仍然掃全 context，但後續 indexer 的每 query 成本變成常數</strong>（候選池大小固定），與 context 長度無關。</p>
-<p>兩個細節：</p>
+<p>第一個 Full 層仍掃全 context。
+後續 indexer 的每 query 成本變成常數。
+候選池大小固定，與 context 長度無關。</p>
+<p>兩個細節。</p>
 <ul>
-<li><strong>candidate pool 是共享的，但最終 Top-K 不是。</strong> 不同 Reindex 層還是可以選到不同 entry；共享的只是搜尋範圍。</li>
-<li><strong>這個機制是 training-aware，且在 post-training 才引入。</strong> 訓練與推論套用同一套 candidate restriction，讓 deeper indexer 在推論時會看到的搜尋範圍內最佳化。所以這套機制得在後訓練階段一起調，不能等到訓練完再外掛。</li>
+<li>pool 共享，Top-K 不共享。不同 Reindex 層仍可選到不同 entry。</li>
+<li>training-aware，post-training 才引入。訓練與推論用同一套 restriction。deeper indexer 在自己的搜尋範圍內最佳化。這套機制不能訓練完才外掛。</li>
 </ul>
 <h2 id="7-fp4-kv4-bit-不是把-512-個-channel-隨便砍">7. FP4 KV：4 bit 不是把 512 個 channel 隨便砍</h2>
-<p>CSA2 解決「多少 entry」；FP4 解決「每個 entry 幾 bit」。</p>
-<p>V4.1-Flash 的 global KV 用 <strong>MXFP4</strong>：</p>
+<p>CSA2 解決多少 entry。
+FP4 解決每個 entry 幾 bit。</p>
+<p>V4.1-Flash 的 global KV 用 MXFP4：</p>
 <ul>
-<li><strong>E2M1</strong>：4-bit 浮點，1 個 sign、2 個 exponent、1 個 mantissa。</li>
-<li><strong>每 16 個 channel 一個 E4M3 scale</strong>。</li>
-<li><strong>省略 NVFP4 的第二層 global scale</strong>。</li>
+<li>E2M1：4-bit 浮點，1 sign、2 exponent、1 mantissa。</li>
+<li>每 16 個 channel 一個 E4M3 scale。</li>
+<li>省略 NVFP4 的第二層 global scale。</li>
 </ul>
-<p>為什麼可以省略？關鍵是範圍：</p>
+<p>為什麼能省？關鍵是範圍。</p>
 <ul>
-<li>訓練後最大的 RMSNorm weight magnitude 約 <strong>11</strong>。</li>
-<li>RMS normalization 後，512-channel KV latent 的 L2 norm 最多約 \(\sqrt{512} \approx 22.6\)。</li>
-<li>RoPE 保留 norm，所以旋轉後的最大 absolute value 也被這個量級綁住。</li>
-<li>訓練中觀測到的最大 magnitude 約 <strong>10</strong>。</li>
-<li>而 E2M1 的最大值 6、E4M3 scale 的最大值 448，乘起來可表示到 <strong>2688</strong>——遠高於 22.6。</li>
+<li>訓練後最大 RMSNorm weight magnitude 約 11。</li>
+<li>RMS normalization 後，512-channel KV latent 的 L2 norm 上限約 \(\sqrt{512} \approx 22.6\)。</li>
+<li>RoPE 保留 norm，旋轉後的最大絕對值也綁在同樣量級。</li>
+<li>訓練中觀測到的最大 magnitude 約 10。</li>
+<li>E2M1 最大值 6，E4M3 scale 最大值 448。相乘可表示到 2688。</li>
 </ul>
-<p>所以省略 global scale 不會 clip，也不會掉精度。這個論證只對「已經 normalize 過的 KV latent」成立；不是說 FP4 對所有張量都安全。</p>
+<p>因此省掉 global scale 不會 clip，也不掉精度。
+這個論證只對 normalize 過的 KV latent 成立，不代表 FP4 對所有張量安全。</p>
 <figure>
     <img loading="lazy" src="images/07_fp4_budget_range.webp"
          alt="FP4 的位元帳與範圍：每 16 個 channel 用 64 bits E2M1 加 8 bits E4M3 scale，平均 4.5 bits/channel；訓練觀測最大 magnitude 10、RMSNorm L2 上限 22.6，而 E2M1 6 × E4M3 448 可表示到 2,688"/> <figcaption>
@@ -310,43 +403,53 @@ $$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層�
         </figcaption>
 </figure>
 
-<p>其他精度決策：</p>
+<p>其他精度決策。</p>
 <ul>
-<li><strong>Quantize after RoPE</strong>，不是 before。論文說 before RoPE 只帶來邊際改善，但會增加 decode 的 overhead。</li>
-<li><strong>Non-RoPE 與 RoPE 元件用同一種格式</strong>。</li>
-<li><strong>SWA KV 維持 FP8</strong>，因為它對量化更敏感。</li>
-<li>與 V4 的 FP8 main KV 相比，FP4 <strong>幾乎把儲存再砍一半</strong>（HBM 與 SSD offload 都一樣）。</li>
+<li>Quantize after RoPE。before RoPE 只有邊際改善，還會增加 decode overhead。</li>
+<li>Non-RoPE 與 RoPE 元件用同一格式。</li>
+<li>SWA KV 維持 FP8。它對量化更敏感。</li>
+<li>與 V4 的 FP8 main KV 相比，FP4 幾乎再砍一半。HBM 與 SSD offload 都一樣。</li>
 </ul>
-<p>要注意的是，<strong>890 bytes/token 不是「512 channels × 4 bit ÷ 8 = 256 B」這麼簡單。</strong> 那個算式只得到單層、單一 entry 的 main KV 量級；真正的 890 bytes 還牽涉到：</p>
+<p>890 bytes/token 不是 256 bytes。
+\(512 \times 4 \div 8\) 只得 256 bytes，而且只算單層、單一 entry。
+真正的 890 bytes 還牽涉幾件事：</p>
 <ul>
-<li>encoder 的 \(m=2\) sequence compression；</li>
-<li>跨層共享後，不是每一層都存一份；</li>
-<li>indexer K、scale、對齊、以及 SWA 分支的另行計算；</li>
-<li>官方沒有公布完整的 bytes breakdown。</li>
+<li>encoder 的 \(m=2\) sequence compression。</li>
+<li>跨層共享後，不是每層都存一份。</li>
+<li>indexer K、scale、對齊與 SWA 分支另計。</li>
+<li>官方沒有公布完整 breakdown。</li>
 </ul>
-<p>所以無法從 512 × 4 bit 反推出 890 bytes。<strong>能確定的是：這個數字只有在「跨層共享 + sequence compression + FP4」三者同時成立時才可能出現。</strong> 單獨拿掉任何一個，都會回到 KB/token 的量級。</p>
+<p>能確定的是三者必須同時成立。
+跨層共享、sequence compression、FP4。
+拿掉任何一個，都會回到 KB/token。</p>
 <h2 id="8-swa-bounded-replay把-approximate-寫進部署策略">8. SWA Bounded Replay：把 approximate 寫進部署策略</h2>
-<p>如果說 CED 與 CSA2 是「模型架構」的壓縮，那 <strong>SWA Bounded Replay</strong> 就是「部署策略」的壓縮。</p>
-<p>先分清楚兩種 KV：</p>
+<p>CED 與 CSA2 是模型架構的壓縮。
+SWA Bounded Replay 是部署策略的壓縮。</p>
+<p>兩種 KV 要分清楚。</p>
 <ul>
-<li><strong>Global KV</strong>：永遠在 HBM，供 global attention 使用。</li>
-<li><strong>Persistent KV</strong>：存在 SSD 或 host memory，用來做 prefix reuse。它包含 global KV，也可能包含 SWA KV。</li>
+<li>Global KV：永遠在 HBM，供 global attention 使用。</li>
+<li>Persistent KV：存在 SSD 或 host memory，用來做 prefix reuse。它包含 global KV，也可能包含 SWA KV。</li>
 </ul>
-<p>V4 的做法是：persistent KV 裡<strong>同時存 global KV 與 SWA KV</strong>。SWA KV 只存兩個時間點——prompt 結束與 output 結束——以便多輪對話時從那裡恢復。實際部署中，SWA KV 幾乎占了 persistent KV 的一半。</p>
-<p>問題是：<strong>SWA KV 的重用窗口很短。</strong> Global KV 有長尾重用，可以留 72 小時；SWA KV 只在一個 active session 的幾分鐘內有用，session 結束或下一輪開始就死了。把它放在 SSD 上長期保留，既貴又沒效率。</p>
-<p>V4.1-Flash 的改法是：</p>
+<p>V4 的 persistent KV 同時存 global KV 與 SWA KV。
+SWA KV 只存兩個時間點。
+prompt 結束，與 output 結束。
+多輪對話時從那裡恢復。
+實際部署中，SWA KV 幾乎占 persistent KV 一半。</p>
+<p>問題是 SWA KV 的重用窗口只有幾分鐘。
+session 結束或下一輪開始，它就死了。
+放在 SSD 上長期保留，又貴又慢。</p>
+<p>V4.1-Flash 改了做法。</p>
 <ol>
-<li><strong>SWA KV 不再進 persistent KV cache</strong>，改放到每台機器 <strong>10% host DRAM</strong> 的 distributed memory pool，TTL 只有幾分鐘。</li>
-<li><strong>Global KV 仍然留在 persistent cache，保證至少 72 小時</strong>。</li>
-<li>如果 request 命中 global KV、但 SWA KV 已經被 evict，就用 <strong>SWA Bounded Replay</strong> 重建。</li>
+<li>SWA KV 不再進 persistent KV cache。改放每台機器 10% host DRAM 的 memory pool，TTL 幾分鐘。</li>
+<li>global KV 留在 persistent cache，至少 72 小時。</li>
+<li>request 命中 global KV，但 SWA KV 已被 evict 時，用 SWA Bounded Replay 重建。</li>
 </ol>
-<p>精確重建需要把 \(L/2\) 層 decoder 跑過最後 \(L/2 \times n_{\mathrm{win}}\) 個 token：</p>
-<ul>
-<li>\(L/2=20\)（decoder 層數）</li>
-<li>\(n_{\mathrm{win}}=128\)</li>
-<li>\(20 \times 128 = 2{,}560\) tokens</li>
-</ul>
-<p>Bounded Replay 只 replay 最近 \(n_{\mathrm{win}}=128\) 個 token，然後把 SWA 截斷在 replay segment 內。也就是說，<strong>它用 1/20 的重算量換一個近似狀態</strong>：bounded replay 是 \(20 \times 128 = 2{,}560\) 個 layer-token passes，精確重建則是 \(20 \times 2{,}560 = 51{,}200\) 個 layer-token passes。</p>
+<p>精確重建要把最後 2,560 個 token 跑過 20 層。
+合計 51,200 個 layer-token passes。
+Bounded Replay 只跑最後 128 個 token。
+20 層乘下來是 2,560 個 passes。
+重算量因此是 1/20。
+SWA 截斷在 replay segment 內。</p>
 <figure>
     <img loading="lazy" src="images/02_kv_budget.webp"
          alt="兩個儲存層的壓縮：HBM 的 global KV 從 100 降到 25，persistent SSD 從 100 降到 12.5；後者由 global KV 1/4 與 SWA 不落盤各貢獻一半"/> <figcaption>
@@ -354,46 +457,78 @@ $$<p>第二項是 SWA 的 replay：decoder 的 SWA KV 仍然是由「每一層�
         </figcaption>
 </figure>
 
-<p>這張圖的乘法關係是：</p>
+<p>圖裡的乘法關係是：</p>
 $$
 \frac{1}{4}\ (\text{global KV}) \times \frac{1}{2}\ (\text{SWA 不再落盤}) = \frac{1}{8}
-$$<p>論文說，bounded replay 對 response quality 的影響「negligible」，而且他們在 post-training 時<strong>模擬同樣的 replay</strong>，讓模型適應這種近似。<strong>這不是純 inference hack：訓練時就讓模型適應同樣的近似。</strong></p>
-<p>代價是：</p>
+$$<p>論文說 bounded replay 的影響「negligible」。
+他們在 post-training 就模擬同樣的 replay，讓模型適應。
+這不是上線才補的 hack。</p>
+<p>有三件事要盯。</p>
 <ul>
-<li><strong>重建不是數學等價的。</strong> 對於 replay segment 起點 \(s\)，位置 \(i\) 的 query 只能看到 \([\max(s, i-W+1), i]\) 的 SWA keys。也就是說，<strong>更早的 local 細節被截掉了</strong>。</li>
-<li><strong>越長的 session、越頻繁的 eviction，越容易踩到邊界。</strong> 論文自己在 limitation 裡點名「SWA state reconstruction at cache-resumption boundaries」是尚未完全 characterize 的 robustness boundary。</li>
-<li><strong>它省的是 storage 與 recompute，不是 attention 的語意。</strong> 如果你的任務高度依賴很早之前的 local 細節，這個近似就可能不是免費的。</li>
+<li>重建不是數學等價。replay segment 起點 \(s\)，位置 \(i\) 的 query 只看得到 \([\max(s, i-W+1), i]\)。更早的 local 細節被截掉。</li>
+<li>session 越長、eviction 越頻繁，越容易踩到邊界。</li>
+<li>它省 storage 與 recompute，不省語意。任務若依賴很早的 local 細節，這個近似就有成本。</li>
 </ul>
 <h2 id="9-其他零件mhcengramdsparkvit">9. 其他零件：mHC、Engram、DSpark、ViT</h2>
-<p>除了 KV 壓縮，V4.1-Flash 還有幾個重要改動。</p>
+<p>KV 之外還有幾個改動。</p>
 <h3 id="single-pass-mhc">Single-Pass mHC</h3>
-<p>V4 的 mHC 在相鄰 block 之間維持 \(n\) 條 residual stream；原本的 multi-pass 實作要跑 residual update、coefficient prediction、input mixing 三個 kernel，activation memory traffic 是 \((4n+4)d\)。V4.1 把 input mixing 的係數<strong>平移一個 block</strong>，讓三個 kernel fuse 成一個 <strong>Mega-mHC</strong>，traffic 降到理想的 \((2n+2)d\)。論文設 \(n=4\)，等於從 \(20d\) 降到 \(10d\)。</p>
-<p>這是 kernel-level 優化：<strong>數學上只改了下標，工程上少了一次完整的 residual read。</strong></p>
+<p>V4 的 mHC 在 block 間維持 \(n\) 條 residual stream。
+multi-pass 實作要跑三個 kernel。
+residual update、coefficient prediction、input mixing。
+activation memory traffic 是 \((4n+4)d\)。
+V4.1 把 input mixing 的係數平移一個 block。
+三個 kernel fuse 成一個 Mega-mHC。
+traffic 降到理想的 \((2n+2)d\)。
+論文設 \(n=4\)，等於從 \(20d\) 降到 \(10d\)。</p>
+<p>這是 kernel-level 優化。
+數學上只改了下標。
+工程上少了一次完整的 residual read。</p>
 <h3 id="engram">Engram</h3>
-<p>Engram 是「conditional memory」：把記憶從計算裡拆出來，用 hash-based lookup 存取。</p>
+<p>Engram 是 conditional memory。
+它把記憶從計算裡拆出來。
+用 hash-based lookup 存取。</p>
 <ul>
-<li><strong>196B parameters</strong>，平均分給兩個 module。</li>
-<li>放在 <strong>layer 1 與 layer 14</strong>（zero-indexed）。</li>
-<li>每個 module 用 \(n\)-gram order \(\{2,3,4\}\)，<strong>8 個 hash heads</strong>，每個 order 的總 embedding dim <strong>2048</strong>。</li>
-<li>每個 head 一張約 <strong>16M entries</strong> 的表，表大小取相異質數。</li>
-<li>Embedding table 與 key/value projection 都用 <strong>FP8</strong>。</li>
-<li>推論時 deterministic addressing，可以從 <strong>host memory 透過 RDMA 背景 prefetch</strong>；第一個 module 的 prefetch 可以跟第一個 Transformer block 的計算重疊。</li>
+<li>196B parameters，平均分給兩個 module。</li>
+<li>放在 layer 1 與 layer 14（zero-indexed）。</li>
+<li>每個 module 用 \(n\)-gram order \(\{2,3,4\}\)。</li>
+<li>8 個 hash heads，每個 order 的 embedding dim 2048。</li>
+<li>每個 head 一張約 16M entries 的表，大小取相異質數。</li>
+<li>Embedding table 與 key/value projection 都用 FP8。</li>
+<li>推論時 deterministic addressing。</li>
+<li>可從 host memory 透過 RDMA 背景 prefetch。</li>
+<li>第一個 module 的 prefetch 能與第一個 Transformer block 重疊。</li>
 </ul>
-<p>這對「知識型」能力有幫助，但讓部署更複雜：<strong>196B 的 Engram 不在 GPU 上，而是在 host memory，靠 RDMA 拉。</strong> 這也是為什麼 763B 的 checkpoint 不是「塞進一張卡」那麼簡單。</p>
+<p>這對知識型能力有幫助。
+但它讓部署更複雜。
+196B 的 Engram 不在 GPU 上。
+完整的 checkpoint 因此塞不進一張卡。</p>
 <h3 id="dspark">DSpark</h3>
-<p>DSpark 是 speculative decoding 模組：<strong>3 個 Transformer block</strong>、sliding window <strong>128</strong>，一次 forward 平行算 <strong>5 個 draft positions</strong>；一個 <strong>Markov head</strong> 建模 draft token 依賴，一個 <strong>confidence head</strong> 預測 acceptance probability，scheduler 再依 prefix survival 與 engine throughput 選 verification length。</p>
-<p>它與 V3 的 MTP 不同：<strong>DSpark 在 pre-training 之後單獨訓練</strong>，backbone 凍結；post-training 繼續訓練，但<strong>不把 DSpark 的 gradient 傳回 backbone</strong>。</p>
+<p>DSpark 是 speculative decoding 模組。
+它先猜幾個 token，再讓主模型驗證。
+模組有 3 個 Transformer block。
+sliding window 是 128。
+一次 forward 平行算 5 個 draft positions。
+Markov head 建模 draft token 依賴。
+confidence head 預測 acceptance probability。
+scheduler 依 prefix survival 選 verification length。
+它也看 engine throughput。</p>
+<p>它與 V3 的 MTP 不同。
+DSpark 在 pre-training 之後單獨訓練，backbone 凍結。
+post-training 繼續訓練。
+但 gradient 不傳回 backbone。</p>
 <h3 id="deepseek-vit">DeepSeek-ViT</h3>
-<p>視覺編碼器是從頭訓練的：</p>
+<p>視覺編碼器是從頭訓練的。</p>
 <ul>
-<li><strong>32 層、dim 1024、16 heads、patch 14</strong>。</li>
-<li>用 <strong>2D-RoPE</strong> 取代 absolute positional embedding，支援任意解析度。</li>
-<li>Patch embedding 用 <strong>linear projection</strong> 而不是 convolution，為了與 <strong>Muon</strong> 相容。</li>
-<li><strong>RMSNorm + SwiGLU</strong>。</li>
-<li>進入 LLM 前做 <strong>3×3 pixel unshuffle</strong>，把 visual token 數<strong>減少 9 倍</strong>，最高支援約 <strong>1344×1344</strong>。</li>
+<li>32 層、dim 1024、16 heads、patch 14。</li>
+<li>用 2D-RoPE 取代 absolute positional embedding，支援任意解析度。</li>
+<li>Patch embedding 用 linear projection，不用 convolution，為了與 Muon 相容。</li>
+<li>RMSNorm + SwiGLU。</li>
+<li>進入 LLM 前做 3×3 pixel unshuffle，visual token 減少 9 倍。最高支援約 1344×1344。</li>
 <li>2 層 MLP projector，hidden dim 5120。</li>
 </ul>
-<p>3×3 unshuffle 的 9 倍不是小事：它直接決定視覺 token 數量，也決定多模態 prefill 成本。這等於在視覺端先做一次 sequence compression，與 CSA2 在語言端的思路一致。</p>
+<p>3×3 unshuffle 的 9 倍不是小事。
+visual token 數量與多模態 prefill 成本都由它決定。
+這等於視覺端的 sequence compression，思路與 CSA2 一致。</p>
 <h2 id="10-訓練45t-tokens64k-起訓34t-才拉到-1m">10. 訓練：45T tokens，64K 起訓，34T 才拉到 1M</h2>
 <p>V4.1-Flash 的預訓練規模：</p>
 <table>
@@ -453,8 +588,11 @@ $$<p>論文說，bounded replay 對 response quality 的影響「negligible」�
 			</tr>
 	</tbody>
 </table>
-<p>Vision encoder 在 LR decay 之前凍結，decay 開始後才與 LLM 聯合訓練。</p>
-<p>先 dense 暖機再切 sparse 是常見做法；V4.1 直接從 sparse 開始，避免了訓練看 dense、推論看 sparse 的 mismatch，但對訓練穩定性要求更高。</p>
+<p>Vision encoder 在 LR decay 前凍結。
+decay 開始後才與 LLM 聯合訓練。</p>
+<p>常見做法是先 dense 暖機，再切 sparse。
+V4.1 跳過暖機，避開訓練看 dense、推論看 sparse 的 mismatch。
+代價是訓練穩定性要求更高。</p>
 <figure>
     <img loading="lazy" src="images/08_training_schedule.webp"
          alt="訓練排程：sequence length 從 64K 起訓，34T tokens 時拉到 1M；learning rate 先 warmup 2,000 steps 到 2.6×10⁻⁴，維持到 28T，28T 到 40T cosine 降到 2.6×10⁻⁵，40T 後持平"/> <figcaption>
@@ -462,18 +600,35 @@ $$<p>論文說，bounded replay 對 response quality 的影響「negligible」�
         </figcaption>
 </figure>
 
-<p>後訓練的原則更直接：<strong>不引入新演算法。</strong> 論文說：</p>
+<p>後訓練的原則更直接：不引入新演算法。
+論文說：</p>
 <blockquote>
 <p>we refrain from introducing novel post-training algorithms&hellip; our efforts are concentrated almost entirely on <em>what</em> the model is trained on rather than <em>how</em> it is optimized.</p>
 </blockquote>
-<p>也就是 SFT → RL → OPD 的標準流程，改進幾乎全部來自大規模自動化資料合成、可驗證任務與 reference solution、程式化建構的 agent 環境，以及嚴格的 filtering、dedup、difficulty calibration。最後的 full-vocabulary OPD 用了 <strong>超過 40 個 teacher models</strong>，teacher 之間可以架構不同：<strong>重點是讓每個 domain 用最適合的 teacher，不一定要同一個最強 teacher。</strong></p>
+<p>流程是標準的 SFT → RL → OPD。
+改進幾乎全來自資料。
+自動化合成、可驗證任務、reference solution。
+程式化建構的 agent 環境。
+filtering、dedup、difficulty calibration。
+最後的 full-vocabulary OPD 用了 40+ 個 teacher。
+teacher 之間可以架構不同。
+每個 domain 挑最適合的，不必是最強的那個。</p>
 <h2 id="11-reasoning-effort1-到-100但-api-只給你-5075100">11. Reasoning effort：1 到 100，但 API 只給你 50/75/100</h2>
-<p>V4.1-Flash 把「思考多久」變成一個純量 \(b \in \{1,\dots,100\}\)，直接 prepend 到 system prompt：</p>
+<p>V4.1-Flash 把思考長度變成純量 \(b\)。
+範圍是 1 到 100。
+它直接 prepend 到 system prompt：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-text" data-lang="text"><span class="line"><span class="cl">Reasoning Effort: {effort} (range 1--100; higher values request more thorough reasoning)
-</span></span></code></pre></div><p>訓練時對每個 \((x,b)\) 取樣多個 response，組內做 mean-centered advantage；不同 effort level 的 response 不直接比較，而是靠 reward 裡的 length penalty 誘導差異。Token penalty 係數隨 effort <strong>指數下降</strong>：</p>
+</span></span></code></pre></div><p>訓練時對每個 \((x,b)\) 取樣多個 response。
+組內做 mean-centered advantage。
+不同 effort level 的 response 不直接比較。
+差異靠 reward 的 length penalty 誘導。
+token penalty 係數隨 effort 指數下降：</p>
 $$
 k(b) = k_0 e^{-(b-b_{\min})/\tau}
-$$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>，模型自然會寫更長。好處是不需要為每個 effort 訓練獨立 reward model，只要調一個純量。</p>
+$$<p>effort 越高，對 reasoning token 的懲罰越輕。
+模型自然寫更長。
+好處是不用為每個 effort 訓練 reward model。
+調一個純量就夠。</p>
 <p>API 只暴露三個預設：</p>
 <table>
 	<thead>
@@ -517,11 +672,15 @@ $$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>
 </blockquote>
 <p>實務上：</p>
 <ul>
-<li><strong>日常 agent 用 60–80 就好。</strong> 大部分 accuracy 已經拿到，token 省一半以上。</li>
-<li><strong>max 留給最難的任務。</strong> 從 75 到 100，軌跡長 1.6–1.8 倍，但分數只多一點。</li>
-<li><strong>low 不是「笨」，是「快」。</strong> 延遲敏感的場景用 50，換取可預測的回應時間。</li>
+<li>日常 agent 用 60–80。大部分 accuracy 已到手，token 省一半以上。</li>
+<li>max 留給最難的任務。75 到 100 的軌跡長 1.6–1.8 倍，分數只多一點。</li>
+<li>low 不是笨，是快。延遲敏感場景用 50，換可預測的回應時間。</li>
 </ul>
-<p>還有一個差別：<strong>effort 的控制是學出來的，不是 inference-time 的 prompt hack。</strong> 論文說單輪 reasoning 學到的控制可以轉移到 multi-turn agentic trajectory；如果成立，這比單純的 length penalty 更有價值。</p>
+<p>effort 的控制是學出來的。
+它不是 inference-time 的 prompt hack。
+論文說單輪 reasoning 的控制能轉移。
+也能用在 multi-turn agentic trajectory。
+如果成立，這比單純的 length penalty 更有價值。</p>
 <h2 id="12-版本時間線與成績單910-的論文版1017-的-1017">12. 版本時間線與成績單：9/10 的論文版，10/17 的 1017</h2>
 <table>
 	<thead>
@@ -544,16 +703,16 @@ $$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>
 					<td>DeepSeek-V4-Flash-Vision-Exp</td>
 			</tr>
 			<tr>
-					<td><strong>2026-09-10</strong></td>
-					<td><strong>DeepSeek-V4.1-Flash 發布</strong>，API 上線，技術報告釋出</td>
+					<td>2026-09-10</td>
+					<td>DeepSeek-V4.1-Flash 發布，API 上線，技術報告釋出</td>
 			</tr>
 			<tr>
 					<td>2026-09-14</td>
 					<td>所有 <code>deepseek-v4-pro</code> 請求路由到 V4.1-Flash，直到 V4.1-Pro 上線</td>
 			</tr>
 			<tr>
-					<td><strong>2026-10-17</strong></td>
-					<td><strong>DeepSeek-V4.1-Flash-1017</strong>，benchmark 更新，開源（MIT）</td>
+					<td>2026-10-17</td>
+					<td>DeepSeek-V4.1-Flash-1017，benchmark 更新，開源（MIT）</td>
 			</tr>
 			<tr>
 					<td>2026-10-31</td>
@@ -561,8 +720,17 @@ $$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>
 			</tr>
 	</tbody>
 </table>
-<p>1017 被官方稱為 <strong>minor update</strong>。benchmark 全面上升、架構規格未變，主要改動在<strong>後訓練與資料</strong>；官方說它降低任務執行時間與輸出長度。引用架構數字（552B、890 bytes/token、40 層）時用 9/10 論文；引用 benchmark 時用 1017 模型卡。</p>
-<p>下面是 1017 模型卡的 11 項對照，含 Anthropic Opus-5。先定義幾個縮寫：<strong>HLE</strong> 是知識密集問答；<strong>TB4.0</strong> 是 terminal 長流程；<strong>DeepSWE / NL2Repo / ProgramBench</strong> 是軟體工程與 repo 生成；<strong>Automation / ALE（Agents&rsquo; Last Exam）/ Apex</strong> 偏工具使用與 agentic 推理；<strong>Chartography / BabyVision / ZeroBench</strong> 是視覺與圖表。</p>
+<p>官方稱 1017 是 minor update，降低任務執行時間與輸出長度。
+benchmark 全面上升，架構規格沒變。
+改動主要在後訓練與資料。
+引用架構數字時，用 9/10 論文。
+引用 benchmark 時，用 1017 模型卡。</p>
+<p>下面是 1017 模型卡的 11 項對照，含 Anthropic Opus-5。
+HLE 是知識密集問答。
+TB4.0 是 terminal 長流程。
+DeepSWE / NL2Repo / ProgramBench 測軟體工程與 repo 生成。
+Automation / ALE / Apex 偏工具使用與 agentic 推理。
+Chartography / BabyVision / ZeroBench 測視覺與圖表。</p>
 <table>
 	<thead>
 			<tr>
@@ -642,15 +810,20 @@ $$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>
 	</tbody>
 </table>
 <p>† 是 HLE 的 text-only subset。</p>
-<p>這些分數是 vendor-run，且 harness 不同：TB4.0 用 Claude Code harness、DeepSWE 用 Mini-SWE-V2；不同系統 prompt、tool schema、turn-taking 都會影響分數，不能當成同條件下的絕對能力。</p>
-<p>三個讀法：</p>
+<p>這些分數是 vendor-run，harness 也不同。
+TB4.0 用 Claude Code harness。
+DeepSWE 用 Mini-SWE-V2。
+system prompt、tool schema、turn-taking 都會影響分數。
+不能當成同條件下的絕對能力。</p>
+<p>有三個地方容易被誤讀。</p>
 <ol>
-<li><strong>1017 相對 9/10 是全面上升</strong>，不是只贏一兩項。Terminal-Bench 4.0 從 31.2 跳到 42.3（+11.1），ProgramBench 從 20.3 到 29.1（+8.8），Apex 從 64.6 到 72.1（+7.5）。這些都是後訓練與資料的功勞，不是架構。</li>
-<li><strong>Terminal-Bench 2.1 的 90.6 與 Terminal-Bench 4.0 的 42.3 不是同一張考卷。</strong> 9/10 論文用 TB2.1，1017 模型卡用 TB4.0；不能拿來說「退步 48 分」。</li>
-<li><strong>Chartography、BabyVision、ZeroBench 只差 1–2 分</strong>，屬於「視覺／圖表接近但不超越」。BabyVision 92.5 vs 94.1，是很好的成績，但不是「贏過 Opus」。</li>
+<li>同一個 benchmark，1017 的分數都比 9/10 高。TB4.0 +11.1、ProgramBench +8.8、Apex +7.5。</li>
+<li>TB2.1 與 TB4.0 不是同一張考卷。9/10 論文用 TB2.1，1017 模型卡用 TB4.0。不能拿 90.6 比 42.3 說退步 48 分。</li>
+<li>視覺與圖表只差 1–2 分。BabyVision 92.5 對 94.1 是很好的成績。但它不是贏過 Opus。</li>
 </ol>
 <h3 id="成績單4-勝-4-負還有-3-場小輸">成績單：4 勝 4 負，還有 3 場小輸</h3>
-<p>只看「贏幾項」，容易得到「V4.1-Flash 全面超車」的結論；把差距畫出來，形狀不一樣：</p>
+<p>只數贏幾項，容易得到全面超車的結論。
+把差距畫出來，形狀不一樣。</p>
 <figure>
     <img loading="lazy" src="images/05_benchmark_gap.webp"
          alt="V4.1-Flash-1017 與 Opus-5 的 8 項對照：Automation、Agents Last Exam、Apex、DeepSWE 贏；NL2Repo、ProgramBench、Terminal-Bench 4.0、HLE 輸"/> <figcaption>
@@ -680,31 +853,39 @@ $$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>
 			</tr>
 	</tbody>
 </table>
-<p>整體來看：</p>
+<p>拆開看：</p>
 <blockquote>
-<p><strong>V4.1-Flash 在工具使用與自動化（Automation、Agents&rsquo; Last Exam、Apex、DeepSWE）上能贏 Opus-5；但在知識密集（HLE）、repo 級長流程（NL2Repo、ProgramBench）與較難的 terminal 任務（TB4.0）仍有明顯差距。</strong></p>
+<p>V4.1-Flash 贏在工具使用與自動化。
+它輸在知識密集、repo 級長流程與較難的 terminal 任務。</p>
 </blockquote>
-<p>這符合它的定位：<strong>在 agent 工作負載上，把成本壓到可以大規模部署。</strong> 官方新聞稿說它是「smallest model in our new architecture family」，並沒有宣告 frontier intelligence。</p>
+<p>這符合它的定位：在 agent 工作負載上把成本壓到可大規模部署。
+官方新聞稿說它是「smallest model in our new architecture family」。
+它沒有宣告 frontier intelligence。</p>
 <h2 id="13-部署與帳單890-bytes-到底省了什麼">13. 部署與帳單：890 bytes 到底省了什麼</h2>
-<p>把 890 bytes/token 放回 serving 的脈絡，會看到三個影響。</p>
+<p>把 890 bytes/token 放回 serving。
+會看到三個影響。</p>
 <h3 id="131-hbm同樣的預算多放約-4-倍的-1m-context">13.1 HBM：同樣的預算，多放約 4 倍的 1M context</h3>
-<p>1M context 的 global KV：</p>
-<ul>
-<li>V4-Flash：約 <strong>3.5 GB</strong></li>
-<li>V4.1-Flash：約 <strong>890 MB</strong></li>
-</ul>
-<p><strong>只算 KV</strong>，同樣的 HBM 預算可以多放約 <strong>4 倍</strong>的長 context 請求。實際還要把 weights、activation、CUDA workspace、Engram prefetch buffer 算進去，所以不會是線性的 4 倍；但方向是對的。</p>
-<p>對 serving 的意義是：<strong>同樣的機器可以接更多「百萬 context」的並發。</strong> 論文把 890 bytes 放在摘要第一段，沒有埋進 appendix，原因也在這裡。</p>
+<p>同樣 1M context，global KV 從 3.5 GB 降到 890 MB。</p>
+<p>只算 KV。
+實際還要算 weights、activation、CUDA workspace、Engram prefetch buffer。
+所以不是線性 4 倍。</p>
+<p>同樣的機器能接更多百萬 context 的並發。
+論文把 890 bytes 放在摘要第一段。
+它沒有埋進 appendix。</p>
 <h3 id="132-ssdpersistent-kv-降到-18">13.2 SSD：persistent KV 降到 1/8</h3>
 <p>Persistent KV 的 1/8 有兩個乘數：</p>
 <ul>
-<li>global KV 本身 1/4；</li>
+<li>global KV 本身是 1/4。</li>
 <li>SWA KV 不再落盤，幾乎再砍一半。</li>
 </ul>
-<p>結果是：<strong>同樣的 SSD 可以保留 8 倍的 prefix。</strong> 對於「同一個系統 prompt + 同一份 repo + 同一段對話」反覆出現的 agent 工作負載，這直接影響 cache hit rate。</p>
-<p>而 cache hit 的價格差距很大（見下），所以 <strong>1/8 的 persistent KV 不只是容量問題，是帳單問題。</strong></p>
+<p>結果是同樣的 SSD 保留 8 倍 prefix。
+agent 工作負載常重複同一段 prompt、repo 與對話。
+這直接影響 cache hit rate。</p>
+<p>1/8 的 persistent KV 不只是容量問題。
+它是帳單問題。</p>
 <h3 id="133-價格cache-hit-與-cache-miss-差-50-倍">13.3 價格：cache hit 與 cache miss 差 50 倍</h3>
-<p><code>deepseek-flash</code>（也就是 V4.1-Flash-1017）的 API 價格，每 1M tokens：</p>
+<p><code>deepseek-flash</code> 就是 V4.1-Flash-1017。
+API 價格每 1M tokens：</p>
 <table>
 	<thead>
 			<tr>
@@ -758,8 +939,10 @@ $$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>
 			</tr>
 	</tbody>
 </table>
-<p>Off-peak 是 peak 的 <strong>50%</strong>。Peak 時段是 UTC 週一至週五的 <strong>01:00–04:00</strong> 與 <strong>06:00–10:00</strong>，其餘（含週末與中國國定假日）都是 off-peak。</p>
-<p><strong>Cache hit 與 cache miss 差 50 倍</strong>，不是筆誤：$0.003 vs $0.15。所以「persistent KV 留得住」比「模型跑得快」更直接影響成本。</p>
+<p>Peak 是 UTC 週一至週五的 01:00–04:00 與 06:00–10:00。
+其餘時段，含週末與中國國定假日，都是 off-peak。</p>
+<p>$0.003 對 $0.15，不是筆誤。
+persistent KV 留得住，比模型跑得快更影響成本。</p>
 <p>一個具體例子：1M input + 100K output，off-peak：</p>
 <table>
 	<thead>
@@ -791,7 +974,12 @@ $$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>
 			</tr>
 	</tbody>
 </table>
-<p>同一段 input 命中 cache，帳單從 $0.21 降到 $0.063，差 3.3 倍；同樣的工作負載改用 V4-Pro 的 miss 價，則是 $0.858，約 4.1 倍。這也是為什麼 DeepSeek 敢把 <code>deepseek-v4-pro</code> 的請求暫時路由到 V4.1-Flash：<strong>對大多數 agent 工作負載，便宜的那個已經夠好。</strong></p>
+<p>同一段 input 命中 cache，帳單從 $0.21 降到 $0.063。
+差 3.3 倍。
+同樣工作負載改用 V4-Pro 的 miss 價，是 $0.858。
+約 4.1 倍。
+這解釋了時間線上的路由決定。
+對大多數 agent 工作負載，便宜的那個已經夠好。</p>
 <figure>
     <img loading="lazy" src="images/09_cache_cost.webp"
          alt="Cache 成本拆解：左圖 input-only 價格，V4.1 的 cache hit 與 miss 差 50 倍、V4-Pro 差 30 倍；右圖 1M input 加 100K output 的總價，V4.1 miss 到 hit 只差 3.3 倍，V4-Pro miss 到 V4.1 miss 差 4.1 倍"/> <figcaption>
@@ -800,53 +988,72 @@ $$<p>所以 <strong>effort 越高，對 reasoning token 的懲罰越輕</strong>
 </figure>
 
 <h3 id="134-但-weights-沒有變小">13.4 但 weights 沒有變小</h3>
-<p><strong>890 bytes/token 省的是 KV，不是 weights。</strong></p>
-<p>763B 的 checkpoint 仍然需要：</p>
+<p>被壓縮的只有 KV，權重沒有動。</p>
+<p>完整的 checkpoint 仍然需要：</p>
 <ul>
 <li>大規模的 GPU 記憶體（或跨節點 sharding）；</li>
 <li>對應的儲存與載入頻寬；</li>
 <li>Engram 的 host memory 與 RDMA prefetch；</li>
 <li>足夠的 CPU / 網路資源來支撐 sandbox 與工具呼叫。</li>
 </ul>
-<p>所以「V4.1-Flash 很省」是<strong>相對於它自己的規模</strong>，不是「可以在筆電上跑 1M context」。官方新聞稿說：如果你要規劃 <strong>2,000 GPUs + storage cluster</strong> 的部署，歡迎來談。這是一個 server-side 的模型。</p>
+<p>所以「V4.1-Flash 很省」是相對它自己的規模。
+它不是能在筆電上跑 1M context。
+官方新聞稿說，要規劃 2,000 GPUs 與 storage cluster 的部署，歡迎來談。</p>
 <h2 id="14-限制與未解問題">14. 限制與未解問題</h2>
-<p>主要限制如下：</p>
+<p>限制集中在幾件事。</p>
 <ol>
-<li><strong>890 bytes/token 只計 global KV。</strong> SWA KV 仍然存在（每層 128 window、FP8），只是被 bounded replay 近似重建；它不是零 KV。</li>
-<li><strong>SWA Bounded Replay 是近似的。</strong> 論文說影響 negligible，但也承認 approximate state reconstruction 在未測試邊界可能掉能力，特別是 cache-resumption boundary。</li>
-<li><strong>CSA2 的 sparse selection 可能選錯。</strong> Top-512 是從壓縮後的 entry 裡選的；壓縮、FP4、跨層共享三個近似疊在一起，long-context retrieval 的極端案例仍是風險。</li>
-<li><strong>1M prefill 仍然不便宜。</strong> CED 把 \(O(NL)\) 降到約 \(O(NL/2)\)，是砍半，不是免費。</li>
-<li><strong>FP4 的 long-tail 風險沒有被完全證明。</strong> 論文的範圍論證只保證最大 magnitude，不保證每個 channel 的 quantization error 都不影響下游。QAT 與 post-training 會吸收大部分，但極端輸入仍可能踩到。</li>
-<li><strong>Engram 的部署複雜度被低估。</strong> 196B 的 embedding 在 host memory、靠 RDMA prefetch，對 latency 與網路要求很高；不是每個團隊都有這種基礎設施。</li>
-<li><strong>「省 4 倍 HBM」不等於「省 4 倍成本」。</strong> Weights、網路、儲存、維運、閒置容量都會吃掉一部分；890 bytes 是必要條件，不是充分條件。</li>
+<li>890 bytes/token 只計 global KV。SWA KV 仍存在，每層 128 window、FP8，只是被 bounded replay 近似重建。</li>
+<li>SWA Bounded Replay 是近似的。論文說影響 negligible，但 limitation 仍點名 cache-resumption boundary 尚未完全 characterize。</li>
+<li>CSA2 的 sparse selection 可能選錯。Top-512 從壓縮後的 entry 選出。壓縮、FP4、跨層共享三個近似疊在一起。long-context retrieval 的極端案例仍是風險。</li>
+<li>1M prefill 仍然不便宜。CED 把 \(O(NL)\) 降到約 \(O(NL/2)\)。這是砍半，但不等於零。</li>
+<li>FP4 的 long-tail 風險未完全證明。範圍論證只保證最大 magnitude。它不保證每個 channel 的 quantization error 都不影響下游。QAT 與 post-training 吸收大部分。極端輸入仍可能踩到。</li>
+<li>Engram 的部署複雜度被低估。196B embedding 在 host memory，靠 RDMA prefetch。它對 latency 與網路要求很高。不是每個團隊都有這種基礎設施。</li>
+<li>省 4 倍 HBM 不等於省 4 倍成本。weights、網路、儲存、維運、閒置容量都會吃掉一部分。890 bytes 是必要條件，不是充分條件。</li>
 </ol>
-<h2 id="15-結論三個可以帶走的設計判斷">15. 結論：三個可以帶走的設計判斷</h2>
-<h3 id="第一把-kv-當成一級公民而不是-attention-的副產品">第一，把 KV 當成一級公民，而不是 attention 的副產品</h3>
-<p>多數模型設計是先定 attention，再「順便」處理 KV。V4.1-Flash 是反過來：<strong>先定 KV 的預算，再設計 attention。</strong></p>
+<h2 id="15-設計判斷">15. 設計判斷</h2>
+<h3 id="把-kv-當成一級公民">把 KV 當成一級公民</h3>
+<p>多數模型先定 attention，再順便處理 KV。
+V4.1-Flash 反過來。
+它先定 KV 預算，再設計 attention。</p>
 <ul>
-<li>CED 為了讓 decoder 的 global KV 可以從 encoder 投影，改變了層的職責。</li>
-<li>CSA2 為了讓 KV 可以跨層共享，設計了三種模式，並且容許 index 與 cache 分開共享。</li>
-<li>FP4 為了讓每個 entry 更小，連 scale 的層數都重新論證。</li>
-<li>SWA Bounded Replay 為了讓 persistent KV 不含 SWA，接受近似重建。</li>
+<li>CED 改寫層的職責：global KV 改由 encoder 輸出。</li>
+<li>CSA2 設計三種模式，讓 index 與 cache 分開共享。</li>
+<li>FP4 縮小每個 entry，連 scale 層數都重新論證。</li>
+<li>SWA Bounded Replay 把 SWA 移出 persistent KV，接受近似重建。</li>
 </ul>
-<p>這四個決策彼此相關，都是同一個目標的不同切面。</p>
-<h3 id="第二共享的是-cache-與-index不是-query">第二，共享的是 cache 與 index，不是 query</h3>
-<p>CSA2 的關鍵在於<strong>知道什麼不能共享</strong>。</p>
-<p>如果連 query 都共享，模型就變成「所有層看同一個方向」，表達力會塌。CSA2 讓每一層保留自己的 global Q 與 SWA KV，只共享「被查詢的 KV」與「查詢的索引」。平衡點很細：<strong>共享得夠多，才有儲存效益；共享得夠少，才不會犧牲深度。</strong></p>
-<h3 id="第三用可接受的近似換-storage是工程判斷不是數學定理">第三，用「可接受的近似」換 storage，是工程判斷，不是數學定理</h3>
-<p>SWA Bounded Replay 能成立，靠的是幾個現實條件：</p>
+<p>四個決策指向同一個目標。</p>
+<h3 id="共享-cache-與-index不共享-query">共享 cache 與 index，不共享 query</h3>
+<p>CSA2 的關鍵是知道什麼不能共享。</p>
+<p>如果連 query 都共享，每層就看同一個方向。
+表達力會塌。
+CSA2 把共享停在 cache 與 index。
+查詢與 SWA KV 仍歸各層。
+平衡點很細。
+共享夠多，才有儲存效益。
+共享夠少，才不犧牲深度。</p>
+<h3 id="用可接受的近似換-storage">用可接受的近似換 storage</h3>
+<p>SWA Bounded Replay 靠幾個現實條件成立。</p>
 <ul>
-<li>SWA 的重用窗口只有分鐘級；</li>
-<li>精確重建要 2,560 tokens，邊界重建只要 128；</li>
-<li>論文在 post-training 時模擬同樣的近似，讓模型適應；</li>
-<li>而且這個近似只發生在 cache miss 的邊界，不是每一步都發生。</li>
+<li>SWA 的重用窗口只有分鐘級。</li>
+<li>精確重建要跑一整段，邊界重建只要一個窗口。</li>
+<li>這個近似只發生在 cache miss 的邊界，不是每一步都發生。</li>
 </ul>
-<p>重點是<strong>把最壞情況從「災難性的 full replay」變成「可負擔的 bounded replay」</strong>，再用訓練吸收誤差。它不是免費的，但把一個不可用的設計變成可用的。</p>
+<p>重點是把最壞情況從 full replay 換成 bounded replay。
+再用訓練吸收誤差。
+代價沒有消失。
+但它把一個不可用的設計變成可用。</p>
 <hr>
-<p>V4.1-Flash 不是「全面超車 Opus-5」的模型。它在 HLE 上輸 13.7 分，在 ProgramBench 上輸 7.9 分，在 TB4.0 上輸 9.5 分。這些都是真的。</p>
-<p>但它在 Automation、Agents&rsquo; Last Exam、Apex、DeepSWE 上贏，而且把 1M context 的 global KV 壓到 890 MB、persistent KV 壓到 1/8。<strong>這兩件事同時成立，才是 V4.1-Flash 的設計核心。</strong></p>
+<p>V4.1-Flash 沒有全面超車 Opus-5。
+HLE、ProgramBench、TB4.0 都還輸。
+這些差距是真的。</p>
+<p>但它在 Automation、Agents&rsquo; Last Exam、Apex、DeepSWE 上贏。
+它把 1M context 的 global KV 壓到 890 MB。
+persistent KV 壓到 1/8。
+兩件事同時成立，才是設計核心。</p>
 <blockquote>
-<p><strong>它不是把骨幹變小，而是把「長 context 的代價」變小；骨幹反而變大了，因為省下來的預算被拿去換能力。</strong></p>
+<p>它沒有把骨幹變小。
+它把長 context 的代價變小。
+骨幹反而變大，因為省下的預算拿去換能力。</p>
 </blockquote>
 <h2 id="參考資料">參考資料</h2>
 <ul>
@@ -2566,33 +2773,32 @@ flowchart TD
 </blockquote>
 ]]></content:encoded></item><item><title>這個部落格是怎麼長出來的：Hugo × PaperMod × GitHub Pages 建站日誌</title><link>https://jiejiefu.github.io/blog/posts/hugo-papermod-devlog/</link><pubDate>Tue, 20 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/hugo-papermod-devlog/</guid><description>從空資料夾到 push 就上線的雙語部落格。這篇記錄 Hugo 與 PaperMod 的選擇、GitHub Actions 部署、首頁改造、圖片管線，以及十幾個只有真的踩過才會知道的坑。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
-  <p><strong>這個部落格不是用 WordPress 或 Medium 蓋的</strong>，而是 Hugo（Go 寫的靜態網站生成器）＋ PaperMod 主題＋ GitHub Pages。整個流程只有三步：寫 Markdown、<code>git push</code>、GitHub Actions 幫你編譯並部署。</p>
-<p><strong>它不是一次完工，而是三個月內分了七次改版才長成現在的樣子。</strong> 這篇不是「Hugo 入門 30 分鐘」，而是一份真實的建站日誌：為什麼選這套、每一個決定換來什麼、以及那些文件不會告訴你、只有真的 build 下去才會炸出來的坑。</p>
-<p>如果你也想蓋一個不用租伺服器、沒有資料庫、沒有 Node.js 的部落格，這篇可以當成地圖；如果你只是想知道這個站的首頁為什麼長這樣，<a href="#7-day-5把首頁從-papermod-預設改成實驗室">第 7 節開始是拆解</a>。</p>
+  <p>這個部落格用 Hugo（Go 寫的靜態網站生成器）、PaperMod 主題與 GitHub Pages。整個流程只有三步：寫 Markdown、<code>git push</code>、GitHub Actions 編譯並部署。</p>
+<p>它分三個月、七次改版才長成現在的樣子。這篇是建站日誌，不是入門教學。內容是為什麼選這套、換來什麼，以及文件不會寫的坑。</p>
+<p>這個站不用租伺服器、沒有資料庫，也沒有 Node.js。想蓋類似的站，這篇可以當地圖。只想知道首頁為什麼長這樣，<a href="#7-把首頁從-papermod-預設改成終端機">從第 7 節開始</a>。</p>
 
 </aside>
 
 <h2 id="1-為什麼自己蓋一個部落格">1. 為什麼自己蓋一個部落格</h2>
-<p>2026 年可以寫東西的地方多得是：Medium、Substack、方格子（vocus）、Notion，甚至直接在 GitHub 開一個 repo 寫 Markdown 都行。</p>
-<p>先把 WordPress、痞客邦這類傳統自架或老牌平台放在一邊。若只看 2026 年台灣繁體中文圈「知識型長文的曝光與觸及」，結構其實非常傾斜：FB／IG／Threads 這類社群平台大約佔四分之三，Medium 約 14%，Notion / GitHub 這類公開筆記與作品集約 7%，方格子約 3%，Substack 約 1%。換句話說，多數讀者是先在社群裡「看到」文章，文章最後寫在哪個平台反而沒那麼關鍵。</p>
+<p>2026 年可以寫東西的地方很多。Medium、Substack、方格子（vocus）、Notion 都行，GitHub repo 也可以。WordPress、痞客邦這類傳統平台先放一邊。</p>
+<p>只看台灣繁體中文圈的知識型長文，曝光結構很傾斜。FB／IG／Threads 約佔四分之三，Medium 約 14%。Notion / GitHub 約 7%，方格子約 3%，Substack 約 1%。多數讀者先在社群看到文章。最後寫在哪個平台，反而沒那麼關鍵。</p>
 <figure class="plotly-figure">
   <div class="plotly-chart" id="plotly-1" data-plotly-bundle="basic" style="height: 500px" role="img" aria-label="2026 年台灣繁體中文知識型內容的曝光來源概略佔比"></div>
   <script type="application/json" class="plotly-chart__spec">{"data":[{"direction":"clockwise","hovertemplate":"%{label}\u003cbr\u003e%{percent}\u003cbr\u003e%{hovertext}\u003cextra\u003e\u003c/extra\u003e","hovertext":["社群擴散：台灣最大的流量入口","SEO 與技術文章的長期遺產","公開筆記、作品集與技術文件","本土付費沙龍：變現產值高於流量佔比","利基電子報：Stripe 未支援台灣本地開戶"],"insidetextorientation":"horizontal","labels":["FB/IG/Threads","Medium","Notion/GitHub","方格子","Substack"],"marker":{"colors":["#4338CA","#818CF8","#64748B","#94A3B8","#475569"],"line":{"color":"rgba(100,116,139,0.55)","width":1}},"rotation":27,"sort":false,"text":["FB/IG/Threads\u003cbr\u003e75%","Medium\u003cbr\u003e14%","","",""],"textfont":{"size":14},"textinfo":"text","textposition":"inside","type":"pie","values":[75,14,7,3,1]}],"layout":{"annotations":[{"arrowcolor":"rgba(100,116,139,0.8)","arrowhead":0,"arrowwidth":1,"ax":0,"ay":-46,"font":{"size":13},"showarrow":true,"text":"Notion/GitHub 7%","x":0.5,"xanchor":"center","xref":"paper","y":0.88,"yanchor":"bottom","yref":"paper"}],"font":{"family":"-apple-system, BlinkMacSystemFont, 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif","size":13},"legend":{"font":{"size":11},"orientation":"h","x":0.5,"xanchor":"center","y":-0.12,"yanchor":"top"},"margin":{"b":104,"l":16,"r":16,"t":60}}}</script>
   <figcaption>2026 年台灣繁體中文知識型內容的曝光來源概略佔比</figcaption>
 </figure>
 
-<p>而且這幾塊通常不是互斥的：一篇文章可以同時發在 Medium 接外部 SEO、丟到 FB／Threads 擴散、再把讀者引流到 Substack 或方格子沉澱，最後用 Notion / GitHub 管理長期的知識與作品集。平台負責被看見，自己的站負責把內容留下來。</p>
-<p>自己蓋一個站，說到底只換來三件事：</p>
+<p>這幾塊不互斥。文章可以發在 Medium 接 SEO、丟到社群擴散。再引流到電子報或沙龍。平台負責被看見，自己的站負責留下內容。</p>
+<p>自己蓋一個站，換來三件事：</p>
 <ol>
-<li><strong>內容所有權</strong>：文章是 repo 裡的 <code>.md</code> 檔，搬到任何地方都只需要複製資料夾，不用匯出 XML 再祈禱格式不會跑掉。</li>
-<li><strong>版本控制</strong>：每一次改版都有 commit。首頁改壞了、CSS 順序放錯了，<code>git diff</code> 看得到，<code>git revert</code> 退得回去。</li>
-<li><strong>可以改到爽</strong>：首頁的終端機、文章底部的分享框、程式碼配色的檔名排序，這些平台不會給你，但你可以自己寫。</li>
+<li>內容所有權：文章是 repo 裡的 <code>.md</code> 檔。複製資料夾就能搬走，不用匯出 XML。</li>
+<li>版本控制：每次改版都有 commit。首頁改壞、CSS 順序放錯，<code>git diff</code> 看得到，<code>git revert</code> 退得回去。</li>
+<li>可以自己改：首頁的終端機、文章底部的分享框。程式碼配色的檔名排序也能自己寫。</li>
 </ol>
-<p>代價也很具體：沒有留言系統、沒有後台編輯器、圖片要自己壓、SEO 要自己顧，而且<strong>你會花很多時間在處理「看起來只是設定」的東西</strong>。</p>
-<p>這篇的重點不是說服你自架。它是一份紀錄：把這個站從第一個 commit 到現在的決策與失敗留下來，讓下一個人在同一個地方少卡半天。</p>
+<p>代價也很具體。沒有留言系統、沒有後台編輯器。圖片要自己壓，SEO 要自己顧。很多時間花在處理「看起來只是設定」的東西上。</p>
 <h2 id="2-hugo-到底幫你做了什麼">2. Hugo 到底幫你做了什麼</h2>
-<p>先把名詞拆開。<strong>靜態網站生成器（Static Site Generator, SSG）不是 CMS</strong>，它不連資料庫、不執行後端程式，而是在 build time 把「Markdown + 模板 + 資源」編譯成一堆純 HTML、CSS、JS 檔案。部署的時候，你只是把這堆檔案放到一個會回傳檔案的伺服器上。</p>
-<p>Hugo 的特別之處是它是一個<strong>編譯成單一執行檔的 Go 程式</strong>：</p>
+<p>靜態網站生成器（Static Site Generator, SSG）不是 CMS。它不連資料庫，也不執行後端程式。它在 build time 把 Markdown、模板與資源編譯成 HTML、CSS、JS。部署時只是把檔案放到伺服器上。</p>
+<p>Hugo 是一個編譯成單一執行檔的 Go 程式：</p>
 <ul>
 <li>不需要 Node.js、不需要 <code>npm install</code>、不需要 webpack。</li>
 <li>官網下載一個 binary 就能跑，換電腦不用重建環境。</li>
@@ -2605,9 +2811,9 @@ flowchart TD
     B --&gt; D[&#34;public/&lt;br/&gt;純靜態 HTML / CSS / JS&#34;]
     D --&gt; E[&#34;GitHub Actions&lt;br/&gt;hugo --minify&#34;]
     E --&gt; F[&#34;gh-pages 分支&#34;]
-    F --&gt; G[&#34;GitHub Pages&lt;br/&gt;HTTPS + CDN&#34;]</pre><p>一句話：<strong>Hugo 只負責「把檔案變成檔案」</strong>。網址、HTTPS、CDN、部署，是 GitHub Pages 的事。這個分工很清楚，也是它不容易壞的原因。</p>
+    F --&gt; G[&#34;GitHub Pages&lt;br/&gt;HTTPS + CDN&#34;]</pre><p>Hugo 只負責把檔案變成檔案。網址、HTTPS、CDN、部署，都是 GitHub Pages 的事。</p>
 <h3 id="為什麼不是-nextjsastro-或-wordpress">為什麼不是 Next.js、Astro 或 WordPress</h3>
-<p>不是那些工具不好，而是這個站不需要它們的能力：</p>
+<p>這個站不需要它們的能力：</p>
 <table>
 	<thead>
 			<tr>
@@ -2634,8 +2840,8 @@ flowchart TD
 			</tr>
 	</tbody>
 </table>
-<p>如果你需要會員、金流、即時儀表板，Hugo 不是答案。但如果你只是想寫文章，它會讓你忘記「網站」這件事，專心在內容上。</p>
-<h2 id="3-day-1安裝第一個-site以及-extended-的真相">3. Day 1：安裝、第一個 site，以及 Extended 的真相</h2>
+<p>需要會員、金流或即時儀表板，Hugo 不是答案。只寫文章的話，它會讓你忘記網站這件事。</p>
+<h2 id="3-安裝第一個-site以及-extended-的真相">3. 安裝、第一個 site，以及 Extended 的真相</h2>
 <p>macOS 用 Homebrew 安裝：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">brew install hugo
 </span></span><span class="line"><span class="cl">hugo version
@@ -2645,7 +2851,7 @@ flowchart TD
 </span></span><span class="line"><span class="cl"><span class="nb">cd</span> my-blog
 </span></span><span class="line"><span class="cl">hugo server
 </span></span><span class="line"><span class="cl"><span class="c1"># Web Server is available at http://localhost:1313/</span>
-</span></span></code></pre></div><p>初始化後的目錄不用全部記，但這幾個一定要知道：</p>
+</span></span></code></pre></div><p>這幾個目錄一定要知道：</p>
 <table>
 	<thead>
 			<tr>
@@ -2698,20 +2904,20 @@ flowchart TD
 	</tbody>
 </table>
 <h3 id="extended-不是-papermod-的必要條件">Extended 不是 PaperMod 的必要條件</h3>
-<p>網路上很多文章會說「現代 Hugo 主題都用 Sass，所以一定要裝 Extended」。這句話對 Stack、Blowfish 之類的主題大致成立，但<strong>對 PaperMod 不成立</strong>：PaperMod 的樣式是純 CSS，透過 Hugo Pipes 串接、壓縮、fingerprint，沒有 SCSS 編譯。</p>
+<p>網路上常說現代 Hugo 主題都用 Sass，一定要裝 Extended。這對 Stack、Blowfish 大致成立，但 PaperMod 是純 CSS，走 Hugo Pipes，沒有 SCSS 編譯。</p>
 <p>那為什麼這個站還是用 Extended？兩個原因：</p>
 <ol>
-<li><strong>WebP 編碼</strong>：Extended 版本包含 WebP 支援。如果你讓 Hugo 直接處理圖片、輸出 WebP，Standard 版會做不到。</li>
-<li><strong>主題生態</strong>：哪天想換主題，Extended 幾乎不會是問題；反過來則要重裝。</li>
+<li>WebP 編碼：Extended 版本包含 WebP 支援。Hugo 直接處理圖片並輸出 WebP 時，Standard 版做不到。</li>
+<li>主題生態：哪天想換主題，Extended 幾乎不會是問題。反過來則要重裝。</li>
 </ol>
-<p>本站的內文圖片其實是用 <code>cwebp</code> 預先轉好的，不依賴 Hugo 的圖片處理，所以 Standard 也能 build。但既然 CI 一行 <code>extended: true</code> 就解決，沒必要為了「證明不需要」而冒險。</p>
+<p>本站內文圖片用 <code>cwebp</code> 預先轉好，不依賴 Hugo 圖片處理，Standard 也能 build。CI 一行 <code>extended: true</code> 就解決，沒必要為了證明不需要而冒險。</p>
 <h3 id="第一個坑hugo-server-會改寫-public">第一個坑：<code>hugo server</code> 會改寫 <code>public/</code></h3>
-<p><code>hugo server</code> 不是唯讀的開發伺服器。它會把非 minify、含 draft 的版本寫進 <code>public/</code>。所以如果你剛跑完 dev server，接著去檢查 <code>public/</code>，你看到的是<strong>開發產物</strong>，不是正式產物。</p>
+<p><code>hugo server</code> 不是唯讀。它會把非 minify、含 draft 的版本寫進 <code>public/</code>。跑完 dev server 再檢查，看到的是開發產物。</p>
 <p>正確順序永遠是：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">rm -rf public <span class="o">&amp;&amp;</span> hugo --minify
-</span></span></code></pre></div><p>這也是後來我在 <code>AGENTS.md</code> 裡寫給自己的第一條規則：<strong>要對 <code>public/</code> 做任何檢查，先重建。</strong></p>
-<h2 id="4-day-2選-papermod以及為什麼不是-stack--blowfish">4. Day 2：選 PaperMod，以及為什麼不是 Stack / Blowfish</h2>
-<p>選主題的標準不是「哪個最漂亮」，而是「哪個最不需要我維護」。</p>
+</span></span></code></pre></div><p>後來這條規則寫進了 <code>AGENTS.md</code>：要對 <code>public/</code> 做任何檢查，先重建。</p>
+<h2 id="4-選-papermod以及為什麼不是-stack--blowfish">4. 選 PaperMod，以及為什麼不是 Stack / Blowfish</h2>
+<p>選主題的標準是維護成本，不是外觀。</p>
 <table>
 	<thead>
 			<tr>
@@ -2738,18 +2944,18 @@ flowchart TD
 			</tr>
 	</tbody>
 </table>
-<p>PaperMod 最大的價值是<strong>它幾乎沒有魔法</strong>。它用 Hugo 原生的 asset pipeline、原生的 taxonomy、原生的 multilingual，沒有額外的 bundler。你看到的 CSS 就是它載入的 CSS，你要覆寫就是放一個同名檔案到 <code>layouts/</code>。對一個想長期自己維護的站來說，這比「功能很多」重要。</p>
+<p>PaperMod 幾乎沒有魔法。它用 Hugo 原生的 asset pipeline、taxonomy 與 multilingual，沒有額外 bundler。你看到的 CSS 就是它載入的 CSS。要覆寫就把同名檔案放進 <code>layouts/</code>。</p>
 <h3 id="用-git-submodule-安裝">用 git submodule 安裝</h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">git submodule add https://github.com/adityatelange/hugo-PaperMod.git themes/PaperMod
 </span></span><span class="line"><span class="cl">git submodule update --init --recursive
-</span></span></code></pre></div><p>submodule 的好處是<strong>版本可重現</strong>：<code>themes/PaperMod</code> 指到一個固定的 commit，不會因為主題作者更新而讓你的站突然變形。代價是升級要刻意做：</p>
+</span></span></code></pre></div><p>submodule 的好處是版本可重現。<code>themes/PaperMod</code> 指到固定 commit，不會因主題更新而讓站突然變形。代價是升級要刻意做：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="nb">cd</span> themes/PaperMod
 </span></span><span class="line"><span class="cl">git fetch <span class="o">&amp;&amp;</span> git checkout &lt;new-tag&gt;
 </span></span><span class="line"><span class="cl"><span class="nb">cd</span> ../..
 </span></span><span class="line"><span class="cl">git add themes/PaperMod
 </span></span><span class="line"><span class="cl">git commit -m <span class="s2">&#34;chore: bump PaperMod&#34;</span>
-</span></span></code></pre></div><p>而且如果你的專案裡有覆寫主題模板（這個站有，<code>layouts/_default/single.html</code> 就是為了把分享框插進文章底部），升級時要 <code>diff</code> 一次，不要直接覆蓋。</p>
-<p>CI 那邊也必須記得拉 submodule，否則 build 出來會是沒有主題的空殼：</p>
+</span></span></code></pre></div><p>專案裡若有覆寫主題模板，升級時要先 <code>diff</code>。這個站有覆寫：<code>layouts/_default/single.html</code> 把分享框插進文章底部。不要直接覆蓋。</p>
+<p>CI 也必須拉 submodule，否則 build 出來是沒有主題的空殼：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">actions/checkout@v4</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">with</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">submodules</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
@@ -2766,7 +2972,7 @@ flowchart TD
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">HTML</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">RSS</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span>- <span class="l">JSON  </span><span class="w"> </span><span class="c"># PaperMod 的搜尋頁需要</span><span class="w">
-</span></span></span></code></pre></div><p><code>baseURL</code> 是第一個真正會讓人卡住的地方。這個站是 <strong>project page</strong>，網址是 <code>https://jiejiefu.github.io/blog/</code>，不是 <code>https://jiejiefu.github.io/</code>。如果 <code>baseURL</code> 少了 <code>/blog/</code>，build 不會報錯，但線上會出現：</p>
+</span></span></span></code></pre></div><p><code>baseURL</code> 最容易卡住。這個站是 project page，網址是 <code>https://jiejiefu.github.io/blog/</code>，不是 <code>https://jiejiefu.github.io/</code>。少了 <code>/blog/</code> 不會報錯，但線上會出問題：</p>
 <ul>
 <li>CSS / JS 404，頁面變成純文字</li>
 <li>文章內的絕對連結指到錯的地方</li>
@@ -2792,8 +2998,8 @@ flowchart TD
 	</tbody>
 </table>
 <p>結尾的 <code>/</code> 不要省略。Hugo 不會幫你補。</p>
-<h2 id="5-day-3中英雙語以及圖片為什麼只放一份">5. Day 3：中英雙語，以及圖片為什麼只放一份</h2>
-<p>這個站有 <code>content/zh-tw/</code> 與 <code>content/en/</code> 兩套內容，預設語言是 zh-tw。設定大概長這樣：</p>
+<h2 id="5-中英雙語以及圖片為什麼只放一份">5. 中英雙語，以及圖片為什麼只放一份</h2>
+<p>這個站有 <code>content/zh-tw/</code> 與 <code>content/en/</code> 兩套內容。預設語言是 zh-tw。設定大概長這樣：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">defaultContentLanguage</span><span class="p">:</span><span class="w"> </span><span class="l">zh-tw</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="nt">hasCJKLanguage</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
@@ -2806,15 +3012,15 @@ flowchart TD
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">label</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;English&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">contentDir</span><span class="p">:</span><span class="w"> </span><span class="l">content/en</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">weight</span><span class="p">:</span><span class="w"> </span><span class="m">2</span><span class="w">
-</span></span></span></code></pre></div><p>兩邊用<strong>相同的 slug</strong>，PaperMod 的語言切換就會自動把同一篇文章串起來：</p>
+</span></span></span></code></pre></div><p>兩邊用相同的 slug，PaperMod 的語言切換就會把同一篇文章串起來：</p>
 <pre tabindex="0"><code>content/zh-tw/posts/hugo-papermod-devlog/index.md
 content/en/posts/hugo-papermod-devlog/index.md
-</code></pre><p>介面文字則由 <code>i18n/</code> 覆寫。例如想把 <code>read_more</code> 固定成「閱讀全文」，就在 <code>i18n/zh-tw.yaml</code> 補：</p>
+</code></pre><p>介面文字由 <code>i18n/</code> 覆寫。想把 <code>read_more</code> 固定成「閱讀全文」，就在 <code>i18n/zh-tw.yaml</code> 補：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l">read_more</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">translation</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;閱讀全文&#34;</span><span class="w">
 </span></span></span></code></pre></div><h3 id="坑-1datahomezh-twyaml-在-hugo-0168-是無效的">坑 1：<code>data/home.zh-tw.yaml</code> 在 Hugo 0.168 是無效的</h3>
-<p>我一開始很自然地想把首頁文案拆成 <code>data/home.zh-tw.yaml</code> 和 <code>data/home.en.yaml</code>，結果 <code>site.Data.home</code> 取到的是空值。Hugo 會把檔名註冊成 key <code>&quot;home.zh-tw&quot;</code>，不是「home 的 zh-tw 版本」。</p>
-<p>正確做法是<strong>單一檔案、頂層用語言代碼分組</strong>：</p>
+<p>最初想把首頁文案拆成 <code>data/home.zh-tw.yaml</code> 和 <code>data/home.en.yaml</code>。結果 <code>site.Data.home</code> 取到空值。Hugo 會把檔名註冊成 key <code>&quot;home.zh-tw&quot;</code>。那不是「home 的 zh-tw 版本」。</p>
+<p>正確做法是單一檔案，頂層用語言代碼分組：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="c"># data/home.yaml</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="nt">zh-tw</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">hero</span><span class="p">:</span><span class="w">
@@ -2824,27 +3030,27 @@ content/en/posts/hugo-papermod-devlog/index.md
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;Turning Algorithms Into Reality&#34;</span><span class="w">
 </span></span></span></code></pre></div><p>模板端用 <code>index</code> 取值，不要用點號：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{</span><span class="w"> </span><span class="nx">$home</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">index</span><span class="w"> </span><span class="nx">hugo</span><span class="na">.Data</span><span class="w"> </span><span class="s">&#34;home&#34;</span><span class="w"> </span><span class="nx">site</span><span class="na">.Language.Lang</span><span class="w"> </span><span class="cp">}}</span>
-</span></span></code></pre></div><p>不要寫 <code>hugo.Data.home.zh-tw.title</code>。語言代碼含連字號，用點號取值在 Go template 裡不可靠；<code>index</code> 是唯一安全的寫法。</p>
+</span></span></code></pre></div><p>不要寫 <code>hugo.Data.home.zh-tw.title</code>。語言代碼含連字號，用點號取值在 Go template 裡不可靠。<code>index</code> 是唯一安全的寫法。</p>
 <h3 id="坑-2coverrelative-只適用於-zh-tw">坑 2：<code>cover.relative</code> 只適用於 zh-tw</h3>
 <p>PaperMod 的封面可以用 page bundle 裡的相對路徑：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">cover</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;images/cover.jpg&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">relative</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-</span></span></span></code></pre></div><p>這在 zh-tw 很好用，因為圖片真的放在 <code>content/zh-tw/posts/&lt;slug&gt;/images/</code>。但<strong>英文版不要照抄</strong>。英文版沒有 <code>images/</code> 資料夾，而 PaperMod 的 <code>cover.image | absURL</code> 不會跨 bundle 解析，會產生：</p>
+</span></span></span></code></pre></div><p>這在 zh-tw 很好用，圖片放在 <code>content/zh-tw/posts/&lt;slug&gt;/images/</code>。英文版沒有 <code>images/</code>，<code>cover.image | absURL</code> 又不跨 bundle，會指向不存在的路徑：</p>
 <pre tabindex="0"><code>/blog/en/posts/&lt;slug&gt;/images/cover.jpg   # 不存在
-</code></pre><p>結果就是 <code>og:image</code> 對外 404，Facebook / LinkedIn 分享預覽直接失效。英文版要寫絕對網址：</p>
+</code></pre><p>結果是 <code>og:image</code> 對外 404，Facebook / LinkedIn 分享預覽失效。英文版要寫絕對網址：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">cover</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;https://jiejiefu.github.io/blog/posts/&lt;slug&gt;/images/cover.jpg&#34;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="c"># 不要加 relative</span><span class="w">
-</span></span></span></code></pre></div><p>內文的 <code>![](images/01_cover.png)</code> 則是另一回事：那是 Hugo 的跨 bundle 資源解析，英文頁會自動指到 zh-tw 的圖片 URL。<strong>這是預期行為，不是壞連結</strong>。</p>
+</span></span></span></code></pre></div><p>內文的 <code>![](images/01_cover.png)</code> 是另一回事。那是 Hugo 的跨 bundle 資源解析，英文頁會自動指到 zh-tw 的圖片 URL。這是預期行為，不是壞連結。</p>
 <pre class="mermaid">flowchart TB
     A[&#34;content/zh-tw/posts/slug/index.md&#34;] --&gt; B[&#34;/posts/slug/&#34;]
     A --&gt; C[&#34;content/zh-tw/posts/slug/images/cover.jpg&#34;]
     D[&#34;content/en/posts/slug/index.md&#34;] --&gt; E[&#34;/en/posts/slug/&#34;]
     E -.-&gt;|內文圖片：Hugo 跨 bundle 解析| C
-    C --&gt; F[&#34;/blog/posts/slug/images/cover.jpg&#34;]</pre><p>所以圖片<strong>只需要放一份</strong>，放 zh-tw。英文版不用複製，重製圖片時也只覆蓋 zh-tw 的 <code>images/</code>，英文版會自動跟著更新。</p>
-<h2 id="6-day-4github-pages--github-actions">6. Day 4：GitHub Pages + GitHub Actions</h2>
-<p>這是整個站最容易「看起來設定好了，其實沒有」的一段。</p>
+    C --&gt; F[&#34;/blog/posts/slug/images/cover.jpg&#34;]</pre><p>圖片只需要放一份，放在 zh-tw。英文版不用複製。重製圖片時只覆蓋 zh-tw 的 <code>images/</code>，英文版會自動更新。</p>
+<h2 id="6-github-pages--github-actions">6. GitHub Pages + GitHub Actions</h2>
+<p>這一段最容易「看起來設定好了，其實沒有」。</p>
 <p>先分清楚兩種 Pages：</p>
 <table>
 	<thead>
@@ -2893,6 +3099,12 @@ content/en/posts/hugo-papermod-devlog/index.md
 </span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">submodules</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">fetch-depth</span><span class="p">:</span><span class="w"> </span><span class="m">0</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Check slug style</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l">python3 scripts/check_slug_style.py</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Check generated images</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l">python3 scripts/check_generated_images.py --check</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">      </span>- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Setup Hugo</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">peaceiris/actions-hugo@v3</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nt">with</span><span class="p">:</span><span class="w">
@@ -2909,39 +3121,51 @@ content/en/posts/hugo-papermod-devlog/index.md
 </span></span></span><span class="line"><span class="cl"><span class="w">          </span><span class="nt">publish_dir</span><span class="p">:</span><span class="w"> </span><span class="l">./public</span><span class="w">
 </span></span></span></code></pre></div><p>逐段解釋：</p>
 <ul>
-<li><strong><code>on.push.branches: [main]</code></strong>：只有 main 會觸發。開 PR 不會部署，這是對的。</li>
-<li><strong><code>permissions.contents: write</code></strong>：<code>peaceiris/actions-gh-pages</code> 需要把 build 產物推到 <code>gh-pages</code> 分支，所以需要寫入權限。少這行會出現 <code>remote: Permission to ... denied</code>。</li>
-<li><strong><code>concurrency</code></strong>：避免兩次 push 同時部署、互相覆蓋。<code>cancel-in-progress: false</code> 是刻意的：寧可排隊，也不要讓部署中途被取消。</li>
-<li><strong><code>submodules: true</code></strong>：沒有這行，CI 裡的 <code>themes/PaperMod</code> 會是空資料夾。</li>
-<li><strong><code>fetch-depth: 0</code></strong>：抓完整 Git 歷史。若之後啟用 <code>enableGitInfo</code>，Hugo 才能用 commit 時間算 <code>.Lastmod</code>；淺層 clone 會讓時間失真。這個站目前沒開，但這是好習慣。</li>
-<li><strong><code>hugo --minify</code></strong>：正式 build。不需要 <code>--gc</code> 才能上線，<code>--gc</code> 是清快取，對這種規模的站差異不大。</li>
-<li><strong><code>publish_dir: ./public</code></strong>：把 Hugo 的輸出推上去。</li>
+<li><code>on.push.branches: [main]</code>：只有 main 觸發，開 PR 不部署。</li>
+<li><code>permissions.contents: write</code>：<code>peaceiris</code> 要把產物推到 <code>gh-pages</code>，少這行會出現 <code>remote: Permission ... denied</code>。</li>
+<li><code>concurrency</code>：兩次 push 不互相覆蓋。<code>cancel-in-progress: false</code> 是刻意排隊。</li>
+<li><code>submodules: true</code>：否則 <code>themes/PaperMod</code> 會是空資料夾。</li>
+<li><code>fetch-depth: 0</code>：抓完整歷史，之後開 <code>enableGitInfo</code> 才能算 <code>.Lastmod</code>。</li>
+<li>兩個檢查步驟：<code>check_slug_style.py</code> 擋底線 slug，<code>check_generated_images.py --check</code> 擋 PNG，都在 build 前跑。</li>
+<li><code>hugo --minify</code> 產出正式檔，<code>publish_dir: ./public</code> 推上去。</li>
 </ul>
-<p>部署完成後，GitHub repo 的 <strong>Settings → Pages → Build and deployment</strong> 要設成：</p>
+<p>部署完成後，GitHub repo 的 Settings → Pages → Build and deployment 要設成：</p>
 <pre tabindex="0"><code>Source: Deploy from a branch
 Branch: gh-pages / (root)
-</code></pre><p>而不是「GitHub Actions」。這一點很容易搞混，因為 GitHub 現在把兩種模式都放在同一個下拉選單裡。</p>
+</code></pre><p>不要選「GitHub Actions」。兩種模式放在同一個下拉選單，容易搞混。</p>
 <h3 id="另一種做法官方-actionsdeploy-pages--oidc">另一種做法：官方 <code>actions/deploy-pages</code> + OIDC</h3>
 <p>如果你不想用 <code>gh-pages</code> 分支，也可以用 GitHub 官方的 Pages 流程：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">permissions</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">contents</span><span class="p">:</span><span class="w"> </span><span class="l">read</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">pages</span><span class="p">:</span><span class="w"> </span><span class="l">write</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">id-token</span><span class="p">:</span><span class="w"> </span><span class="l">write</span><span class="w">
-</span></span></span></code></pre></div><p>搭配 <code>actions/configure-pages</code>、<code>actions/upload-pages-artifact</code>、<code>actions/deploy-pages</code>。這種模式的好處是：</p>
+</span></span></span></code></pre></div><p>搭配三個官方 action：<code>actions/configure-pages</code>、<code>actions/upload-pages-artifact</code>、<code>actions/deploy-pages</code>。這種模式的好處是：</p>
 <ul>
 <li>不需要把 build 產物推到另一個分支</li>
 <li>用 OIDC 的短期權杖，不需要長期 token</li>
 <li>Pages 的來源直接設成「GitHub Actions」</li>
 </ul>
-<p>兩種都可行。這個站選擇分支模式，是因為它在 2026 年初就設定好了，而且 <code>peaceiris</code> 的 action 很穩定；如果你現在從零開始，官方模式也值得考慮。<strong>重點是不要把兩種模式的設定混在一起</strong>：用 <code>peaceiris</code> 就設 <code>contents: write</code> + <code>gh-pages</code> 分支；用官方 action 就設 <code>pages: write</code> + <code>id-token: write</code> + GitHub Actions 來源。</p>
-<h3 id="一個我還沒改掉的風險">一個我還沒改掉的風險</h3>
-<p>workflow 裡的 <code>hugo-version: 'latest'</code> 很方便，但也很危險：某天 Hugo 升版、行為改變，你的 build 可能突然壞掉，而且是在 push 之後才發現。</p>
-<p>如果重來，我會釘版本：</p>
+<p>這個站用分支模式，因為 2026 年初就設好，<code>peaceiris</code> 也穩定。從零開始可以考慮官方模式。重點是兩套權限與來源不要混用。</p>
+<pre class="mermaid">flowchart TD
+    A[&#34;push main&#34;] --&gt; B{&#34;Pages 來源&#34;}
+    B --&gt;|gh-pages 分支| C[&#34;peaceiris/actions-gh-pages&#34;]
+    C --&gt; D[&#34;permissions: contents: write&#34;]
+    D --&gt; E[&#34;推到 gh-pages&#34;]
+    E --&gt; F[&#34;Pages: Deploy from a branch&#34;]
+    B --&gt;|GitHub Actions| G[&#34;actions/deploy-pages&#34;]
+    G --&gt; H[&#34;permissions: pages: write&lt;br/&gt;id-token: write&#34;]
+    H --&gt; I[&#34;上傳 artifact + OIDC&#34;]
+    I --&gt; J[&#34;Pages: GitHub Actions&#34;]
+    F -.-&gt; K[&#34;權限與來源要成套，不可混用&#34;]
+    J -.-&gt; K</pre><p><em>示意：兩條路徑的權限、分支與 Pages 來源互斥。只換其中一項，會出現權限被拒或站台沒更新。</em></p>
+<h3 id="一個還沒改掉的風險">一個還沒改掉的風險</h3>
+<p>workflow 裡的 <code>hugo-version: 'latest'</code> 很方便，也很危險。某天 Hugo 升版、行為改變，build 可能突然壞掉。而且是在 push 之後才發現。</p>
+<p>如果重來，會釘住版本：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l">peaceiris/actions-hugo@v3</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">with</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">hugo-version</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;0.168.0&#39;</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">extended</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
-</span></span></span></code></pre></div><p>代價是每次升級要自己改一行；好處是「今天能 build，下個月也能 build」。</p>
+</span></span></span></code></pre></div><p>代價是每次升級要改一行。好處是今天能 build，下個月也能 build。</p>
 <h3 id="本機驗證正式產物">本機驗證正式產物</h3>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">rm -rf public <span class="o">&amp;&amp;</span> hugo --minify
 </span></span><span class="line"><span class="cl">
@@ -2950,21 +3174,28 @@ Branch: gh-pages / (root)
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="c1"># og:image 指向的檔案真的存在</span>
 </span></span><span class="line"><span class="cl">rg -o <span class="s1">&#39;og:image&#34; content=&#34;[^&#34;]+&#39;</span> public/posts/rea-reverse-engineer-anything/index.html
-</span></span></code></pre></div><h2 id="7-day-5把首頁從-papermod-預設改成實驗室">7. Day 5：把首頁從 PaperMod 預設改成「實驗室」</h2>
-<p>PaperMod 的首頁有三種模式：Regular、Home-Info、Profile。這個站一開始用 Home-Info，後來整頁重寫。原因不是 Home-Info 不好，而是它能做的事情就到那裡。</p>
+</span></span></code></pre></div><h2 id="7-把首頁從-papermod-預設改成終端機">7. 把首頁從 PaperMod 預設改成「終端機」</h2>
+<p>PaperMod 的首頁有三種模式：Regular、Home-Info、Profile。這個站一開始用 Home-Info，後來整頁重寫。Home-Info 能做的事情就到那裡，所以重寫。</p>
 <h3 id="最重要的觀念layoutsindexhtml-會讓-homeinfoparams-完全失效">最重要的觀念：<code>layouts/index.html</code> 會讓 <code>homeInfoParams</code> 完全失效</h3>
 <p>Hugo 的 home page lookup 順序是：</p>
 <pre tabindex="0"><code>layouts/index.html  &gt;  layouts/_default/list.html
-</code></pre><p>只要你的專案裡有 <code>layouts/index.html</code>，PaperMod 的 <code>_default/list.html</code> 在首頁就<strong>永遠不會被呼叫</strong>。而 <code>homeInfoParams</code> 是 <code>home_info.html</code> 在讀的，<code>home_info.html</code> 只會被 <code>_default/list.html</code> 呼叫。</p>
-<p>所以會出現一個很詭異的狀態：</p>
+</code></pre><p>只要專案裡有 <code>layouts/index.html</code>，<code>_default/list.html</code> 就不會被呼叫，<code>homeInfoParams</code> 也就不會被讀。</p>
+<p>結果會出現一個很怪的狀態：</p>
 <ul>
 <li><code>config.yaml</code> 裡的 <code>homeInfoParams</code> 改了，首頁完全沒變</li>
 <li>把 <code>homeInfoParams</code> 整段刪掉，首頁也完全沒變</li>
 <li>你以為是快取，其實是那段設定根本沒有被讀</li>
 </ul>
-<p>這不是 bug，是 lookup order。要改首頁，就只能改 <code>layouts/index.html</code>。</p>
+<pre class="mermaid">flowchart TD
+    A[&#34;請求 /&#34;] --&gt; B{&#34;layouts/index.html&lt;br/&gt;存在？&#34;}
+    B --&gt;|是| C[&#34;用 layouts/index.html&#34;]
+    B --&gt;|否| D[&#34;用 PaperMod _default/list.html&#34;]
+    D --&gt; E[&#34;呼叫 home_info.html&#34;]
+    E --&gt; F[&#34;讀 homeInfoParams&#34;]
+    C --&gt; G[&#34;homeInfoParams 永遠不被讀&#34;]</pre><p><em>示意：只要專案有 <code>layouts/index.html</code>，PaperMod 的首頁模板與 <code>homeInfoParams</code> 都不會進到渲染路徑。</em></p>
+<p>這是 lookup order，不是 bug。要改首頁，只能改 <code>layouts/index.html</code>。</p>
 <h3 id="首頁的資料放在-datahomeyaml">首頁的資料放在 <code>data/home.yaml</code></h3>
-<p>首頁的文案、技術領域卡、Console 的標籤全部集中在 <code>data/home.yaml</code>，用語言分組：</p>
+<p>首頁的文案、技術領域卡、Console 標籤都集中在 <code>data/home.yaml</code>。用語言分組：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">zh-tw</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">hero</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">eyebrow</span><span class="p">:</span><span class="w"> </span><span class="s2">&#34;JAY FU · ENGINEERING LAB&#34;</span><span class="w">
@@ -3002,31 +3233,36 @@ Branch: gh-pages / (root)
 			</tr>
 	</tbody>
 </table>
-<p>真資料那段有一個很容易踩的細節：<strong>必須先過濾草稿</strong>。</p>
+<p>真資料那段有一個容易踩的細節：必須先過濾草稿。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{</span><span class="w"> </span><span class="nx">$published</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">where</span><span class="w"> </span><span class="nx">$allPosts</span><span class="w"> </span><span class="s">&#34;Draft&#34;</span><span class="w"> </span><span class="k">false</span><span class="w"> </span><span class="cp">}}</span>
-</span></span></code></pre></div><p>Hugo 的 <code>site.RegularPages</code> 與 <code>site.Taxonomies</code> 都會把草稿算進去。這個站大部分文章是 <code>draft: true</code>，如果直接算，首頁的「文章數」會把草稿一起算進去，比線上實際的多。<code>hugo --buildDrafts</code> 也不會把 <code>.Draft</code> 改成 false，它只是把草稿納入建置，所以過濾邏輯要自己寫。</p>
-<p>還有一個小地方：標籤數不要用 <code>len site.Taxonomies.tags</code>，因為那是全站詞彙表，含草稿、而且跨語言合併的行為不一定是你想要的。從已發布文章的 <code>.Params.tags</code> 收集後去重，語意最清楚。</p>
+</span></span></code></pre></div><p><code>site.RegularPages</code> 與 <code>site.Taxonomies</code> 都含草稿。直接算，首頁文章數會比線上多。<code>--buildDrafts</code> 不會把 <code>.Draft</code> 改成 false，過濾要自己寫。</p>
+<p>標籤數別用 <code>len site.Taxonomies.tags</code>，那是全站詞彙表含草稿。從已發布文章的 <code>.Params.tags</code> 去重最清楚。</p>
 <h3 id="漸進增強沒有-js-也要看得到">漸進增強：沒有 JS 也要看得到</h3>
-<p>Console 的日誌是每 0.15 秒跳一次的裝飾，但<strong>伺服器端已經先渲染開機訊息、靜態指標與四格統計</strong>。沒有 JS 時，版面完整，只是不會動。</p>
+<p>Console 日誌每 0.15 秒跳一次。但伺服器端已先渲染開機訊息、靜態指標與四格統計。沒有 JS 也會完整顯示。</p>
 <p>JS 在三種情況會停掉計時器：</p>
 <ul>
 <li>使用者開啟 <code>prefers-reduced-motion</code></li>
 <li>分頁被隱藏（<code>visibilitychange</code>）</li>
 <li>Console 捲出視窗（<code>IntersectionObserver</code>）</li>
 </ul>
-<p>這樣它不會在背景空轉，也不會讓一個裝飾區塊吃掉手機的電。</p>
+<p>這樣它不會在背景空轉，也不會吃掉手機的電。</p>
 <h3 id="坑-3逐頁條件不能放-extend_footerhtml">坑 3：逐頁條件不能放 <code>extend_footer.html</code></h3>
-<p>這是這個站最隱蔽的坑之一。</p>
 <p>PaperMod 的 <code>baseof.html</code> 裡，footer 是這樣呼叫的：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{</span><span class="w"> </span><span class="nx">partialCached</span><span class="w"> </span><span class="s">&#34;footer.html&#34;</span><span class="w"> </span><span class="na">.</span><span class="w"> </span><span class="na">.Layout</span><span class="w"> </span><span class="na">.Kind</span><span class="w"> </span><span class="o">(</span><span class="na">.Param</span><span class="w"> </span><span class="s">&#34;hideFooter&#34;</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="na">.Param</span><span class="w"> </span><span class="s">&#34;ShowCodeCopyButtons&#34;</span><span class="o">)</span><span class="w"> </span><span class="cp">}}</span>
-</span></span></code></pre></div><p><code>partialCached</code> 的快取鍵是 <code>.Layout</code>、<code>.Kind</code> 與後面兩個參數，<strong>不是頁面本身</strong>。所以任何「這個頁面要不要做 X」的判斷放進 <code>extend_footer.html</code>，實際會變成：</p>
+</span></span></code></pre></div><p><code>partialCached</code> 的快取鍵是 <code>.Layout</code>、<code>.Kind</code> 與後面兩個參數，不是頁面本身。任何「這個頁面要不要做 X」的判斷放進 <code>extend_footer.html</code>，都會變成：</p>
 <blockquote>
 <p>第一個被算到的頁面決定全站。</p>
 </blockquote>
-<p>而且不會報錯、不會有 warning。Mermaid 一開始就是踩在這裡：判斷條件寫對了，但全站頁面裡只有 1 個拿到 <code>&lt;script type=&quot;importmap&quot;&gt;</code>。</p>
-<p>規則很簡單：<strong>逐頁條件一律放 <code>extend_head.html</code></strong>。<code>head.html</code> 是用 <code>{{ partial }}</code> 逐頁求值的，沒有快取問題。</p>
+<pre class="mermaid">flowchart LR
+    A[&#34;文章頁 A&lt;br/&gt;Layout: post&#34;] --&gt; C[&#34;partialCached footer.html&lt;br/&gt;key = .Layout + .Kind&#34;]
+    B[&#34;文章頁 B&lt;br/&gt;Layout: post&#34;] --&gt; C
+    C --&gt; D[&#34;只算一次&lt;br/&gt;用第一頁的結果&#34;]
+    D --&gt; E[&#34;B 也拿到 A 的 footer&#34;]
+    D --&gt; F[&#34;逐頁條件失效&#34;]</pre><p><em>示意：快取鍵還包含 <code>hideFooter</code> 與 <code>ShowCodeCopyButtons</code>，但沒有頁面本身。同 Layout／Kind 的頁面共用輸出。</em></p>
+<p>而且不會報錯，也不會有 warning。Mermaid 一開始就踩在這裡。判斷條件寫對了，但全站只有 1 個頁面拿到 <code>&lt;script type=&quot;importmap&quot;&gt;</code>。</p>
+<p>規則很簡單：逐頁條件一律放 <code>extend_head.html</code>。<code>head.html</code> 用 <code>{{ partial }}</code> 逐頁求值，沒有快取問題。</p>
 <h3 id="坑-4script-要走-assets-pipeline">坑 4：script 要走 assets pipeline</h3>
-<p>一開始我把 Console 的 JS 放在 <code>static/js/</code>，用 <code>absURL</code> 指向它。這樣可以跑，但沒有 fingerprint：</p>
+<p>一開始把 Console 的 JS 放在 <code>static/js/</code>，用 <code>absURL</code> 指向它。這樣可以跑，但沒有 fingerprint：</p>
 <ul>
 <li>讀者會拿到瀏覽器快取的舊版 JS</li>
 <li>你改了程式，讀者要硬重新整理才看得到</li>
@@ -3036,8 +3272,8 @@ Branch: gh-pages / (root)
 </span></span><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="nx">$js</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="na">.</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">minify</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">fingerprint</span><span class="w"> </span><span class="cp">}}</span>
 </span></span><span class="line"><span class="cl"><span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&#34;</span><span class="cp">{{</span><span class="w"> </span><span class="nx">$js</span><span class="na">.RelPermalink</span><span class="w"> </span><span class="cp">}}</span><span class="s">&#34;</span> <span class="na">defer</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
 </span></span><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="cp">}}</span>
-</span></span></code></pre></div><p>不要直接把 <code>{{ . | minify | fingerprint }}</code> 印在 <code>src</code> 裡。那樣會呼叫 Resource 的 <code>String()</code>，輸出的是來源路徑（<code>/js/lab-console.js</code>），不是加工後的檔案，結果就是 404。要取 <code>$js.RelPermalink</code>。</p>
-<h2 id="8-day-6內容與圖片管線">8. Day 6：內容與圖片管線</h2>
+</span></span></code></pre></div><p>不要把 <code>{{ . | minify | fingerprint }}</code> 印在 <code>src</code>，那會輸出 <code>/js/lab-console.js</code> 而不是加工檔，結果 404。要取 <code>$js.RelPermalink</code>。</p>
+<h2 id="8-內容與圖片管線">8. 內容與圖片管線</h2>
 <h3 id="page-bundle一篇文就是一個資料夾">Page bundle：一篇文就是一個資料夾</h3>
 <p>這個站的文章用 leaf bundle：</p>
 <pre tabindex="0"><code>content/zh-tw/posts/hugo-papermod-devlog/
@@ -3048,7 +3284,7 @@ Branch: gh-pages / (root)
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-markdown" data-lang="markdown"><span class="line"><span class="cl">![<span class="nt">封面</span>](<span class="na">images/cover.jpg</span>)
 </span></span></code></pre></div><p>Hugo 會把它解析成這篇文章的資源。</p>
 <h3 id="圖片格式不要等到-200-mb-才後悔">圖片格式：不要等到 200 MB 才後悔</h3>
-<p>這個站曾經把資訊圖全部存成 PNG，單檔最大 9.3 MB，六篇合計超過 200 MB。clone 下來很痛，Pages 的頻寬也浪費。後來統一成：</p>
+<p>這個站曾把資訊圖全存成 PNG，單檔最大 9.3 MB。六篇合計超過 200 MB。clone 很痛，Pages 頻寬也浪費。後來統一成：</p>
 <table>
 	<thead>
 			<tr>
@@ -3079,11 +3315,20 @@ Branch: gh-pages / (root)
 			</tr>
 	</tbody>
 </table>
+<pre class="mermaid">flowchart LR
+    A[&#34;原始 PNG&#34;] --&gt; B[&#34;magick -alpha off -strip&#34;]
+    B --&gt; C[&#34;cwebp -q 82 -m 6&#34;]
+    C --&gt; D[&#34;WebP 1376px&lt;br/&gt;內文圖&#34;]
+    A --&gt; E[&#34;magick -resize 1200x -quality 85&#34;]
+    E --&gt; F[&#34;JPEG 1200px&lt;br/&gt;封面 / og:image&#34;]
+    D --&gt; G[&#34;content/.../images/&#34;]
+    F --&gt; G
+    G --&gt; H[&#34;public/&#34;]</pre><p><em>示意：內文圖與封面走兩條編碼路徑，最後都進同一個 page bundle。PNG 中間檔只留在暫存目錄。</em></p>
 <p>三個不能妥協的理由：</p>
 <ol>
-<li><strong>內文圖不要再縮小</strong>。PaperMod 的 <code>--main-width</code> 是 720px，1376px 大約是 1.9 倍，正好是 retina 的倍率。縮到 1000px 只剩 1.4 倍，在高解析螢幕上會糊。</li>
-<li><strong><code>-alpha off</code> 是必要的</strong>。這些 AI 產出的圖 alpha 通道通常 100% 不透明，留著只是死重。</li>
-<li><strong>封面用 JPEG，不要用 WebP</strong>。PaperMod 會把 <code>cover.image</code> 直接塞進 <code>og:image</code>，Facebook / LinkedIn 對 WebP 的預覽支援不完整。</li>
+<li>內文圖不要縮。<code>--main-width</code> 是 720px，1376px 約 1.9 倍，正好 retina；縮到 1000px 只剩 1.4 倍，會糊。</li>
+<li><code>-alpha off</code> 是必要的。這些 AI 產出的圖 alpha 通道通常 100% 不透明。留著只是死重。</li>
+<li>封面用 JPEG，不要用 WebP。PaperMod 會把 <code>cover.image</code> 直接塞進 <code>og:image</code>。Facebook / LinkedIn 對 WebP 的預覽支援不完整。</li>
 </ol>
 <p>實際指令：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl"><span class="c1"># 內文圖：PNG → WebP</span>
@@ -3092,16 +3337,16 @@ Branch: gh-pages / (root)
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="c1"># 封面：1200px 寬、q85</span>
 </span></span><span class="line"><span class="cl">magick cover.png -resize 1200x -strip -quality <span class="m">85</span> cover.jpg
-</span></span></code></pre></div><p>做完之後，<code>content/</code> 從兩百多 MB 降到 15 MB 左右，<code>public/</code> 大約 9 MB。這個數字不是為了炫技，而是<strong>讀者第一次打開網站的等待時間</strong>。</p>
+</span></span></code></pre></div><p>做完之後，<code>content/</code> 從兩百多 MB 降到 15 MB 左右。<code>public/</code> 大約 9 MB。這個數字反映的是讀者第一次打開網站的等待時間。</p>
 <p><img alt="content/ 改版前後與 public/ 部署產物的體積比較" loading="lazy" src="/blog/posts/hugo-papermod-devlog/images/01_content_size.webp"></p>
 <p><em>同一批資訊圖，只換編碼與尺寸；<code>public/</code> 是實際部署出去的產物。</em></p>
 <h3 id="坑-5草稿不要放進-content">坑 5：草稿不要放進 <code>content/</code></h3>
-<p>page bundle 裡任何 <code>.md</code> 都會被 Hugo 當成頁面渲染，並發佈成公開 URL。不是只有 <code>index.md</code>。</p>
-<p>曾經有一次，我把 ChatGPT 產的草稿 <code>ChatGPT_artical.md</code> 放進某個 page bundle，裡面有 <code>mermaid</code> shortcode，但那個當下 shortcode template 還沒建好，<code>hugo build</code> 直接失敗。更糟的是，如果它 build 成功，那份草稿就會變成一個公開網址。</p>
-<p>所以後來的規則是：<strong>原始草稿一律放 repo 根的 <code>drafts/</code></strong>，那個資料夾在 <code>.gitignore</code> 裡。<code>content/</code> 只放要發佈的東西。</p>
-<h2 id="9-day-7四個功能四種坑">9. Day 7：四個功能，四種坑</h2>
+<p>page bundle 裡任何 <code>.md</code> 都會被 Hugo 當成頁面渲染，並發佈成公開 URL。不只 <code>index.md</code>。</p>
+<p>曾把 ChatGPT 草稿 <code>ChatGPT_artical.md</code> 放進 page bundle。裡面的 <code>mermaid</code> shortcode 當時還沒建好，<code>hugo build</code> 直接失敗。若成功，草稿也會變成公開網址。</p>
+<p>後來的規則是：原始草稿一律放 repo 根的 <code>drafts/</code>。那個資料夾在 <code>.gitignore</code> 裡。<code>content/</code> 只放要發佈的東西。</p>
+<h2 id="9-四個功能四種坑">9. 四個功能，四種坑</h2>
 <h3 id="katexdelimiter-要一對一對寫">KaTeX：delimiter 要一對一對寫</h3>
-<p>Hugo 沒有 <code>math</code> 這個設定鍵。要讓數學公式原樣輸出、交給 KaTeX 渲染，用的是 Goldmark 的 passthrough extension：</p>
+<p>Hugo 沒有 <code>math</code> 這個設定鍵。要讓公式原樣輸出、交給 KaTeX 渲染，用的是 Goldmark 的 passthrough extension：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">markup</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">goldmark</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">extensions</span><span class="p">:</span><span class="w">
@@ -3114,8 +3359,8 @@ Branch: gh-pages / (root)
 </span></span></span><span class="line"><span class="cl"><span class="w">            </span>- <span class="p">[</span><span class="s1">&#39;\(&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;\)&#39;</span><span class="p">]</span><span class="w">
 </span></span></span></code></pre></div><p>兩個細節：</p>
 <ul>
-<li><strong>delimiter 必須是成對的巢狀陣列</strong>，不是扁平陣列。寫成 <code>['$$', '$$']</code> 是對的；寫成扁平陣列會讓 Go 端取到單一字元，甚至直接 panic。</li>
-<li><strong>inline 不要用 <code>$</code></strong>。站上的英文文章有 <code>$100 billion</code>、<code>$900,000</code> 這種金額，一旦 <code>$</code> 變成 delimiter，同一段出現兩個金額就會被整段當成 LaTeX 吞掉。</li>
+<li>delimiter 必須是成對的巢狀陣列。<code>['$$', '$$']</code> 是對的；扁平陣列會讓 Go 取到單一字元，甚至 panic。</li>
+<li>inline 不要用 <code>$</code>。站上的英文文章有 <code>$100 billion</code>、<code>$900,000</code> 這種金額。一旦 <code>$</code> 變成 delimiter，同一段出現兩個金額就會被當成 LaTeX 吞掉。</li>
 </ul>
 <h3 id="mermaiddeterministicids-不能拿掉">Mermaid：<code>deterministicIds</code> 不能拿掉</h3>
 <p>Mermaid 的初始化裡有一個選項：</p>
@@ -3124,14 +3369,26 @@ Branch: gh-pages / (root)
 </span></span><span class="line"><span class="cl">  <span class="nx">deterministicIds</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">// ...
 </span></span></span><span class="line"><span class="cl"><span class="p">});</span>
-</span></span></code></pre></div><p>不開的話，<code>mermaid.run()</code> 內部用 <code>Date.now()</code> 產生 SVG id。同一個頁面有多張圖時，很容易在同一毫秒內撞到相同 id，結果是：</p>
+</span></span></code></pre></div><p>不開的話，<code>mermaid.run()</code> 內部用 <code>Date.now()</code> 產生 SVG id。同一頁有多張圖時，很容易在同一毫秒內撞到相同 id。結果是：</p>
 <ul>
 <li>後面的圖拿到重複的 id</li>
 <li>產出沒有 <code>viewBox</code> 的空 SVG</li>
 <li>視覺上第 2 張之後的圖疊在一起</li>
 </ul>
-<p>這個 bug 不會報錯，只會靜靜地畫錯。所以 <code>deterministicIds: true</code> 是必要的，不是可選的。</p>
-<p>另外，<code>public/</code> 裡永遠不會有 Mermaid 產生的 SVG，因為那是 client 端渲染。要驗證「每張圖都有 viewBox」，只能在瀏覽器裡跑：</p>
+<p>這個 bug 不會報錯，只會靜靜地畫錯。所以 <code>deterministicIds: true</code> 是必要的。</p>
+<pre class="mermaid">sequenceDiagram
+    participant R as run()
+    participant G as ID
+    participant A as 圖1
+    participant B as 圖2
+    R-&gt;&gt;G: 取 id @1234ms
+    G--&gt;&gt;A: mermaid-1234
+    R-&gt;&gt;G: 再取 id
+    G--&gt;&gt;B: mermaid-1234
+    Note over A,B: id 重複
+    B--&gt;&gt;B: 對到圖1
+    Note over B: 空 SVG</pre><p><em>示意：<code>deterministicIds: false</code> 時 id 來自 <code>Date.now()</code>，同一毫秒內的兩張圖會撞號。這是 client 端行為，<code>public/</code> 裡看不到。</em></p>
+<p><code>public/</code> 裡不會有 Mermaid 產生的 SVG，因為那是 client 端渲染。要驗證每張圖都有 viewBox，只能在瀏覽器裡跑：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">hugo server -D <span class="p">&amp;</span>
 </span></span><span class="line"><span class="cl"><span class="nv">CH</span><span class="o">=</span><span class="s2">&#34;/Applications/Google Chrome.app/Contents/MacOS/Google Chrome&#34;</span>
 </span></span><span class="line"><span class="cl"><span class="s2">&#34;</span><span class="nv">$CH</span><span class="s2">&#34;</span> --headless<span class="o">=</span>new --disable-gpu --user-data-dir<span class="o">=</span><span class="s2">&#34;</span><span class="k">$(</span>mktemp -d<span class="k">)</span><span class="s2">&#34;</span> <span class="se">\
@@ -3139,10 +3396,12 @@ Branch: gh-pages / (root)
 </span></span></span><span class="line"><span class="cl">  <span class="s2">&#34;http://localhost:1313/blog/posts/mermaid-smoke-test/&#34;</span> &gt; /tmp/d.html
 </span></span></code></pre></div><p>然後數 <code>&lt;svg&gt;</code> 裡沒有 <code>viewBox</code> 的數量，必須是 0。</p>
 <h3 id="plotly不要讓每個頁面都付-15-mb">Plotly：不要讓每個頁面都付 1.5 MB</h3>
-<p>Plotly 的 Full bundle 是 4.83 MB min / 1.48 MB gzip，Basic 是 1.20 MB min / 398 KB gzip。這不是「載入一次就好」的成本，而是每個第一次進來的讀者都要付。</p>
+<p>Plotly 的 Full bundle 是 4.83 MB min / 1.48 MB gzip，Basic 是 1.20 MB min / 398 KB gzip。每個第一次來的讀者都要付。</p>
+<p><img alt="Plotly 三種頁面的首次載入成本" loading="lazy" src="/blog/posts/hugo-papermod-devlog/images/02_plotly_cost.webp"></p>
+<p><em>一般文章不載 Plotly，成本是 0；圖表頁才付 Basic（約 401 KB）或 Full（約 1,483 KB）。數字為 gzip 傳輸量，含約 3 KB 的 <code>plotly-init.js</code>，不含 CDN 回訪快取。資料來源：<code>docs/features/plotly.md</code>。</em></p>
 <p>所以這個站的做法是：</p>
 <ul>
-<li><code>plotly-init.js</code> 很小（原始碼約 8 KB，gzip 後約 3 KB），<strong>只在用到 plotly shortcode 的頁面載入</strong></li>
+<li><code>plotly-init.js</code> 只在用到 plotly shortcode 的頁面載入</li>
 <li>Plotly 本體由 JS 依容器上的 <code>data-plotly-bundle</code> 動態載入</li>
 <li>同一頁只要有一張 <code>full</code>，全頁載一次 <code>full</code>（full 是 basic 的超集）</li>
 <li>一般文章連 <code>plotly-init.js</code> 都不載，成本是 0</li>
@@ -3173,13 +3432,13 @@ Branch: gh-pages / (root)
 			</tr>
 	</tbody>
 </table>
-<p>判斷頁面有沒有用 shortcode，用 <code>.HasShortcode &quot;plotly&quot;</code>，不要用 <code>strings.Contains .RawContent &quot;plotly&quot;</code>。後者會讓正文提到 plotly 的文章也誤載。</p>
+<p>判斷頁面有沒有用 shortcode，用 <code>.HasShortcode &quot;plotly&quot;</code>。不要用 <code>strings.Contains .RawContent &quot;plotly&quot;</code>。後者會誤載正文提到 plotly 的文章。</p>
 <h3 id="chromaclass-based-高亮與檔案排序">Chroma：class-based 高亮與檔案排序</h3>
-<p>Hugo 預設的 <code>noClasses: true</code> 會把顏色寫成行內 style，自訂 CSS 很難蓋。改成：</p>
+<p>Hugo 預設的 <code>noClasses: true</code> 會把顏色寫成行內 style。自訂 CSS 很難蓋。改成：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nt">markup</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">highlight</span><span class="p">:</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nt">noClasses</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="w">
-</span></span></span></code></pre></div><p>然後用 <code>hugo gen chromastyles --style=tokyonight-day</code> 產生 token 色。這裡有一個不明顯的坑：PaperMod 內建的是 Catppuccin，而且<strong>不會被移除</strong>。如果你的 Tokyo Night 沒有定義某個 token class，就會漏出 Catppuccin 的顏色（例如 <code>.nv</code> 的淡粉色在淺色底上幾乎看不見）。</p>
+</span></span></span></code></pre></div><p>用 <code>hugo gen chromastyles --style=tokyonight-day</code> 產生 token 色。PaperMod 內建的 Catppuccin 不會被移除，Tokyo Night 沒定義的 class 會漏出它的顏色。例如 <code>.nv</code> 的淡粉色在淺色底上幾乎看不見。</p>
 <p>解法是加一層低特異度的 reset：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-css" data-lang="css"><span class="line"><span class="cl"><span class="p">:</span><span class="nd">root</span> <span class="p">.</span><span class="nc">chroma</span> <span class="o">*,</span> <span class="p">:</span><span class="nd">root</span> <span class="p">.</span><span class="nc">bg</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">color</span><span class="p">:</span> <span class="kc">inherit</span><span class="p">;</span>
@@ -3188,9 +3447,17 @@ Branch: gh-pages / (root)
 </span></span><span class="line"><span class="cl">  <span class="k">font-weight</span><span class="p">:</span> <span class="kc">inherit</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">text-decoration</span><span class="p">:</span> <span class="kc">inherit</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>還有一個更隱蔽的：<code>resources.Match &quot;css/extended/*.css&quot;</code> 是<strong>依檔名排序</strong>。所以 <code>chroma-00-reset.css</code> 必須早於 <code>chroma-tokyonight-*.css</code>，<code>zz-chroma-tokyonight.css</code> 必須晚於 <code>custom.css</code>。改名會靜默改變結果，不會報錯。</p>
+</span></span></code></pre></div><p>還有一個更隱蔽的：<code>resources.Match &quot;css/extended/*.css&quot;</code> 依檔名排序。所以 <code>chroma-00-reset.css</code> 必須早於 <code>chroma-tokyonight-*.css</code>。<code>zz-chroma-tokyonight.css</code> 必須晚於 <code>custom.css</code>。改名會靜默改變結果，不會報錯。</p>
 <h2 id="10-三個月七次改版">10. 三個月，七次改版</h2>
-<p>與其說這個站是一次蓋好的，不如說它是三個月內分了七次改版才長成現在的樣子。每一次都解決一個具體的痛點，而不是為了加功能而加：</p>
+<p>這個站分三個月、七次改版。每次都在解一個具體痛點：</p>
+<pre class="mermaid">timeline
+    title 七次改版的三個階段
+    section 先把路徑打通
+        1–2 : 上線路徑 : 草稿治理
+    section 讓站變快、有樣子
+        3–4 : 圖片 WebP : 首頁改寫
+    section 讓文章能表達更多
+        5–7 : Mermaid / KaTeX / Plotly</pre><p><em>分組依「當時要解決的痛點」整理，不是嚴格時間軸。細項見下表。</em></p>
 <table>
 	<thead>
 			<tr>
@@ -3237,16 +3504,10 @@ Branch: gh-pages / (root)
 			</tr>
 	</tbody>
 </table>
-<p>回頭看，最值得的兩次是第 3 次（圖片瘦身）和第 4 次（首頁改版）。前者讓網站真的變快，後者讓網站開始有自己的樣子。</p>
-<h2 id="11-如果重來我會先做這五件事">11. 如果重來，我會先做這五件事</h2>
-<ol>
-<li><strong>第一天就寫 <code>layouts/index.html</code></strong>。不要先花時間調 <code>homeInfoParams</code>，反正最後一定會被 <code>layouts/index.html</code> 取代。</li>
-<li><strong>第一天就定圖片規範</strong>。內文 WebP q82 / 1376px、封面 JPEG q85 / 1200px，寫進 <code>AGENTS.md</code>，不要等到 200 MB 才回頭救。</li>
-<li><strong>第一天就把草稿放在 <code>content/</code> 外面</strong>。page bundle 裡任何 <code>.md</code> 都會被發佈，這個坑一次就夠了。</li>
-<li><strong>釘住 Hugo 版本</strong>。<code>hugo-version: 'latest'</code> 現在很方便，但未來的某一天會讓你突然 build 不起來。</li>
-<li><strong>加一個 link checker</strong>。<code>projects/</code> 和 <code>resume/</code> 這兩個 draft 頁面曾經在選單裡放了很久的 404，直到有人點到才發現。</li>
-</ol>
-<p>還有一些是刻意不做的：沒有留言系統（要維護）、沒有 CMS（Markdown 就是 CMS）、搜尋是 client-side Fuse.js（文章量還不需要 Elasticsearch）。<strong>知道自己不需要什麼，跟知道要用什麼一樣重要。</strong></p>
+<p>最值得的是圖片瘦身與首頁改版。</p>
+<h2 id="11-如果重來先做這五件事">11. 如果重來，先做這五件事</h2>
+<p>如果重來，會先做五件事。第一天就寫 <code>layouts/index.html</code>、定圖片規範、把草稿移出 <code>content/</code>。再釘住 Hugo 版本，加一個 link checker。<code>projects/</code> 與 <code>resume/</code> 的 404 就是漏掉的。</p>
+<p>刻意不做的是留言系統、CMS 與 Elasticsearch。Markdown 就是 CMS。</p>
 <h2 id="12-踩坑速查表">12. 踩坑速查表</h2>
 <table>
 	<thead>
@@ -3320,10 +3581,10 @@ Branch: gh-pages / (root)
 	</tbody>
 </table>
 <h2 id="13-結尾網站是活的">13. 結尾：網站是活的</h2>
-<p>這個站最有趣的地方，不是它用了什麼技術，而是<strong>它會跟著內容一起長</strong>。今天加一個 Mermaid render hook，明天加一個 Plotly shortcode，後天把首頁的 Console 從靜態改成會動的。每一次改動都留下 commit，也留下一個可以回頭看的決策。</p>
-<p>如果你問我「值不值得自己蓋」，我的答案會是：<strong>如果你打算長期寫，值得；如果你只是要發三篇文，不值得。</strong> 因為自架的價值不在第一篇文章，而在第一百篇——當你需要一個別的平台不會給你的版面、一個自己的網址、一份可以帶著走的 Markdown 時，前面那些踩坑才會開始回本。</p>
-<p>首頁那台 genact 風格的 Engineering Console 本身也值得一篇：真實統計與假日誌是怎麼分開的、三個指標為什麼用腳本化序列而不是隨機數、以及怎麼讓它在沒有 JS 的時候仍然可讀。</p>
-<p>如果你想看這個站的原始碼，它在 <a href="https://github.com/jiejiefu/blog">github.com/jiejiefu/blog</a>。</p>
+<p>這個站跟著內容長。今天加 Mermaid hook，明天加 Plotly shortcode。每次改動都留下 commit 與可回頭看的決策。</p>
+<p>值不值得自架，取決於打算寫多久。長期寫，值得；只發三篇，不值得。價值要到第一百篇才出現。當你需要平台不給的版面、自己的網址。或一份能帶走的 Markdown，前面的成本才划算。</p>
+<p>首頁那台 genact 風格的 Console 也可以單獨寫一篇。內容包括真實統計與假日誌怎麼分開。三個指標為何用腳本化序列，以及沒有 JS 時怎麼保持可讀。</p>
+<p>這個站的原始碼在 <a href="https://github.com/jiejiefu/blog">github.com/jiejiefu/blog</a>。</p>
 <hr>
 <h2 id="參考資料">參考資料</h2>
 <ul>
