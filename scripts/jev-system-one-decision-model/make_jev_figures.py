@@ -1,8 +1,7 @@
 """Generate the figures and cover used in the Jev post.
 
-Usage:
-    /Users/jiejiefu/Documents/Visual_Studio_Code/.venv/bin/python \
-        scripts/jev-system-one-decision-model/make_jev_figures.py
+Usage (run from the repo root):
+    ../.venv/bin/python scripts/jev-system-one-decision-model/make_jev_figures.py
 
 Writes six 1600px-wide WebP figures and one 1200px JPEG cover directly into
 the post's page bundle. PNG intermediates stay in a temporary directory.

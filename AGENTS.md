@@ -1,7 +1,7 @@
 # AGENTS.md — Jay Fu Blog
 
-⚠️ **專案路徑**：`/Users/jiejiefu/Documents/Visual_Studio_Code/blog`
-所有指令與相對路徑都以這裡為基準。不要用 `~/Downloads/blog` 或其它 checkout；`pwd` 不對就先切回。
+⚠️ **專案根目錄**：以 `git rev-parse --show-toplevel` 的結果為準。
+所有指令與相對路徑都在 repo 根執行。不要用其它 checkout；`pwd` 不對就先切回。本機絕對路徑見 `AGENTS.local.md`。
 
 ## Quick facts
 

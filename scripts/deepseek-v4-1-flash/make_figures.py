@@ -4,9 +4,8 @@
 Charts are written as WebP straight into the page bundle. The PNG intermediate
 stays in a temp dir, so Hugo never publishes it.
 
-Run from anywhere:
-    /Users/jiejiefu/Documents/Visual_Studio_Code/.venv/bin/python \
-        scripts/deepseek-v4-1-flash/make_figures.py
+Run from the repo root:
+    ../.venv/bin/python scripts/deepseek-v4-1-flash/make_figures.py
 """
 
 from pathlib import Path
