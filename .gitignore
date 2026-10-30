@@ -4,8 +4,7 @@
 
 # --- Private / agent instructions (keep local, not committed) ---
 .sisyphus/
-AGENTS.md
-CLAUDE.md
+AGENTS.local.md
 /fab_predictive_maintenance_ppt169/
 /edge_ai_platform_ppt169/
 

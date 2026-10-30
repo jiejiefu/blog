@@ -7,6 +7,7 @@
 
 來源：`content/zh-tw/posts/deepseek-v4-1-flash/index.md` 的實際改寫。
 適用於技術文章；不改事實、數字、口徑、引用、公式、圖表。
+委託新文章、規劃圖表時，先用 [article-brief.md](article-brief.md) 的提示詞。
 
 ## 0. 規則分級
 

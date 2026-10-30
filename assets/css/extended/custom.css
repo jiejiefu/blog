@@ -156,7 +156,7 @@
    首頁：Personal Engineering Lab（layouts/index.html）
    ==========================================================================
    ⚠️ 為什麼主色是「黑白 + 一個藍紫」而不是參考圖的彩色漸層？
-   custom.css 前面的變數區刻意是純黑白色系（見 AGENTS.md），
+   custom.css 前面的變數區刻意是純黑白色系（見 docs/features/home.md），
    所以這裡只新增一個 --accent 點綴色，其餘一律沿用既有變數。
    新增點綴色時務必看下面的對比度數字，別用「感覺」選色。
 
@@ -395,7 +395,7 @@
    也就是說**只要頁面上有 data-aos，CDN 的 aos.js 掛掉時內容就永遠是隱形的**，
    而且不會報錯、沒有 fallback、沒有 console warning。
    AOS 是從 jsdelivr 載入的（extend_footer.html），CDN 被擋就會發生。
-   這與 AGENTS.md 記錄的 mermaid「不要用 visibility:hidden」是同一個道理：
+   這與 docs/features/mermaid.md 記錄的 mermaid「不要用 visibility:hidden」是同一個道理：
    寧可不要動畫，也不要讓 CDN 失敗等於內容消失。
 
    所以首頁改用純 CSS 動畫：不依賴任何 JS，動畫跑不跑都不影響內容可見性。

@@ -22,7 +22,7 @@
 
   ⚠️ 這個 partial 只從 layouts/index.html 呼叫。
      絕對不要搬到 extend_footer.html：footer 是 partialCached，快取鍵是
-     .Layout/.Kind 不是頁面（見 AGENTS.md 的 mermaid 坑），data-cfg 會變成
+     .Layout/.Kind 不是頁面（見 docs/features/mermaid.md），data-cfg 會變成
      「第一個被算到的頁面決定全站」。
 */ -}}
 {{- $c := .c }}
@@ -101,7 +101,7 @@
        放 static/ 會沒有指紋，瀏覽器與 CDN 都會拿舊的快取。
        這裡是取加工後的資源指標再印 RelPermalink —— 直接把 pipeline 結果插進
        src="{{ }}" 會印出「來源路徑 /js/lab-console.js」（檔案根本不存在），
-       這是 AGENTS.md 記錄過的坑，寫法與 extend_footer.html 的 share-link.js 相同。 */}}
+       這是 docs/features/home.md 記錄過的坑，寫法與 extend_footer.html 的 share-link.js 相同。 */}}
 {{- with resources.Get "js/lab-console.js" }}
 {{- $js := . | minify | fingerprint }}
 <script src="{{ $js.RelPermalink }}" defer></script>
