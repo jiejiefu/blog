@@ -12,18 +12,18 @@ cover:
 ---
 
 {{< tldr >}}
-**這個部落格不是用 WordPress 或 Medium 蓋的**，而是 Hugo（Go 寫的靜態網站生成器）＋ PaperMod 主題＋ GitHub Pages。整個流程只有三步：寫 Markdown、`git push`、GitHub Actions 幫你編譯並部署。
+這個部落格用 Hugo（Go 寫的靜態網站生成器）、PaperMod 主題與 GitHub Pages。整個流程只有三步：寫 Markdown、`git push`、GitHub Actions 編譯並部署。
 
-**它不是一次完工，而是三個月內分了七次改版才長成現在的樣子。** 這篇不是「Hugo 入門 30 分鐘」，而是一份真實的建站日誌：為什麼選這套、每一個決定換來什麼、以及那些文件不會告訴你、只有真的 build 下去才會炸出來的坑。
+它分三個月、七次改版才長成現在的樣子。這篇是建站日誌，不是入門教學。內容是為什麼選這套、換來什麼，以及文件不會寫的坑。
 
-如果你也想蓋一個不用租伺服器、沒有資料庫、沒有 Node.js 的部落格，這篇可以當成地圖；如果你只是想知道這個站的首頁為什麼長這樣，<a href="#7-day-5把首頁從-papermod-預設改成實驗室">第 7 節開始是拆解</a>。
+這個站不用租伺服器、沒有資料庫，也沒有 Node.js。想蓋類似的站，這篇可以當地圖。只想知道首頁為什麼長這樣，<a href="#7-把首頁從-papermod-預設改成終端機">從第 7 節開始</a>。
 {{< /tldr >}}
 
 ## 1. 為什麼自己蓋一個部落格
 
-2026 年可以寫東西的地方多得是：Medium、Substack、方格子（vocus）、Notion，甚至直接在 GitHub 開一個 repo 寫 Markdown 都行。
+2026 年可以寫東西的地方很多。Medium、Substack、方格子（vocus）、Notion 都行，GitHub repo 也可以。WordPress、痞客邦這類傳統平台先放一邊。
 
-先把 WordPress、痞客邦這類傳統自架或老牌平台放在一邊。若只看 2026 年台灣繁體中文圈「知識型長文的曝光與觸及」，結構其實非常傾斜：FB／IG／Threads 這類社群平台大約佔四分之三，Medium 約 14%，Notion / GitHub 這類公開筆記與作品集約 7%，方格子約 3%，Substack 約 1%。換句話說，多數讀者是先在社群裡「看到」文章，文章最後寫在哪個平台反而沒那麼關鍵。
+只看台灣繁體中文圈的知識型長文，曝光結構很傾斜。FB／IG／Threads 約佔四分之三，Medium 約 14%。Notion / GitHub 約 7%，方格子約 3%，Substack 約 1%。多數讀者先在社群看到文章。最後寫在哪個平台，反而沒那麼關鍵。
 
 {{< plotly height="500" caption="2026 年台灣繁體中文知識型內容的曝光來源概略佔比" >}}
 {
@@ -90,23 +90,21 @@ cover:
 }
 {{< /plotly >}}
 
-而且這幾塊通常不是互斥的：一篇文章可以同時發在 Medium 接外部 SEO、丟到 FB／Threads 擴散、再把讀者引流到 Substack 或方格子沉澱，最後用 Notion / GitHub 管理長期的知識與作品集。平台負責被看見，自己的站負責把內容留下來。
+這幾塊不互斥。文章可以發在 Medium 接 SEO、丟到社群擴散。再引流到電子報或沙龍。平台負責被看見，自己的站負責留下內容。
 
-自己蓋一個站，說到底只換來三件事：
+自己蓋一個站，換來三件事：
 
-1. **內容所有權**：文章是 repo 裡的 `.md` 檔，搬到任何地方都只需要複製資料夾，不用匯出 XML 再祈禱格式不會跑掉。
-2. **版本控制**：每一次改版都有 commit。首頁改壞了、CSS 順序放錯了，`git diff` 看得到，`git revert` 退得回去。
-3. **可以改到爽**：首頁的終端機、文章底部的分享框、程式碼配色的檔名排序，這些平台不會給你，但你可以自己寫。
+1. 內容所有權：文章是 repo 裡的 `.md` 檔。複製資料夾就能搬走，不用匯出 XML。
+2. 版本控制：每次改版都有 commit。首頁改壞、CSS 順序放錯，`git diff` 看得到，`git revert` 退得回去。
+3. 可以自己改：首頁的終端機、文章底部的分享框。程式碼配色的檔名排序也能自己寫。
 
-代價也很具體：沒有留言系統、沒有後台編輯器、圖片要自己壓、SEO 要自己顧，而且**你會花很多時間在處理「看起來只是設定」的東西**。
-
-這篇的重點不是說服你自架。它是一份紀錄：把這個站從第一個 commit 到現在的決策與失敗留下來，讓下一個人在同一個地方少卡半天。
+代價也很具體。沒有留言系統、沒有後台編輯器。圖片要自己壓，SEO 要自己顧。很多時間花在處理「看起來只是設定」的東西上。
 
 ## 2. Hugo 到底幫你做了什麼
 
-先把名詞拆開。**靜態網站生成器（Static Site Generator, SSG）不是 CMS**，它不連資料庫、不執行後端程式，而是在 build time 把「Markdown + 模板 + 資源」編譯成一堆純 HTML、CSS、JS 檔案。部署的時候，你只是把這堆檔案放到一個會回傳檔案的伺服器上。
+靜態網站生成器（Static Site Generator, SSG）不是 CMS。它不連資料庫，也不執行後端程式。它在 build time 把 Markdown、模板與資源編譯成 HTML、CSS、JS。部署時只是把檔案放到伺服器上。
 
-Hugo 的特別之處是它是一個**編譯成單一執行檔的 Go 程式**：
+Hugo 是一個編譯成單一執行檔的 Go 程式：
 
 - 不需要 Node.js、不需要 `npm install`、不需要 webpack。
 - 官網下載一個 binary 就能跑，換電腦不用重建環境。
@@ -124,11 +122,11 @@ flowchart LR
     F --> G["GitHub Pages<br/>HTTPS + CDN"]
 ```
 
-一句話：**Hugo 只負責「把檔案變成檔案」**。網址、HTTPS、CDN、部署，是 GitHub Pages 的事。這個分工很清楚，也是它不容易壞的原因。
+Hugo 只負責把檔案變成檔案。網址、HTTPS、CDN、部署，都是 GitHub Pages 的事。
 
 ### 為什麼不是 Next.js、Astro 或 WordPress
 
-不是那些工具不好，而是這個站不需要它們的能力：
+這個站不需要它們的能力：
 
 | 方案 | 它擅長的事 | 這個站不需要的原因 |
 |---|---|---|
@@ -136,9 +134,9 @@ flowchart LR
 | WordPress | 後台、外掛、留言、CMS 生態 | 需要 PHP + 資料庫 + 主機，備份與安全更新都是額外工作 |
 | Hugo | 大量 Markdown、極快 build、單一 binary | 正好是這個站的全部需求 |
 
-如果你需要會員、金流、即時儀表板，Hugo 不是答案。但如果你只是想寫文章，它會讓你忘記「網站」這件事，專心在內容上。
+需要會員、金流或即時儀表板，Hugo 不是答案。只寫文章的話，它會讓你忘記網站這件事。
 
-## 3. Day 1：安裝、第一個 site，以及 Extended 的真相
+## 3. 安裝、第一個 site，以及 Extended 的真相
 
 macOS 用 Homebrew 安裝：
 
@@ -157,7 +155,7 @@ hugo server
 # Web Server is available at http://localhost:1313/
 ```
 
-初始化後的目錄不用全部記，但這幾個一定要知道：
+這幾個目錄一定要知道：
 
 | 目錄 / 檔案 | 作用 | 這個站怎麼用 |
 |---|---|---|
@@ -172,18 +170,18 @@ hugo server
 
 ### Extended 不是 PaperMod 的必要條件
 
-網路上很多文章會說「現代 Hugo 主題都用 Sass，所以一定要裝 Extended」。這句話對 Stack、Blowfish 之類的主題大致成立，但**對 PaperMod 不成立**：PaperMod 的樣式是純 CSS，透過 Hugo Pipes 串接、壓縮、fingerprint，沒有 SCSS 編譯。
+網路上常說現代 Hugo 主題都用 Sass，一定要裝 Extended。這對 Stack、Blowfish 大致成立，但 PaperMod 是純 CSS，走 Hugo Pipes，沒有 SCSS 編譯。
 
 那為什麼這個站還是用 Extended？兩個原因：
 
-1. **WebP 編碼**：Extended 版本包含 WebP 支援。如果你讓 Hugo 直接處理圖片、輸出 WebP，Standard 版會做不到。
-2. **主題生態**：哪天想換主題，Extended 幾乎不會是問題；反過來則要重裝。
+1. WebP 編碼：Extended 版本包含 WebP 支援。Hugo 直接處理圖片並輸出 WebP 時，Standard 版做不到。
+2. 主題生態：哪天想換主題，Extended 幾乎不會是問題。反過來則要重裝。
 
-本站的內文圖片其實是用 `cwebp` 預先轉好的，不依賴 Hugo 的圖片處理，所以 Standard 也能 build。但既然 CI 一行 `extended: true` 就解決，沒必要為了「證明不需要」而冒險。
+本站內文圖片用 `cwebp` 預先轉好，不依賴 Hugo 圖片處理，Standard 也能 build。CI 一行 `extended: true` 就解決，沒必要為了證明不需要而冒險。
 
 ### 第一個坑：`hugo server` 會改寫 `public/`
 
-`hugo server` 不是唯讀的開發伺服器。它會把非 minify、含 draft 的版本寫進 `public/`。所以如果你剛跑完 dev server，接著去檢查 `public/`，你看到的是**開發產物**，不是正式產物。
+`hugo server` 不是唯讀。它會把非 minify、含 draft 的版本寫進 `public/`。跑完 dev server 再檢查，看到的是開發產物。
 
 正確順序永遠是：
 
@@ -191,11 +189,11 @@ hugo server
 rm -rf public && hugo --minify
 ```
 
-這也是後來我在 `AGENTS.md` 裡寫給自己的第一條規則：**要對 `public/` 做任何檢查，先重建。**
+後來這條規則寫進了 `AGENTS.md`：要對 `public/` 做任何檢查，先重建。
 
-## 4. Day 2：選 PaperMod，以及為什麼不是 Stack / Blowfish
+## 4. 選 PaperMod，以及為什麼不是 Stack / Blowfish
 
-選主題的標準不是「哪個最漂亮」，而是「哪個最不需要我維護」。
+選主題的標準是維護成本，不是外觀。
 
 | 主題 | 優點 | 這個站不選的原因 |
 |---|---|---|
@@ -203,7 +201,7 @@ rm -rf public && hugo --minify
 | Stack | 卡片式版面、側欄、搜尋、視覺完成度高 | 設定與模板比這個文字為主的站需要的多 |
 | Blowfish | Tailwind、版型與配色選擇多 | 需要 Tailwind 工具鏈，維護成本較高 |
 
-PaperMod 最大的價值是**它幾乎沒有魔法**。它用 Hugo 原生的 asset pipeline、原生的 taxonomy、原生的 multilingual，沒有額外的 bundler。你看到的 CSS 就是它載入的 CSS，你要覆寫就是放一個同名檔案到 `layouts/`。對一個想長期自己維護的站來說，這比「功能很多」重要。
+PaperMod 幾乎沒有魔法。它用 Hugo 原生的 asset pipeline、taxonomy 與 multilingual，沒有額外 bundler。你看到的 CSS 就是它載入的 CSS。要覆寫就把同名檔案放進 `layouts/`。
 
 ### 用 git submodule 安裝
 
@@ -212,7 +210,7 @@ git submodule add https://github.com/adityatelange/hugo-PaperMod.git themes/Pape
 git submodule update --init --recursive
 ```
 
-submodule 的好處是**版本可重現**：`themes/PaperMod` 指到一個固定的 commit，不會因為主題作者更新而讓你的站突然變形。代價是升級要刻意做：
+submodule 的好處是版本可重現。`themes/PaperMod` 指到固定 commit，不會因主題更新而讓站突然變形。代價是升級要刻意做：
 
 ```sh
 cd themes/PaperMod
@@ -222,9 +220,9 @@ git add themes/PaperMod
 git commit -m "chore: bump PaperMod"
 ```
 
-而且如果你的專案裡有覆寫主題模板（這個站有，`layouts/_default/single.html` 就是為了把分享框插進文章底部），升級時要 `diff` 一次，不要直接覆蓋。
+專案裡若有覆寫主題模板，升級時要先 `diff`。這個站有覆寫：`layouts/_default/single.html` 把分享框插進文章底部。不要直接覆蓋。
 
-CI 那邊也必須記得拉 submodule，否則 build 出來會是沒有主題的空殼：
+CI 也必須拉 submodule，否則 build 出來是沒有主題的空殼：
 
 ```yaml
 - uses: actions/checkout@v4
@@ -249,7 +247,7 @@ outputs:
     - JSON   # PaperMod 的搜尋頁需要
 ```
 
-`baseURL` 是第一個真正會讓人卡住的地方。這個站是 **project page**，網址是 `https://jiejiefu.github.io/blog/`，不是 `https://jiejiefu.github.io/`。如果 `baseURL` 少了 `/blog/`，build 不會報錯，但線上會出現：
+`baseURL` 最容易卡住。這個站是 project page，網址是 `https://jiejiefu.github.io/blog/`，不是 `https://jiejiefu.github.io/`。少了 `/blog/` 不會報錯，但線上會出問題：
 
 - CSS / JS 404，頁面變成純文字
 - 文章內的絕對連結指到錯的地方
@@ -264,9 +262,9 @@ outputs:
 
 結尾的 `/` 不要省略。Hugo 不會幫你補。
 
-## 5. Day 3：中英雙語，以及圖片為什麼只放一份
+## 5. 中英雙語，以及圖片為什麼只放一份
 
-這個站有 `content/zh-tw/` 與 `content/en/` 兩套內容，預設語言是 zh-tw。設定大概長這樣：
+這個站有 `content/zh-tw/` 與 `content/en/` 兩套內容。預設語言是 zh-tw。設定大概長這樣：
 
 ```yaml
 defaultContentLanguage: zh-tw
@@ -283,14 +281,14 @@ languages:
     weight: 2
 ```
 
-兩邊用**相同的 slug**，PaperMod 的語言切換就會自動把同一篇文章串起來：
+兩邊用相同的 slug，PaperMod 的語言切換就會把同一篇文章串起來：
 
 ```
 content/zh-tw/posts/hugo-papermod-devlog/index.md
 content/en/posts/hugo-papermod-devlog/index.md
 ```
 
-介面文字則由 `i18n/` 覆寫。例如想把 `read_more` 固定成「閱讀全文」，就在 `i18n/zh-tw.yaml` 補：
+介面文字由 `i18n/` 覆寫。想把 `read_more` 固定成「閱讀全文」，就在 `i18n/zh-tw.yaml` 補：
 
 ```yaml
 - id: read_more
@@ -299,9 +297,9 @@ content/en/posts/hugo-papermod-devlog/index.md
 
 ### 坑 1：`data/home.zh-tw.yaml` 在 Hugo 0.168 是無效的
 
-我一開始很自然地想把首頁文案拆成 `data/home.zh-tw.yaml` 和 `data/home.en.yaml`，結果 `site.Data.home` 取到的是空值。Hugo 會把檔名註冊成 key `"home.zh-tw"`，不是「home 的 zh-tw 版本」。
+最初想把首頁文案拆成 `data/home.zh-tw.yaml` 和 `data/home.en.yaml`。結果 `site.Data.home` 取到空值。Hugo 會把檔名註冊成 key `"home.zh-tw"`。那不是「home 的 zh-tw 版本」。
 
-正確做法是**單一檔案、頂層用語言代碼分組**：
+正確做法是單一檔案，頂層用語言代碼分組：
 
 ```yaml
 # data/home.yaml
@@ -319,7 +317,7 @@ en:
 {{ $home := index hugo.Data "home" site.Language.Lang }}
 ```
 
-不要寫 `hugo.Data.home.zh-tw.title`。語言代碼含連字號，用點號取值在 Go template 裡不可靠；`index` 是唯一安全的寫法。
+不要寫 `hugo.Data.home.zh-tw.title`。語言代碼含連字號，用點號取值在 Go template 裡不可靠。`index` 是唯一安全的寫法。
 
 ### 坑 2：`cover.relative` 只適用於 zh-tw
 
@@ -331,13 +329,13 @@ cover:
   relative: true
 ```
 
-這在 zh-tw 很好用，因為圖片真的放在 `content/zh-tw/posts/<slug>/images/`。但**英文版不要照抄**。英文版沒有 `images/` 資料夾，而 PaperMod 的 `cover.image | absURL` 不會跨 bundle 解析，會產生：
+這在 zh-tw 很好用，圖片放在 `content/zh-tw/posts/<slug>/images/`。英文版沒有 `images/`，`cover.image | absURL` 又不跨 bundle，會指向不存在的路徑：
 
 ```
 /blog/en/posts/<slug>/images/cover.jpg   # 不存在
 ```
 
-結果就是 `og:image` 對外 404，Facebook / LinkedIn 分享預覽直接失效。英文版要寫絕對網址：
+結果是 `og:image` 對外 404，Facebook / LinkedIn 分享預覽失效。英文版要寫絕對網址：
 
 ```yaml
 cover:
@@ -345,7 +343,7 @@ cover:
   # 不要加 relative
 ```
 
-內文的 `![](images/01_cover.png)` 則是另一回事：那是 Hugo 的跨 bundle 資源解析，英文頁會自動指到 zh-tw 的圖片 URL。**這是預期行為，不是壞連結**。
+內文的 `![](images/01_cover.png)` 是另一回事。那是 Hugo 的跨 bundle 資源解析，英文頁會自動指到 zh-tw 的圖片 URL。這是預期行為，不是壞連結。
 
 ```mermaid
 flowchart TB
@@ -356,11 +354,11 @@ flowchart TB
     C --> F["/blog/posts/slug/images/cover.jpg"]
 ```
 
-所以圖片**只需要放一份**，放 zh-tw。英文版不用複製，重製圖片時也只覆蓋 zh-tw 的 `images/`，英文版會自動跟著更新。
+圖片只需要放一份，放在 zh-tw。英文版不用複製。重製圖片時只覆蓋 zh-tw 的 `images/`，英文版會自動更新。
 
-## 6. Day 4：GitHub Pages + GitHub Actions
+## 6. GitHub Pages + GitHub Actions
 
-這是整個站最容易「看起來設定好了，其實沒有」的一段。
+這一段最容易「看起來設定好了，其實沒有」。
 
 先分清楚兩種 Pages：
 
@@ -398,6 +396,12 @@ jobs:
           submodules: true
           fetch-depth: 0
 
+      - name: Check slug style
+        run: python3 scripts/check_slug_style.py
+
+      - name: Check generated images
+        run: python3 scripts/check_generated_images.py --check
+
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
@@ -416,22 +420,22 @@ jobs:
 
 逐段解釋：
 
-- **`on.push.branches: [main]`**：只有 main 會觸發。開 PR 不會部署，這是對的。
-- **`permissions.contents: write`**：`peaceiris/actions-gh-pages` 需要把 build 產物推到 `gh-pages` 分支，所以需要寫入權限。少這行會出現 `remote: Permission to ... denied`。
-- **`concurrency`**：避免兩次 push 同時部署、互相覆蓋。`cancel-in-progress: false` 是刻意的：寧可排隊，也不要讓部署中途被取消。
-- **`submodules: true`**：沒有這行，CI 裡的 `themes/PaperMod` 會是空資料夾。
-- **`fetch-depth: 0`**：抓完整 Git 歷史。若之後啟用 `enableGitInfo`，Hugo 才能用 commit 時間算 `.Lastmod`；淺層 clone 會讓時間失真。這個站目前沒開，但這是好習慣。
-- **`hugo --minify`**：正式 build。不需要 `--gc` 才能上線，`--gc` 是清快取，對這種規模的站差異不大。
-- **`publish_dir: ./public`**：把 Hugo 的輸出推上去。
+- `on.push.branches: [main]`：只有 main 觸發，開 PR 不部署。
+- `permissions.contents: write`：`peaceiris` 要把產物推到 `gh-pages`，少這行會出現 `remote: Permission ... denied`。
+- `concurrency`：兩次 push 不互相覆蓋。`cancel-in-progress: false` 是刻意排隊。
+- `submodules: true`：否則 `themes/PaperMod` 會是空資料夾。
+- `fetch-depth: 0`：抓完整歷史，之後開 `enableGitInfo` 才能算 `.Lastmod`。
+- 兩個檢查步驟：`check_slug_style.py` 擋底線 slug，`check_generated_images.py --check` 擋 PNG，都在 build 前跑。
+- `hugo --minify` 產出正式檔，`publish_dir: ./public` 推上去。
 
-部署完成後，GitHub repo 的 **Settings → Pages → Build and deployment** 要設成：
+部署完成後，GitHub repo 的 Settings → Pages → Build and deployment 要設成：
 
 ```
 Source: Deploy from a branch
 Branch: gh-pages / (root)
 ```
 
-而不是「GitHub Actions」。這一點很容易搞混，因為 GitHub 現在把兩種模式都放在同一個下拉選單裡。
+不要選「GitHub Actions」。兩種模式放在同一個下拉選單，容易搞混。
 
 ### 另一種做法：官方 `actions/deploy-pages` + OIDC
 
@@ -444,19 +448,36 @@ permissions:
   id-token: write
 ```
 
-搭配 `actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages`。這種模式的好處是：
+搭配三個官方 action：`actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages`。這種模式的好處是：
 
 - 不需要把 build 產物推到另一個分支
 - 用 OIDC 的短期權杖，不需要長期 token
 - Pages 的來源直接設成「GitHub Actions」
 
-兩種都可行。這個站選擇分支模式，是因為它在 2026 年初就設定好了，而且 `peaceiris` 的 action 很穩定；如果你現在從零開始，官方模式也值得考慮。**重點是不要把兩種模式的設定混在一起**：用 `peaceiris` 就設 `contents: write` + `gh-pages` 分支；用官方 action 就設 `pages: write` + `id-token: write` + GitHub Actions 來源。
+這個站用分支模式，因為 2026 年初就設好，`peaceiris` 也穩定。從零開始可以考慮官方模式。重點是兩套權限與來源不要混用。
 
-### 一個我還沒改掉的風險
+```mermaid
+flowchart TD
+    A["push main"] --> B{"Pages 來源"}
+    B -->|gh-pages 分支| C["peaceiris/actions-gh-pages"]
+    C --> D["permissions: contents: write"]
+    D --> E["推到 gh-pages"]
+    E --> F["Pages: Deploy from a branch"]
+    B -->|GitHub Actions| G["actions/deploy-pages"]
+    G --> H["permissions: pages: write<br/>id-token: write"]
+    H --> I["上傳 artifact + OIDC"]
+    I --> J["Pages: GitHub Actions"]
+    F -.-> K["權限與來源要成套，不可混用"]
+    J -.-> K
+```
 
-workflow 裡的 `hugo-version: 'latest'` 很方便，但也很危險：某天 Hugo 升版、行為改變，你的 build 可能突然壞掉，而且是在 push 之後才發現。
+*示意：兩條路徑的權限、分支與 Pages 來源互斥。只換其中一項，會出現權限被拒或站台沒更新。*
 
-如果重來，我會釘版本：
+### 一個還沒改掉的風險
+
+workflow 裡的 `hugo-version: 'latest'` 很方便，也很危險。某天 Hugo 升版、行為改變，build 可能突然壞掉。而且是在 push 之後才發現。
+
+如果重來，會釘住版本：
 
 ```yaml
 - uses: peaceiris/actions-hugo@v3
@@ -465,7 +486,7 @@ workflow 裡的 `hugo-version: 'latest'` 很方便，但也很危險：某天 Hu
     extended: true
 ```
 
-代價是每次升級要自己改一行；好處是「今天能 build，下個月也能 build」。
+代價是每次升級要改一行。好處是今天能 build，下個月也能 build。
 
 ### 本機驗證正式產物
 
@@ -479,9 +500,9 @@ ls public/posts/rea-reverse-engineer-anything/index.html
 rg -o 'og:image" content="[^"]+' public/posts/rea-reverse-engineer-anything/index.html
 ```
 
-## 7. Day 5：把首頁從 PaperMod 預設改成「實驗室」
+## 7. 把首頁從 PaperMod 預設改成「終端機」
 
-PaperMod 的首頁有三種模式：Regular、Home-Info、Profile。這個站一開始用 Home-Info，後來整頁重寫。原因不是 Home-Info 不好，而是它能做的事情就到那裡。
+PaperMod 的首頁有三種模式：Regular、Home-Info、Profile。這個站一開始用 Home-Info，後來整頁重寫。Home-Info 能做的事情就到那裡，所以重寫。
 
 ### 最重要的觀念：`layouts/index.html` 會讓 `homeInfoParams` 完全失效
 
@@ -491,19 +512,31 @@ Hugo 的 home page lookup 順序是：
 layouts/index.html  >  layouts/_default/list.html
 ```
 
-只要你的專案裡有 `layouts/index.html`，PaperMod 的 `_default/list.html` 在首頁就**永遠不會被呼叫**。而 `homeInfoParams` 是 `home_info.html` 在讀的，`home_info.html` 只會被 `_default/list.html` 呼叫。
+只要專案裡有 `layouts/index.html`，`_default/list.html` 就不會被呼叫，`homeInfoParams` 也就不會被讀。
 
-所以會出現一個很詭異的狀態：
+結果會出現一個很怪的狀態：
 
 - `config.yaml` 裡的 `homeInfoParams` 改了，首頁完全沒變
 - 把 `homeInfoParams` 整段刪掉，首頁也完全沒變
 - 你以為是快取，其實是那段設定根本沒有被讀
 
-這不是 bug，是 lookup order。要改首頁，就只能改 `layouts/index.html`。
+```mermaid
+flowchart TD
+    A["請求 /"] --> B{"layouts/index.html<br/>存在？"}
+    B -->|是| C["用 layouts/index.html"]
+    B -->|否| D["用 PaperMod _default/list.html"]
+    D --> E["呼叫 home_info.html"]
+    E --> F["讀 homeInfoParams"]
+    C --> G["homeInfoParams 永遠不被讀"]
+```
+
+*示意：只要專案有 `layouts/index.html`，PaperMod 的首頁模板與 `homeInfoParams` 都不會進到渲染路徑。*
+
+這是 lookup order，不是 bug。要改首頁，只能改 `layouts/index.html`。
 
 ### 首頁的資料放在 `data/home.yaml`
 
-首頁的文案、技術領域卡、Console 的標籤全部集中在 `data/home.yaml`，用語言分組：
+首頁的文案、技術領域卡、Console 標籤都集中在 `data/home.yaml`。用語言分組：
 
 ```yaml
 zh-tw:
@@ -535,19 +568,19 @@ en:
 | 文章數 / 標籤數 / 累積字數 / 最後建置 | **真的** | Hugo build 時算出來 |
 | 吞吐量 / 延遲 / 異常分數 / 日誌 / 進度條 | **假的** | `data/home.yaml` 的 `shared.console`，genact 式噪音 |
 
-真資料那段有一個很容易踩的細節：**必須先過濾草稿**。
+真資料那段有一個容易踩的細節：必須先過濾草稿。
 
 ```go-html-template
 {{ $published := where $allPosts "Draft" false }}
 ```
 
-Hugo 的 `site.RegularPages` 與 `site.Taxonomies` 都會把草稿算進去。這個站大部分文章是 `draft: true`，如果直接算，首頁的「文章數」會把草稿一起算進去，比線上實際的多。`hugo --buildDrafts` 也不會把 `.Draft` 改成 false，它只是把草稿納入建置，所以過濾邏輯要自己寫。
+`site.RegularPages` 與 `site.Taxonomies` 都含草稿。直接算，首頁文章數會比線上多。`--buildDrafts` 不會把 `.Draft` 改成 false，過濾要自己寫。
 
-還有一個小地方：標籤數不要用 `len site.Taxonomies.tags`，因為那是全站詞彙表，含草稿、而且跨語言合併的行為不一定是你想要的。從已發布文章的 `.Params.tags` 收集後去重，語意最清楚。
+標籤數別用 `len site.Taxonomies.tags`，那是全站詞彙表含草稿。從已發布文章的 `.Params.tags` 去重最清楚。
 
 ### 漸進增強：沒有 JS 也要看得到
 
-Console 的日誌是每 0.15 秒跳一次的裝飾，但**伺服器端已經先渲染開機訊息、靜態指標與四格統計**。沒有 JS 時，版面完整，只是不會動。
+Console 日誌每 0.15 秒跳一次。但伺服器端已先渲染開機訊息、靜態指標與四格統計。沒有 JS 也會完整顯示。
 
 JS 在三種情況會停掉計時器：
 
@@ -555,11 +588,9 @@ JS 在三種情況會停掉計時器：
 - 分頁被隱藏（`visibilitychange`）
 - Console 捲出視窗（`IntersectionObserver`）
 
-這樣它不會在背景空轉，也不會讓一個裝飾區塊吃掉手機的電。
+這樣它不會在背景空轉，也不會吃掉手機的電。
 
 ### 坑 3：逐頁條件不能放 `extend_footer.html`
-
-這是這個站最隱蔽的坑之一。
 
 PaperMod 的 `baseof.html` 裡，footer 是這樣呼叫的：
 
@@ -567,17 +598,28 @@ PaperMod 的 `baseof.html` 裡，footer 是這樣呼叫的：
 {{ partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons") }}
 ```
 
-`partialCached` 的快取鍵是 `.Layout`、`.Kind` 與後面兩個參數，**不是頁面本身**。所以任何「這個頁面要不要做 X」的判斷放進 `extend_footer.html`，實際會變成：
+`partialCached` 的快取鍵是 `.Layout`、`.Kind` 與後面兩個參數，不是頁面本身。任何「這個頁面要不要做 X」的判斷放進 `extend_footer.html`，都會變成：
 
 > 第一個被算到的頁面決定全站。
 
-而且不會報錯、不會有 warning。Mermaid 一開始就是踩在這裡：判斷條件寫對了，但全站頁面裡只有 1 個拿到 `<script type="importmap">`。
+```mermaid
+flowchart LR
+    A["文章頁 A<br/>Layout: post"] --> C["partialCached footer.html<br/>key = .Layout + .Kind"]
+    B["文章頁 B<br/>Layout: post"] --> C
+    C --> D["只算一次<br/>用第一頁的結果"]
+    D --> E["B 也拿到 A 的 footer"]
+    D --> F["逐頁條件失效"]
+```
 
-規則很簡單：**逐頁條件一律放 `extend_head.html`**。`head.html` 是用 `{{ partial }}` 逐頁求值的，沒有快取問題。
+*示意：快取鍵還包含 `hideFooter` 與 `ShowCodeCopyButtons`，但沒有頁面本身。同 Layout／Kind 的頁面共用輸出。*
+
+而且不會報錯，也不會有 warning。Mermaid 一開始就踩在這裡。判斷條件寫對了，但全站只有 1 個頁面拿到 `<script type="importmap">`。
+
+規則很簡單：逐頁條件一律放 `extend_head.html`。`head.html` 用 `{{ partial }}` 逐頁求值，沒有快取問題。
 
 ### 坑 4：script 要走 assets pipeline
 
-一開始我把 Console 的 JS 放在 `static/js/`，用 `absURL` 指向它。這樣可以跑，但沒有 fingerprint：
+一開始把 Console 的 JS 放在 `static/js/`，用 `absURL` 指向它。這樣可以跑，但沒有 fingerprint：
 
 - 讀者會拿到瀏覽器快取的舊版 JS
 - 你改了程式，讀者要硬重新整理才看得到
@@ -591,9 +633,9 @@ PaperMod 的 `baseof.html` 裡，footer 是這樣呼叫的：
 {{- end }}
 ```
 
-不要直接把 `{{ . | minify | fingerprint }}` 印在 `src` 裡。那樣會呼叫 Resource 的 `String()`，輸出的是來源路徑（`/js/lab-console.js`），不是加工後的檔案，結果就是 404。要取 `$js.RelPermalink`。
+不要把 `{{ . | minify | fingerprint }}` 印在 `src`，那會輸出 `/js/lab-console.js` 而不是加工檔，結果 404。要取 `$js.RelPermalink`。
 
-## 8. Day 6：內容與圖片管線
+## 8. 內容與圖片管線
 
 ### Page bundle：一篇文就是一個資料夾
 
@@ -616,7 +658,7 @@ Hugo 會把它解析成這篇文章的資源。
 
 ### 圖片格式：不要等到 200 MB 才後悔
 
-這個站曾經把資訊圖全部存成 PNG，單檔最大 9.3 MB，六篇合計超過 200 MB。clone 下來很痛，Pages 的頻寬也浪費。後來統一成：
+這個站曾把資訊圖全存成 PNG，單檔最大 9.3 MB。六篇合計超過 200 MB。clone 很痛，Pages 頻寬也浪費。後來統一成：
 
 | 用途 | 格式 | 尺寸 | 指令 |
 |---|---|---|---|
@@ -624,11 +666,25 @@ Hugo 會把它解析成這篇文章的資源。
 | 封面 | JPEG q85 | 1200px 寬 | `magick -resize 1200x` |
 | 分享預覽 | 跟封面同一張 | 1200×630 | 同上 |
 
+```mermaid
+flowchart LR
+    A["原始 PNG"] --> B["magick -alpha off -strip"]
+    B --> C["cwebp -q 82 -m 6"]
+    C --> D["WebP 1376px<br/>內文圖"]
+    A --> E["magick -resize 1200x -quality 85"]
+    E --> F["JPEG 1200px<br/>封面 / og:image"]
+    D --> G["content/.../images/"]
+    F --> G
+    G --> H["public/"]
+```
+
+*示意：內文圖與封面走兩條編碼路徑，最後都進同一個 page bundle。PNG 中間檔只留在暫存目錄。*
+
 三個不能妥協的理由：
 
-1. **內文圖不要再縮小**。PaperMod 的 `--main-width` 是 720px，1376px 大約是 1.9 倍，正好是 retina 的倍率。縮到 1000px 只剩 1.4 倍，在高解析螢幕上會糊。
-2. **`-alpha off` 是必要的**。這些 AI 產出的圖 alpha 通道通常 100% 不透明，留著只是死重。
-3. **封面用 JPEG，不要用 WebP**。PaperMod 會把 `cover.image` 直接塞進 `og:image`，Facebook / LinkedIn 對 WebP 的預覽支援不完整。
+1. 內文圖不要縮。`--main-width` 是 720px，1376px 約 1.9 倍，正好 retina；縮到 1000px 只剩 1.4 倍，會糊。
+2. `-alpha off` 是必要的。這些 AI 產出的圖 alpha 通道通常 100% 不透明。留著只是死重。
+3. 封面用 JPEG，不要用 WebP。PaperMod 會把 `cover.image` 直接塞進 `og:image`。Facebook / LinkedIn 對 WebP 的預覽支援不完整。
 
 實際指令：
 
@@ -641,7 +697,7 @@ cwebp -quiet -q 82 -m 6 /tmp/t.png -o output.webp
 magick cover.png -resize 1200x -strip -quality 85 cover.jpg
 ```
 
-做完之後，`content/` 從兩百多 MB 降到 15 MB 左右，`public/` 大約 9 MB。這個數字不是為了炫技，而是**讀者第一次打開網站的等待時間**。
+做完之後，`content/` 從兩百多 MB 降到 15 MB 左右。`public/` 大約 9 MB。這個數字反映的是讀者第一次打開網站的等待時間。
 
 ![content/ 改版前後與 public/ 部署產物的體積比較](images/01_content_size.webp)
 
@@ -649,17 +705,17 @@ magick cover.png -resize 1200x -strip -quality 85 cover.jpg
 
 ### 坑 5：草稿不要放進 `content/`
 
-page bundle 裡任何 `.md` 都會被 Hugo 當成頁面渲染，並發佈成公開 URL。不是只有 `index.md`。
+page bundle 裡任何 `.md` 都會被 Hugo 當成頁面渲染，並發佈成公開 URL。不只 `index.md`。
 
-曾經有一次，我把 ChatGPT 產的草稿 `ChatGPT_artical.md` 放進某個 page bundle，裡面有 `mermaid` shortcode，但那個當下 shortcode template 還沒建好，`hugo build` 直接失敗。更糟的是，如果它 build 成功，那份草稿就會變成一個公開網址。
+曾把 ChatGPT 草稿 `ChatGPT_artical.md` 放進 page bundle。裡面的 `mermaid` shortcode 當時還沒建好，`hugo build` 直接失敗。若成功，草稿也會變成公開網址。
 
-所以後來的規則是：**原始草稿一律放 repo 根的 `drafts/`**，那個資料夾在 `.gitignore` 裡。`content/` 只放要發佈的東西。
+後來的規則是：原始草稿一律放 repo 根的 `drafts/`。那個資料夾在 `.gitignore` 裡。`content/` 只放要發佈的東西。
 
-## 9. Day 7：四個功能，四種坑
+## 9. 四個功能，四種坑
 
 ### KaTeX：delimiter 要一對一對寫
 
-Hugo 沒有 `math` 這個設定鍵。要讓數學公式原樣輸出、交給 KaTeX 渲染，用的是 Goldmark 的 passthrough extension：
+Hugo 沒有 `math` 這個設定鍵。要讓公式原樣輸出、交給 KaTeX 渲染，用的是 Goldmark 的 passthrough extension：
 
 ```yaml
 markup:
@@ -676,8 +732,8 @@ markup:
 
 兩個細節：
 
-- **delimiter 必須是成對的巢狀陣列**，不是扁平陣列。寫成 `['$$', '$$']` 是對的；寫成扁平陣列會讓 Go 端取到單一字元，甚至直接 panic。
-- **inline 不要用 `$`**。站上的英文文章有 `$100 billion`、`$900,000` 這種金額，一旦 `$` 變成 delimiter，同一段出現兩個金額就會被整段當成 LaTeX 吞掉。
+- delimiter 必須是成對的巢狀陣列。`['$$', '$$']` 是對的；扁平陣列會讓 Go 取到單一字元，甚至 panic。
+- inline 不要用 `$`。站上的英文文章有 `$100 billion`、`$900,000` 這種金額。一旦 `$` 變成 delimiter，同一段出現兩個金額就會被當成 LaTeX 吞掉。
 
 ### Mermaid：`deterministicIds` 不能拿掉
 
@@ -691,15 +747,32 @@ mermaid.initialize({
 });
 ```
 
-不開的話，`mermaid.run()` 內部用 `Date.now()` 產生 SVG id。同一個頁面有多張圖時，很容易在同一毫秒內撞到相同 id，結果是：
+不開的話，`mermaid.run()` 內部用 `Date.now()` 產生 SVG id。同一頁有多張圖時，很容易在同一毫秒內撞到相同 id。結果是：
 
 - 後面的圖拿到重複的 id
 - 產出沒有 `viewBox` 的空 SVG
 - 視覺上第 2 張之後的圖疊在一起
 
-這個 bug 不會報錯，只會靜靜地畫錯。所以 `deterministicIds: true` 是必要的，不是可選的。
+這個 bug 不會報錯，只會靜靜地畫錯。所以 `deterministicIds: true` 是必要的。
 
-另外，`public/` 裡永遠不會有 Mermaid 產生的 SVG，因為那是 client 端渲染。要驗證「每張圖都有 viewBox」，只能在瀏覽器裡跑：
+```mermaid
+sequenceDiagram
+    participant R as run()
+    participant G as ID
+    participant A as 圖1
+    participant B as 圖2
+    R->>G: 取 id @1234ms
+    G-->>A: mermaid-1234
+    R->>G: 再取 id
+    G-->>B: mermaid-1234
+    Note over A,B: id 重複
+    B-->>B: 對到圖1
+    Note over B: 空 SVG
+```
+
+*示意：`deterministicIds: false` 時 id 來自 `Date.now()`，同一毫秒內的兩張圖會撞號。這是 client 端行為，`public/` 裡看不到。*
+
+`public/` 裡不會有 Mermaid 產生的 SVG，因為那是 client 端渲染。要驗證每張圖都有 viewBox，只能在瀏覽器裡跑：
 
 ```sh
 hugo server -D &
@@ -713,11 +786,15 @@ CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 ### Plotly：不要讓每個頁面都付 1.5 MB
 
-Plotly 的 Full bundle 是 4.83 MB min / 1.48 MB gzip，Basic 是 1.20 MB min / 398 KB gzip。這不是「載入一次就好」的成本，而是每個第一次進來的讀者都要付。
+Plotly 的 Full bundle 是 4.83 MB min / 1.48 MB gzip，Basic 是 1.20 MB min / 398 KB gzip。每個第一次來的讀者都要付。
+
+![Plotly 三種頁面的首次載入成本](images/02_plotly_cost.webp)
+
+*一般文章不載 Plotly，成本是 0；圖表頁才付 Basic（約 401 KB）或 Full（約 1,483 KB）。數字為 gzip 傳輸量，含約 3 KB 的 `plotly-init.js`，不含 CDN 回訪快取。資料來源：`docs/features/plotly.md`。*
 
 所以這個站的做法是：
 
-- `plotly-init.js` 很小（原始碼約 8 KB，gzip 後約 3 KB），**只在用到 plotly shortcode 的頁面載入**
+- `plotly-init.js` 只在用到 plotly shortcode 的頁面載入
 - Plotly 本體由 JS 依容器上的 `data-plotly-bundle` 動態載入
 - 同一頁只要有一張 `full`，全頁載一次 `full`（full 是 basic 的超集）
 - 一般文章連 `plotly-init.js` 都不載，成本是 0
@@ -728,11 +805,11 @@ Plotly 的 Full bundle 是 4.83 MB min / 1.48 MB gzip，Basic 是 1.20 MB min / 
 | Basic 圖表頁 | ~398 KB gzip | 0（CDN 快取） |
 | Full 圖表頁 | ~1.48 MB gzip | 0 |
 
-判斷頁面有沒有用 shortcode，用 `.HasShortcode "plotly"`，不要用 `strings.Contains .RawContent "plotly"`。後者會讓正文提到 plotly 的文章也誤載。
+判斷頁面有沒有用 shortcode，用 `.HasShortcode "plotly"`。不要用 `strings.Contains .RawContent "plotly"`。後者會誤載正文提到 plotly 的文章。
 
 ### Chroma：class-based 高亮與檔案排序
 
-Hugo 預設的 `noClasses: true` 會把顏色寫成行內 style，自訂 CSS 很難蓋。改成：
+Hugo 預設的 `noClasses: true` 會把顏色寫成行內 style。自訂 CSS 很難蓋。改成：
 
 ```yaml
 markup:
@@ -740,7 +817,7 @@ markup:
     noClasses: false
 ```
 
-然後用 `hugo gen chromastyles --style=tokyonight-day` 產生 token 色。這裡有一個不明顯的坑：PaperMod 內建的是 Catppuccin，而且**不會被移除**。如果你的 Tokyo Night 沒有定義某個 token class，就會漏出 Catppuccin 的顏色（例如 `.nv` 的淡粉色在淺色底上幾乎看不見）。
+用 `hugo gen chromastyles --style=tokyonight-day` 產生 token 色。PaperMod 內建的 Catppuccin 不會被移除，Tokyo Night 沒定義的 class 會漏出它的顏色。例如 `.nv` 的淡粉色在淺色底上幾乎看不見。
 
 解法是加一層低特異度的 reset：
 
@@ -754,11 +831,24 @@ markup:
 }
 ```
 
-還有一個更隱蔽的：`resources.Match "css/extended/*.css"` 是**依檔名排序**。所以 `chroma-00-reset.css` 必須早於 `chroma-tokyonight-*.css`，`zz-chroma-tokyonight.css` 必須晚於 `custom.css`。改名會靜默改變結果，不會報錯。
+還有一個更隱蔽的：`resources.Match "css/extended/*.css"` 依檔名排序。所以 `chroma-00-reset.css` 必須早於 `chroma-tokyonight-*.css`。`zz-chroma-tokyonight.css` 必須晚於 `custom.css`。改名會靜默改變結果，不會報錯。
 
 ## 10. 三個月，七次改版
 
-與其說這個站是一次蓋好的，不如說它是三個月內分了七次改版才長成現在的樣子。每一次都解決一個具體的痛點，而不是為了加功能而加：
+這個站分三個月、七次改版。每次都在解一個具體痛點：
+
+```mermaid
+timeline
+    title 七次改版的三個階段
+    section 先把路徑打通
+        1–2 : 上線路徑 : 草稿治理
+    section 讓站變快、有樣子
+        3–4 : 圖片 WebP : 首頁改寫
+    section 讓文章能表達更多
+        5–7 : Mermaid / KaTeX / Plotly
+```
+
+*分組依「當時要解決的痛點」整理，不是嚴格時間軸。細項見下表。*
 
 | 迭代 | 做了什麼 | 解決的痛點 |
 |---|---|---|
@@ -770,17 +860,13 @@ markup:
 | 6 | Tokyo Night、黑白配色、Console 動畫 | 程式碼區塊四個角黑黑的，視覺不一致 |
 | 7 | Plotly shortcode、這篇文章 | 有些資料用靜態圖片講不清楚 |
 
-回頭看，最值得的兩次是第 3 次（圖片瘦身）和第 4 次（首頁改版）。前者讓網站真的變快，後者讓網站開始有自己的樣子。
+最值得的是圖片瘦身與首頁改版。
 
-## 11. 如果重來，我會先做這五件事
+## 11. 如果重來，先做這五件事
 
-1. **第一天就寫 `layouts/index.html`**。不要先花時間調 `homeInfoParams`，反正最後一定會被 `layouts/index.html` 取代。
-2. **第一天就定圖片規範**。內文 WebP q82 / 1376px、封面 JPEG q85 / 1200px，寫進 `AGENTS.md`，不要等到 200 MB 才回頭救。
-3. **第一天就把草稿放在 `content/` 外面**。page bundle 裡任何 `.md` 都會被發佈，這個坑一次就夠了。
-4. **釘住 Hugo 版本**。`hugo-version: 'latest'` 現在很方便，但未來的某一天會讓你突然 build 不起來。
-5. **加一個 link checker**。`projects/` 和 `resume/` 這兩個 draft 頁面曾經在選單裡放了很久的 404，直到有人點到才發現。
+如果重來，會先做五件事。第一天就寫 `layouts/index.html`、定圖片規範、把草稿移出 `content/`。再釘住 Hugo 版本，加一個 link checker。`projects/` 與 `resume/` 的 404 就是漏掉的。
 
-還有一些是刻意不做的：沒有留言系統（要維護）、沒有 CMS（Markdown 就是 CMS）、搜尋是 client-side Fuse.js（文章量還不需要 Elasticsearch）。**知道自己不需要什麼，跟知道要用什麼一樣重要。**
+刻意不做的是留言系統、CMS 與 Elasticsearch。Markdown 就是 CMS。
 
 ## 12. 踩坑速查表
 
@@ -801,13 +887,13 @@ markup:
 
 ## 13. 結尾：網站是活的
 
-這個站最有趣的地方，不是它用了什麼技術，而是**它會跟著內容一起長**。今天加一個 Mermaid render hook，明天加一個 Plotly shortcode，後天把首頁的 Console 從靜態改成會動的。每一次改動都留下 commit，也留下一個可以回頭看的決策。
+這個站跟著內容長。今天加 Mermaid hook，明天加 Plotly shortcode。每次改動都留下 commit 與可回頭看的決策。
 
-如果你問我「值不值得自己蓋」，我的答案會是：**如果你打算長期寫，值得；如果你只是要發三篇文，不值得。** 因為自架的價值不在第一篇文章，而在第一百篇——當你需要一個別的平台不會給你的版面、一個自己的網址、一份可以帶著走的 Markdown 時，前面那些踩坑才會開始回本。
+值不值得自架，取決於打算寫多久。長期寫，值得；只發三篇，不值得。價值要到第一百篇才出現。當你需要平台不給的版面、自己的網址。或一份能帶走的 Markdown，前面的成本才划算。
 
-首頁那台 genact 風格的 Engineering Console 本身也值得一篇：真實統計與假日誌是怎麼分開的、三個指標為什麼用腳本化序列而不是隨機數、以及怎麼讓它在沒有 JS 的時候仍然可讀。
+首頁那台 genact 風格的 Console 也可以單獨寫一篇。內容包括真實統計與假日誌怎麼分開。三個指標為何用腳本化序列，以及沒有 JS 時怎麼保持可讀。
 
-如果你想看這個站的原始碼，它在 [github.com/jiejiefu/blog](https://github.com/jiejiefu/blog)。
+這個站的原始碼在 [github.com/jiejiefu/blog](https://github.com/jiejiefu/blog)。
 
 ---
 

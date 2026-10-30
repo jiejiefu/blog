@@ -122,5 +122,84 @@ def content_size_chart():
     print(out)
 
 
+def plotly_cost_chart():
+    fig, ax = plt.subplots(figsize=(13.76, 7.2), dpi=100)
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
+
+    labels = [
+        "一般文章\n（無圖表）",
+        "Basic 圖表頁",
+        "Full 圖表頁",
+    ]
+    values = [0, 401, 1483]
+    texts = ["0 KB（不載入）", "約 401 KB", "約 1.5 MB"]
+    colors = [GRAY, PURPLE_LIGHT, PURPLE]
+    ypos = [2, 1, 0]
+
+    bars = ax.barh(ypos, values, height=0.42, color=colors, zorder=3)
+
+    ax.set_yticks(ypos)
+    ax.set_yticklabels(labels, fontproperties=FONT, linespacing=1.35)
+    ax.set_xlim(0, 1800)
+    ax.set_ylim(-0.55, 2.7)
+    ax.set_xticks([0, 400, 800, 1200, 1600])
+    ax.set_xlabel(
+        "首次載入傳輸量（KB，gzip）",
+        fontproperties=FONT,
+        fontsize=14,
+        color=MUTED,
+        labelpad=10,
+    )
+
+    for bar, value, text in zip(bars, values, texts):
+        ax.text(
+            value + 30,
+            bar.get_y() + bar.get_height() / 2,
+            text,
+            va="center",
+            ha="left",
+            fontproperties=FONT,
+            fontsize=18,
+            fontweight="bold",
+            color=INK,
+        )
+
+    style_axes(ax)
+
+    fig.text(
+        0.06,
+        0.925,
+        "只有圖表頁要付 Plotly 的體積",
+        fontproperties=FONT,
+        fontsize=27,
+        fontweight="bold",
+        color=INK,
+    )
+    fig.text(
+        0.06,
+        0.875,
+        "gzip 傳輸量；一般文章連 plotly-init.js 都不載入。",
+        fontproperties=FONT,
+        fontsize=15,
+        color=MUTED,
+    )
+    fig.text(
+        0.06,
+        0.045,
+        "資料來源：docs/features/plotly.md。Full 4.83 MB min／1.48 MB gzip，Basic 1.20 MB／398 KB；init 約 8 KB／3 KB。",
+        fontproperties=FONT,
+        fontsize=12.5,
+        color=MUTED,
+    )
+
+    fig.subplots_adjust(left=0.235, right=0.955, top=0.80, bottom=0.16)
+    out = OUT_DIR / "02_plotly_cost.webp"
+    save_figure_webp(fig, out, dpi=100, facecolor="white")
+    plt.close(fig)
+    print(out)
+
+
 if __name__ == "__main__":
     content_size_chart()
+    plotly_cost_chart()

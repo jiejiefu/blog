@@ -26,8 +26,8 @@
   <circle cx="174" cy="128" r="9" fill="#ff5f56"/>
   <circle cx="214" cy="128" r="9" fill="#ffbd2e"/>
   <circle cx="254" cy="128" r="9" fill="#27c93f"/>
-  <text x="292" y="137" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#8a8a9a">jay fu blog — build log</text>
-  <text x="2110" y="137" text-anchor="end" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#5a5a6a">12:04:37</text>
+  <text x="292" y="137" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#b0b0c2">jay fu blog — build log</text>
+  <text x="2110" y="137" text-anchor="end" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#9a9aae">12:04:37</text>
   <text x="2230" y="137" text-anchor="end" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#8b7cff">● LIVE</text>
 
   <!-- divider -->
@@ -41,7 +41,7 @@
   <rect x="198" y="540" width="300" height="8" rx="4" fill="url(#accentLine)"/>
 
   <text x="200" y="622" font-family="'JetBrains Mono','Menlo',monospace" font-size="48" fill="#b8b8c8">Hugo × PaperMod × GitHub Pages</text>
-  <text x="200" y="692" font-family="'PingFang TC','Noto Sans TC',sans-serif" font-size="32" fill="#8a8a9a">把 Markdown 編譯成網站，push 就上線</text>
+  <text x="200" y="692" font-family="'PingFang TC','Noto Sans TC',sans-serif" font-size="32" fill="#b8b8c8">把 Markdown 編譯成網站，push 就上線</text>
 
   <!-- pills -->
   <rect x="200" y="748" width="222" height="58" rx="8" fill="none" stroke="#8b7cff" stroke-width="2"/>
@@ -55,52 +55,52 @@
 
   <!-- meta -->
   <circle cx="208" cy="896" r="7" fill="#5ef2a0"/>
-  <text x="232" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#8a8a9a">0 npm deps</text>
-  <text x="402" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#3a3a4a">/</text>
-  <text x="434" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#8a8a9a">78 pages</text>
-  <text x="584" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#3a3a4a">/</text>
-  <text x="616" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#8a8a9a">jiejiefu.github.io/blog</text>
+  <text x="232" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#b0b0c2">0 npm deps</text>
+  <text x="402" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#6a6a7c">/</text>
+  <text x="434" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#b0b0c2">78 pages</text>
+  <text x="584" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#6a6a7c">/</text>
+  <text x="616" y="904" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#b0b0c2">jiejiefu.github.io/blog</text>
 
-  <text x="200" y="956" font-family="'JetBrains Mono','Menlo',monospace" font-size="22" fill="#5a5a6a">hugo v0.168.0+extended · darwin/arm64</text>
+  <text x="200" y="956" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#9a9aae">hugo v0.168.0+extended · darwin/arm64</text>
 
   <circle cx="208" cy="1014" r="5" fill="#8b7cff"/>
-  <text x="232" y="1022" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#5a5a6a">3 months · 7 iterations · 1 static site</text>
+  <text x="232" y="1022" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#b0b0c2">3 months · 7 iterations · 1 static site</text>
 
   <!-- right column -->
-  <text x="1420" y="260" font-family="'JetBrains Mono','Menlo',monospace" font-size="22" fill="#5a5a6a" letter-spacing="4">BUILD OUTPUT</text>
+  <text x="1420" y="260" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#9a9aae" letter-spacing="4">BUILD OUTPUT</text>
 
   <text x="1420" y="330" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#8b7cff">$</text>
   <text x="1454" y="330" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#e8e8ef">hugo --minify</text>
-  <text x="1420" y="376" font-family="'JetBrains Mono','Menlo',monospace" font-size="22" fill="#5a5a6a">Start building sites …</text>
+  <text x="1420" y="376" font-family="'JetBrains Mono','Menlo',monospace" font-size="25" fill="#a0a0b4">Start building sites …</text>
 
-  <text x="1420" y="462" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#8a8a9a">Pages (zh / en)</text>
+  <text x="1420" y="462" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#b0b0c2">Pages (zh / en)</text>
   <text x="2220" y="462" text-anchor="end" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#e8e8ef">44 / 34</text>
 
-  <text x="1420" y="512" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#8a8a9a">Processed</text>
+  <text x="1420" y="512" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#b0b0c2">Processed</text>
   <text x="2220" y="512" text-anchor="end" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#e8e8ef">12</text>
 
-  <text x="1420" y="562" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#8a8a9a">Duration</text>
+  <text x="1420" y="562" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#b0b0c2">Duration</text>
   <text x="2220" y="562" text-anchor="end" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#5ef2a0">161 ms</text>
 
   <text x="1420" y="664" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#8b7cff">$</text>
   <text x="1454" y="664" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#e8e8ef">git push origin main</text>
 
-  <text x="1420" y="710" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#8b7cff">→ deploy.yml</text>
+  <text x="1420" y="710" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#8b7cff">→ deploy.yml</text>
 
   <text x="1420" y="766" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#5ef2a0">✓</text>
-  <text x="1460" y="766" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#a8a8b8">checkout (submodules)</text>
+  <text x="1460" y="766" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#c0c0d0">checkout (submodules)</text>
 
   <text x="1420" y="814" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#5ef2a0">✓</text>
-  <text x="1460" y="814" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#a8a8b8">hugo extended</text>
+  <text x="1460" y="814" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#c0c0d0">hugo extended</text>
 
   <text x="1420" y="862" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#5ef2a0">✓</text>
-  <text x="1460" y="862" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#a8a8b8">hugo --minify</text>
+  <text x="1460" y="862" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#c0c0d0">hugo --minify</text>
 
   <text x="1420" y="910" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#5ef2a0">✓</text>
-  <text x="1460" y="910" font-family="'JetBrains Mono','Menlo',monospace" font-size="24" fill="#a8a8b8">gh-pages</text>
+  <text x="1460" y="910" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#c0c0d0">gh-pages</text>
 
   <line x1="1420" y1="956" x2="2220" y2="956" stroke="#22222e" stroke-width="2"/>
 
   <text x="1420" y="1022" font-family="'JetBrains Mono','Menlo',monospace" font-size="28" fill="#5ef2a0">✓ published to gh-pages</text>
-  <text x="1420" y="1068" font-family="'JetBrains Mono','Menlo',monospace" font-size="22" fill="#5a5a6a">jiejiefu.github.io/blog</text>
+  <text x="1420" y="1068" font-family="'JetBrains Mono','Menlo',monospace" font-size="26" fill="#9a9aae">jiejiefu.github.io/blog</text>
 </svg>
