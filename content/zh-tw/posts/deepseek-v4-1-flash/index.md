@@ -82,7 +82,7 @@ Hugging Face 上的 safetensors 張量加總約 **763B**。
 
 > 本文參數用 `B` 代表 billion；KV 大小一律寫 `bytes`，例如 `890 bytes/token`，避免和參數的 B 混淆。
 
-骨幹長了 1.94 倍，prefill 啟用反而降到 8B。
+骨幹長了 1.94 倍，prefill 每 token 啟用反而降到 8B。
 這是 CED 的直接結果。
 global 分支只跑 20 層。
 
