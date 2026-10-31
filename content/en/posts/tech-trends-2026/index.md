@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-01
 cover:
-    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2026/cover.jpg"
+    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2026/images/cover.jpg"
     alt: "TECH TRENDS FOR 2026" # 替代文字（SEO 用）
     caption: "探討人工智慧、硬體與就業市場的劇烈變動。" # 圖片下方的說明文字
 

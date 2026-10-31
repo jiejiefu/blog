@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-04
 cover:
-    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2023/cover.jpg"
+    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2023/images/cover.jpg"
     alt: "TECH TRENDS FOR 2023"
     caption: "大型科技公司出現裁員潮，探討了 Web3 與元宇宙遭遇的挫折，AI 生成技術（如 ChatGPT）正迎來爆發式成長。"
 

@@ -4,7 +4,7 @@ tags: ["科技趨勢", "AI", "前沿"]
 draft: true
 date: 2026-03-02
 cover:
-    image: "cover.jpg"
+    image: "images/cover.jpg"
     alt: "TECH TRENDS FOR 2025"
     caption: "具備推理能力的人工智慧與自動化代理如何威脅軟體開發等白領職位。"
     relative: true

@@ -4,7 +4,7 @@ tags: ["科技趨勢", "AI", "前沿"]
 draft: true
 date: 2026-03-06
 cover:
-    image: "cover.jpg"
+    image: "images/cover.jpg"
     alt: "TECH TRENDS FOR 2021"
     caption: "遠端辦公已成為長期趨勢，這將使全球職位競爭更加激烈，但也賦予工程師更高的居住自由。 JavaScript 框架與語法的創新速度正在放緩，而 TypeScript、Deno 與 WebAssembly 則展現出強大的成長潛力。"
     relative: true

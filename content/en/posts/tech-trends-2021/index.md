@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-06
 cover:
-    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2021/cover.jpg"
+    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2021/images/cover.jpg"
     alt: "TECH TRENDS FOR 2021"
     caption: ""
 

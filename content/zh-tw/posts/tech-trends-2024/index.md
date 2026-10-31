@@ -4,7 +4,7 @@ tags: ["科技趨勢", "AI", "前沿"]
 draft: true
 date: 2026-03-03
 cover:
-    image: "cover.jpg"
+    image: "images/cover.jpg"
     alt: "TECH TRENDS FOR 2024"
     caption: "軟體工程師職缺市場的波動，虛擬實境的影響，以及自研晶片對硬體架構的改變。"
     relative: true

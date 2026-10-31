@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-02
 cover:
-    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2025/cover.jpg"
+    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2025/images/cover.jpg"
     alt: "TECH TRENDS FOR 2025"
     caption: "具備推理能力的人工智慧與自動化代理如何威脅軟體開發等白領職位。"
 

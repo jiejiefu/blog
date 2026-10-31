@@ -4,7 +4,7 @@ tags: ["科技趨勢", "AI", "前沿"]
 draft: true
 date: 2026-03-01
 cover:
-    image: "cover.jpg" # 直接寫檔名即可
+    image: "images/cover.jpg" # 相對於 page bundle
     alt: "TECH TRENDS FOR 2026" # 替代文字（SEO 用）
     caption: "探討人工智慧、硬體與就業市場的劇烈變動。" # 圖片下方的說明文字
     relative: true # 👈 關鍵：使用 Page Bundle 必須設為 true

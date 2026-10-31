@@ -4,7 +4,7 @@ tags: ["tech trends", "AI", "frontier"]
 draft: true
 date: 2026-03-05
 cover:
-    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2022/cover.jpg"
+    image: "https://jiejiefu.github.io/blog/posts/tech-trends-2022/images/cover.jpg"
     alt: "TECH TRENDS FOR 2022"
     caption: "探討了 Web3 去中心化架構、元宇宙的發展潛力，以及人工智慧如何改變程式編寫的現狀。雲端運算、行動開發工具及無程式碼平台。"
 
