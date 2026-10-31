@@ -1,13 +1,15 @@
 /* Chroma: Atom One Light — 淺色模式 (scope: :root:not([data-theme="dark"]))
  *
  * 色盤來源：Atom One Light（Emacs port）
- *   bg #FAFAFA / bg-1 #E5E5E6 / fg #383A42
+ *   bg #F6F8FA / bg-1 #E5E5E6 / fg #383A42
+ *   （原 Atom One Light 的 bg 是 #FAFAFA，這裡刻意改成 GitHub
+ *     --bgColor-muted #F6F8FA，讓程式碼區塊在純白畫布上仍有分層。）
  *   mono-2 #696C77（註解刻意用這階，不用 mono-3 #A0A1A7，兼顧可讀性）
  *   cyan #0184BC / blue #4078F2 / purple #A626A4 / green #50A14F
  *   red-1 #E45649 / red-2 #CA1243 / orange-1 #986801 / orange-2 #C18401
  */
-/* Background */ :root:not([data-theme="dark"]) .bg { color:#383A42;background-color:#FAFAFA; }
-/* PreWrapper */ :root:not([data-theme="dark"]) .chroma { color:#383A42;background-color:#FAFAFA;-webkit-text-size-adjust:none; }
+/* Background */ :root:not([data-theme="dark"]) .bg { color:#383A42;background-color:#F6F8FA; }
+/* PreWrapper */ :root:not([data-theme="dark"]) .chroma { color:#383A42;background-color:#F6F8FA;-webkit-text-size-adjust:none; }
 /* Other */ :root:not([data-theme="dark"]) .chroma .x { color:#383A42 }
 /* Error */ :root:not([data-theme="dark"]) .chroma .err { color:#CA1243;font-weight:bold }
 /* CodeLine */ :root:not([data-theme="dark"]) .chroma .cl { color:#383A42 }

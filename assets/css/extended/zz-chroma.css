@@ -19,9 +19,10 @@
  * 改下去會連帶動到那些 UI 表面。行內 code 另外用 scoped 選擇器處理（見檔尾）。
  */
 
-/* 淺色：Atom One Light（#383A42 on #FAFAFA） */
+/* 淺色：Atom One Light 的 token 色，底改成 GitHub --bgColor-muted #F6F8FA
+ * （原 Atom One Light 為 #FAFAFA，兩者僅差幾階；改這個是為了跟白畫布分層）。 */
 :root {
-    --code-block-bg: #FAFAFA;
+    --code-block-bg: #F6F8FA;
 }
 
 /* 深色：Tokyo Night Night（#c0caf5 on #1a1b26） */
@@ -34,7 +35,7 @@
     overflow: hidden;
 }
 
-/* #FAFAFA 與頁面白底只差 5 階，加一圈內描邊讓區塊邊界清楚，且不影響 layout。 */
+/* #F6F8FA 與頁面白底只差幾階，加一圈內描邊讓區塊邊界清楚，且不影響 layout。 */
 :root:not([data-theme="dark"]) .post-content .highlight:not(table) {
     box-shadow: inset 0 0 0 1px #E5E5E6;
 }
@@ -46,11 +47,15 @@
 }
 
 /* 行內 code：只作用在內文（:not(pre) 排除程式碼區塊），
- * 不去動 --code-bg 這個共用變數。 */
+ * 不去動 --code-bg 這個共用變數。
+ * 底色參考 GitHub --bgColor-neutral-muted，用半透明疊在頁面底色上。 */
 .post-content :not(pre) > code {
-    background: #E5E5E6;
+    background: rgba(129, 139, 152, 0.2); /* #818b98 @ 20%（淺色，疊白底約 #e6e8ea） */
+    border-radius: 4px; /* 主題預設 2px，稍微圓弧一點 */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone; /* 換行時每段各自圓角，不會只有頭尾 */
 }
 
 :root[data-theme="dark"] .post-content :not(pre) > code {
-    background: #1a1b26;
+    background: rgba(101, 108, 118, 0.4); /* #656c76 @ 40%（深色，疊黑底約 #282b2f） */
 }

@@ -30,7 +30,7 @@ hugo gen chromastyles --style=tokyonight-night  # → 加 `:root[data-theme="dar
 
 **（0,0,2,0）** 的層級只能靠順序贏，但**只要我們主題沒定義那個 token class，就會直接漏出 Catppuccin 的顏色**。實際踩到的：
 
-- `.nv`（NameVariable）→ Catppuccin `#f4dbd6`（淡粉），在淺色 `#FAFAFA` 底上等於隱形
+- `.nv`（NameVariable）→ Catppuccin `#f4dbd6`（淡粉），在淺色 `#F6F8FA` 底上等於隱形
 - 苦主是 bash 的環境變數賦值：`export REA_ANALYSIS_PROVIDER=ghidra`（Chroma 把 `REA_ANALYSIS_PROVIDER` 標成 `.nv`）
 
 `chroma-00-reset.css` 用一個**低特異度** `(0,0,2,0)` 的規則把 token 樣式歸零：
@@ -64,8 +64,14 @@ hugo gen chromastyles --style=tokyonight-night  # → 加 `:root[data-theme="dar
 `--code-bg` 不只餵程式碼，還餵 `.toc` / `.post-tags a` / `.share-buttons` / `.paginav` / `.share-box` / 行內 `code`。改它會連帶換掉那些 UI 表面，所以**只覆蓋 `--code-block-bg`**（它只被 `.highlight:not(table)` 與 `pre code` 用到），行內 code 另外用 scoped 選擇器處理：
 
 ```css
-.post-content :not(pre) > code { background: #E5E5E6 }
-:root[data-theme="dark"] .post-content :not(pre) > code { background: #1a1b26 }
+/* 參考 GitHub --bgColor-neutral-muted，半透明疊在頁面底色上 */
+.post-content :not(pre) > code {
+    background: rgba(129, 139, 152, 0.2); /* #818b98 @ 20% */
+    border-radius: 4px;                   /* 主題預設 2px */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;          /* 換行時每段各自圓角 */
+}
+:root[data-theme="dark"] .post-content :not(pre) > code { background: rgba(101, 108, 118, 0.4) } /* #656c76 @ 40% */
 ```
 
 ### 圓角與文字色
@@ -73,20 +79,32 @@ hugo gen chromastyles --style=tokyonight-night  # → 加 `:root[data-theme="dar
 - `.post-content .highlight:not(table)` 有 `border-radius` 但**沒有** `overflow: hidden`，內層 `pre` 是直角 → 加 `overflow: hidden` 保險（底色一致時其實看不出來，但別依賴這件事）
 - PaperMod 把 `.post-content pre code` 的文字色**寫死成 `rgb(213,213,214)`**，在淺色的 Atom One Light 底上幾乎看不見 → 覆蓋成 `color: inherit`，讓它跟著 `.chroma` 的 `#383A42` / `#c0caf5`
 
+### 複製按鈕（GitHub 風格，右上角）
+
+- `assets/js/code-copy.js`：掃 `.post-content pre > code`，把純圖示按鈕插進 `.highlight`（沒有 `.highlight` 時插進 `<pre>`）。複製成功換成勾勾、`is-copied` 綠色，2 秒後還原。剪貼簿優先用 `navigator.clipboard`，非 secure context 走 `execCommand` fallback。
+- `assets/css/extended/code-copy.css`：右上角 28×28、圓角 6px；預設透明，滑鼠移入／鍵盤 focus 才浮現；`@media (hover: none)`（觸控）一律顯示。
+- `layouts/partials/extend_head.html`：只在 `.IsPage` 載入，並用 i18n 的 `code_copy` / `code_copied` 注入 `window.codeCopyLabels`。
+- ⚠️ **不要**再開 `config.yaml` 的 `ShowCodeCopyButtons`。PaperMod 內建腳本會再插一顆文字按鈕（`.copy-code`），兩顆會疊在同一個右上角。
+- ⚠️ `extend_head.html` 的 inline script 在 `<script>` context：`jsonify` 之後要加 `safeJS`，否則 html/template 會把整串再包一層引號，實際輸出變成 `copy:"\"複製\""`。
+
 ### 驗證
 
 ```sh
 rm -rf public && hugo --minify
 CSS=$(ls public/assets/css/stylesheet.*.css | head -1)
 
-# 1) 外框底色：最後兩個必須是我們的（#FAFAFA / #1a1b26），不能停在 custom.css 的舊值
+# 1) 外框底色：最後兩個必須是我們的（#F6F8FA / #1a1b26），不能停在 custom.css 的舊值
 rg -o '\-\-code-block-bg:[^;]*' "$CSS"
 
 # 2) 程式碼必須是 class-based，不能再有行內 style
 rg -c 'class=chroma' public/posts/<slug>/index.html
 rg -c 'style=color' public/posts/<slug>/index.html        # 應為 0
 
-# 3) 漏色（Catppuccin 殘留色）只能在瀏覽器驗，見下方 audit
+# 3) 複製按鈕：labels 不可有雙層引號，且 head 要有 code-copy.js
+rg -o 'window\.codeCopyLabels[^<]*' public/posts/<slug>/index.html   # copy: "複製"
+rg -o 'code-copy\.min\.[a-f0-9]+\.js' public/posts/<slug>/index.html
+
+# 4) 漏色（Catppuccin 殘留色）只能在瀏覽器驗，見下方 audit
 ```
 
 瀏覽器端 audit（把 `CAT` 換成 Catppuccin 的值，抓頁面上 0 個殘留才算過）：

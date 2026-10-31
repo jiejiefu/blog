@@ -5,7 +5,7 @@
  * 它跟我們的 Atom One Light／Tokyo Night 是**疊在一起**的（core.css 先、extended.css 後）。
  * 只要是我們主題沒定義的 token class，就會直接漏出 Catppuccin 的顏色。
  * 實例：`.chroma .nv`（NameVariable）→ Catppuccin 的 #f4dbd6 淡粉，
- * 在淺色的 Atom One Light 底（#FAFAFA）上幾乎看不見
+ * 在淺色的 Atom One Light 底（#F6F8FA）上幾乎看不見
  * （受害字串：`export REA_ANALYSIS_PROVIDER=ghidra` 的 REA_ANALYSIS_PROVIDER）。
  *
  * 做法：

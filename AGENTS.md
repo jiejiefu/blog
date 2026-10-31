@@ -113,6 +113,7 @@ content/
 | Mermaid | [`docs/features/mermaid.md`](docs/features/mermaid.md) |
 | Plotly | [`docs/features/plotly.md`](docs/features/plotly.md) |
 | 程式碼高亮 | [`docs/features/code-highlight.md`](docs/features/code-highlight.md) |
+| 全站底色、PaperMod 變數、列表頁灰底 | [`docs/features/theme-colors.md`](docs/features/theme-colors.md) |
 | 版面與 shortcode 對照 | [`docs/features/layouts-map.md`](docs/features/layouts-map.md) |
 | SVG 轉檔指令 | [`docs/image-conversion.md`](docs/image-conversion.md) |
 | favicon、PWA | [`docs/features/icons.md`](docs/features/icons.md) |

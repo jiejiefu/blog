@@ -30,4 +30,6 @@
 | `assets/css/extended/chroma-00-reset.css` | Chroma **reset 層**（把 PaperMod 內建 Catppuccin 的 token 色歸零），見「程式碼高亮」節 |
 | `assets/css/extended/chroma-atom-one-light.css` / `chroma-tokyonight-night.css` | 淺色 Atom One Light、深色 Tokyo Night token 配色，分別 scope 在 `:root:not([data-theme=dark])` / `:root[data-theme=dark]` |
 | `assets/css/extended/zz-chroma.css` | 程式碼區塊底色（`--code-block-bg`）、圓角裁切、行內 code；`zz-` 前綴是排序需求 |
+| `assets/js/code-copy.js` | 程式碼區塊右上角的複製按鈕（GitHub 風格圖示，ES5，無相依） |
+| `assets/css/extended/code-copy.css` | 複製按鈕樣式（hover/focus 浮現、觸控常駐） |
 | `config.yaml` → `markup.highlight.noClasses: false` | 改用 class-based 高亮（否則 Hugo 輸出 Monokai 行內樣式，自訂 CSS 完全無效） |

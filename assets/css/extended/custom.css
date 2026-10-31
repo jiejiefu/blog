@@ -15,15 +15,20 @@
     animation: fadeInUp 0.8s ease-out forwards;
 }
 
-/* 黑白色系 – 淺色模式 */
+/* 黑白色系 – 淺色模式
+ * --entry / --code-bg 對齊 GitHub --bgColor-muted #F6F8FA：卡片（--entry）與
+ * TOC／tags／paginav／share-box／tldr／viewer-comment（--code-bg）疊在純白畫布上。
+ * 畫布請見下面 .list 覆寫。 */
 :root {
+    --theme: rgb(255, 255, 255);
+    --entry: rgb(246, 248, 250);
     --primary: rgb(0, 0, 0);
     --content: rgb(0, 0, 0);
     --secondary: rgb(60, 60, 60);
     --tertiary: rgb(230, 230, 230);
     --border: rgb(230, 230, 230);
     --code-block-bg: rgb(245, 245, 245);
-    --code-bg: rgb(245, 245, 245);
+    --code-bg: rgb(246, 248, 250);
 }
 
 /* 黑白色系 – 深色模式 */
@@ -37,6 +42,16 @@
     --border: rgb(40, 40, 40);
     --code-block-bg: rgb(0, 0, 0);
     --code-bg: rgb(0, 0, 0);
+}
+
+/* PaperMod 在 theme-vars.css 用 `.list { background: var(--code-bg) }` 當畫布，
+ * 而 baseof.html 會讓首頁／/posts/／/tags/／/archives/／/search/ 輸出
+ * <body class="list">（單篇文章是 <body id="top">，走 --theme）。
+ * --code-bg 在淺色是 #F6F8FA，會讓這些頁面看起來灰灰的；
+ * 改回 --theme：淺色純白 #FFFFFF、深色維持 #000。
+ * extended.css 在 core.css 之後載入，同特異度下這條會蓋掉主題預設。 */
+.list {
+    background: var(--theme);
 }
 
 /* 分享連結區塊 */

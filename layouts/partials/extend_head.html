@@ -88,3 +88,16 @@
 <script defer src="{{ $js.RelPermalink }}"></script>
 {{- end }}
 {{- end }}
+
+{{- /* 程式碼區塊複製按鈕（GitHub 風格，右上角）。約 2 KB，只作用在內文，
+       沒有 pre > code 時 JS 自行 no-op。逐頁判斷只能放 head（footer 是 partialCached）。
+
+       ⚠️ 不要同時開 config.yaml 的 ShowCodeCopyButtons：PaperMod 內建的
+           .copy-code 會再插一顆文字按鈕，跟這顆圖示按鈕疊在一起。 */ -}}
+{{- if .IsPage }}
+<script>window.codeCopyLabels = { copy: {{ i18n "code_copy" | default "Copy code" | jsonify | safeJS }}, copied: {{ i18n "code_copied" | default "Copied!" | jsonify | safeJS }} };</script>
+{{- with resources.Get "js/code-copy.js" }}
+{{- $js := . | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}"></script>
+{{- end }}
+{{- end }}
