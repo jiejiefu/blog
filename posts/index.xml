@@ -1,4 +1,349 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Posts on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/posts/</link><description>Recent content in Posts on Jay Fu 的科技部落格</description><generator>Hugo -- 0.169.0</generator><language>zh-tw</language><lastBuildDate>Tue, 27 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>DeepSeek-V4.1-Flash：把 global KV 壓到 890 bytes/token，骨幹反而大了近一倍</title><link>https://jiejiefu.github.io/blog/posts/deepseek-v4-1-flash/</link><pubDate>Tue, 27 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/deepseek-v4-1-flash/</guid><description>DeepSeek-V4.1-Flash 用 CED 把 decoder 的 global KV 從 encoder 長出來、用 CSA2 跨層共享 KV 與 index、再把 global KV 壓到 FP4，做到 890 bytes/token。本文拆解 40 層配置、FP4 位元帳、SWA Bounded Replay 的近似代價，以及 1017 更新後與 Anthropic Opus-5 的 4 勝 4 負。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Posts on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/posts/</link><description>Recent content in Posts on Jay Fu 的科技部落格</description><generator>Hugo -- 0.169.0</generator><language>zh-tw</language><lastBuildDate>Sat, 31 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/posts/index.xml" rel="self" type="application/rss+xml"/><item><title>那隻駭客任務綠色兔子：文字畫怎麼用 Canvas 畫出來</title><link>https://jiejiefu.github.io/blog/posts/matrix-rabbit-canvas/</link><pubDate>Sat, 31 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/matrix-rabbit-canvas/</guid><description>首頁 hero 右側的綠色兔子是一張 132×110 的亮度網格。這篇拆解資料格式、八階色票、字型載入、Canvas 繪製、無 JS 降級與版面配置。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+  <p class="tldr__label">TL;DR</p>
+  <p>首頁 hero 右邊的兔子是一張 132×110 的亮度網格。共 14,520 格，其中 6,306 格有值。每一格對應一個字元，亮度決定字級與顏色，Canvas 逐格印出來。</p>
+<p>整張圖沒有圖片檔。資料在 <code>assets/js/glyph-art-data.js</code>。渲染器在 <code>assets/js/glyph-art.js</code>。沒有 JS 時退回 <code>assets/glyph-art/hare.txt</code> 的 <code>&lt;pre&gt;</code>。</p>
+<p>Canvas 與 <code>&lt;pre&gt;</code> 要對齊，靠的是同一組格子比例與字型 advance。任一邊改了，另一邊就要跟著重算。</p>
+
+</aside>
+
+<h2 id="1-先看效果">1. 先看效果</h2>
+<p>滑過首頁 hero 右側，兔子會從上往下長出來。游標掃過的地方會亮一下，離開後慢慢退熱。</p>
+<ul>
+<li>進場：每一格延遲 <code>y × (1100/110)</code> 毫秒，再加 0–420 毫秒抖動。落定前 260 毫秒隨機抽 <code>NOISE</code> 字元，邊緣先閃一下再定格。</li>
+<li>熱點：游標半徑 7 格，橢圓範圍內的格子升溫。</li>
+<li>靜止：<code>prefers-reduced-motion</code> 只畫一幀，不做進場與熱點。</li>
+</ul>
+<p><img alt="原始剪影、132×110 亮度網格與文字輸出的三欄對照" loading="lazy" src="/blog/posts/matrix-rabbit-canvas/images/01_grid_to_text.webp"></p>
+<p><em>左：自製剪影；中：資料裡的 132×110 亮度網格。右：<code>hare.txt</code> 用同一份網格印出的文字。</em></p>
+<p>三個版本共用同一份資料。差別只在輸出媒介：Canvas、<code>&lt;pre&gt;</code>，或一張對照圖。</p>
+<h2 id="2-資料132110-的亮度網格">2. 資料：132×110 的亮度網格</h2>
+<p><code>window.ART</code> 的結構很單純：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="nb">window</span><span class="p">.</span><span class="nx">ART</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">hare</span><span class="o">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">cols</span><span class="o">:</span> <span class="mi">132</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">rows</span><span class="o">:</span> <span class="mi">110</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">ratio</span><span class="o">:</span> <span class="mf">1.85</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="nx">lv</span><span class="o">:</span> <span class="p">[</span><span class="s2">&#34;000000...&#34;</span><span class="p">,</span> <span class="s2">&#34;000002...&#34;</span><span class="p">,</span> <span class="cm">/* 共 110 列 */</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">  <span class="p">},</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">mark</span><span class="o">:</span> <span class="p">{</span> <span class="cm">/* 250×31 */</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span></code></pre></div><p><code>lv</code> 是字串陣列，每列 132 個字元，值域 <code>0</code>–<code>8</code>。<code>0</code> 代表空白，<code>1</code>–<code>8</code> 代表亮度階級。<code>ratio</code> 是單一格子的高寬比，用來算行高。</p>
+<table>
+	<thead>
+			<tr>
+					<th>鍵</th>
+					<th>尺寸</th>
+					<th>有值格子</th>
+					<th>用途</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>hare</code></td>
+					<td>132×110</td>
+					<td>6,306</td>
+					<td>首頁 hero 的兔子</td>
+			</tr>
+			<tr>
+					<td><code>mark</code></td>
+					<td>250×31</td>
+					<td>2,919</td>
+					<td>目前沒有頁面使用</td>
+			</tr>
+	</tbody>
+</table>
+<p><code>hare</code> 的資料原樣搬自 Hallmark &ldquo;Terminal&rdquo; 主題的 demo（burrow），本站沒有改內容。<code>mark</code> 留在資料裡，但 <code>layouts/partials/glyph_art.html</code> 只輸出 <code>data-art=&quot;hare&quot;</code>，所以它不會被渲染。</p>
+<p>首頁第一次載入的檔案不大：</p>
+<table>
+	<thead>
+			<tr>
+					<th>檔案</th>
+					<th>大小</th>
+					<th>內容</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>glyph-art-data.js</code></td>
+					<td>22.8 KB</td>
+					<td>兩張網格</td>
+			</tr>
+			<tr>
+					<td><code>hare.txt</code></td>
+					<td>11 KB</td>
+					<td>無 JS 文字版</td>
+			</tr>
+			<tr>
+					<td><code>martian-mono-latin-var.woff2</code></td>
+					<td>38 KB</td>
+					<td>變體字型</td>
+			</tr>
+			<tr>
+					<td><code>glyph-art.js</code> + <code>lab-glyph.css</code></td>
+					<td>12.8 KB</td>
+					<td>渲染器與樣式</td>
+			</tr>
+	</tbody>
+</table>
+<p>原始檔合計約 85 KB；JS 會再 minify。<code>hare.txt</code> 的內容會內聯進 HTML，不是另一個請求。載入後都進瀏覽器快取，換頁不會再下載。資料與 JS 只有首頁引用；<code>lab-glyph.css</code> 會併進全站 CSS，約 5 KB。</p>
+<p><code>lv</code> 用字串存，省下陣列的逗號與括號。兩張圖共 22,270 格。若每格寫成一個數字加逗號，光分隔字元就多 22 KB 左右。字串還有一個好處：把 <code>lv</code> 印出來，<code>0</code> 與 <code>8</code> 的分佈一眼可見。整數陣列在終端機裡只會變成一條橫向捲軸。</p>
+<p>132×110 是資料解析度，與螢幕尺寸無關。4K 螢幕不會拿到更多格子。Canvas 只是把每格放大，再用 DPR 補回銳利度。</p>
+<p>每個有值的格子會依序拿到一個字元。字元池 <code>DOT</code> 是一串 dotfiles 內容：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="kr">const</span> <span class="nx">DOT</span> <span class="o">=</span> <span class="sb">`export EDITOR=nvim
+</span></span></span><span class="line"><span class="cl"><span class="sb">export PATH=&#34;$HOME/.local/bin:$HOME/.cargo/bin:$PATH&#34;
+</span></span></span><span class="line"><span class="cl"><span class="sb">alias gs=&#39;git status -sb&#39; ...
+</span></span></span><span class="line"><span class="cl"><span class="sb">`</span><span class="p">.</span><span class="nx">replace</span><span class="p">(</span><span class="sr">/\s+/g</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">);</span>
+</span></span></code></pre></div><p>空白被去掉後，<code>DOT</code> 變成連續字串，指標 <code>k</code> 每取一格就加一。讀者看到的不是隨機雜訊，而是被拉長、切碎的命令與設定。遠看是明暗，近看才是文字。</p>
+<h2 id="3-為什麼用-canvas">3. 為什麼用 Canvas</h2>
+<p>14,520 個 <code>&lt;span&gt;</code> 也能排成這張圖。代價是版面、樣式與記憶體都交給瀏覽器。行動裝置會先卡在 layout。</p>
+<p>Canvas 只有一個元素。繪製流程分成三層：</p>
+<div class="mermaid">flowchart LR
+    A[&#34;glyph-art-data.js&lt;br/&gt;window.ART&#34;] --&gt; C[&#34;glyph_art.html&#34;]
+    B[&#34;hare.txt&lt;br/&gt;無 JS 版本&#34;] --&gt; C
+    C --&gt; D[&#34;canvas&lt;br/&gt;glyph-art.js&#34;]
+    C --&gt; E[&#34;pre&lt;br/&gt;靜態文字&#34;]</div>
+<p><em>示意：資料與渲染分離；同一個 partial 同時輸出 Canvas 與無 JS 的 <code>&lt;pre&gt;</code>。</em></p>
+<p>渲染器先把格子按亮度放進 9 個桶：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="kr">const</span> <span class="nx">buckets</span> <span class="o">=</span> <span class="nb">Array</span><span class="p">.</span><span class="nx">from</span><span class="p">({</span> <span class="nx">length</span><span class="o">:</span> <span class="mi">9</span> <span class="p">},</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">[]);</span>
+</span></span><span class="line"><span class="cl"><span class="nx">cells</span><span class="p">.</span><span class="nx">forEach</span><span class="p">((</span><span class="nx">c</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="nx">buckets</span><span class="p">[</span><span class="nx">c</span><span class="p">.</span><span class="nx">v</span><span class="p">].</span><span class="nx">push</span><span class="p">(</span><span class="nx">c</span><span class="p">));</span>
+</span></span></code></pre></div><p>已落定的格子每幀只切 8 次字型。桶 1 到桶 8 各設一次 <code>ctx.font</code>，再一次畫完同亮度的格子。若所有格子都逐格切字型，<code>ctx.font</code> 會是 6,306 次賦值。這是第一版最明顯的卡頓來源。</p>
+<p>未落定、正在落定與正在退熱的格子走另一條路。逐格計算位置與雜訊字元。等到沒有格子需要更新，<code>busy</code> 變成 <code>false</code>，<code>requestAnimationFrame</code> 就不再排下一幀。</p>
+<p>每一幀會掃兩次 6,306 格。一次分桶畫已落定，一次處理進場與熱點。進場的 1.5 秒內，每幀最多 6,306 次 <code>fillText</code>；加熱時也一樣。已落定的格子只在分桶那一輪切 8 次字型。進場與熱點走逐格路徑。桶陣列在建資料時就分好，不是每幀重分。</p>
+<p>穩定時沒有 raf，兩次掃描都是 0。只有進場與游標經過才付出成本。</p>
+<h2 id="4-五個不能改的係數">4. 五個不能改的係數</h2>
+<table>
+	<thead>
+			<tr>
+					<th>係數</th>
+					<th>公式</th>
+					<th>作用</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>cw</code></td>
+					<td><code>min(W/132, H/(110×1.85))</code></td>
+					<td>單格寬度，同時受容器寬高限制</td>
+			</tr>
+			<tr>
+					<td><code>ch</code></td>
+					<td><code>cw × 1.85</code></td>
+					<td>單格高度</td>
+			</tr>
+			<tr>
+					<td><code>fs</code></td>
+					<td><code>cw × 1.62</code></td>
+					<td>字級，刻意大於格寬讓字重疊</td>
+			</tr>
+			<tr>
+					<td><code>ox</code></td>
+					<td><code>W − cw×132</code></td>
+					<td>水平偏移，讓圖貼齊右側</td>
+			</tr>
+			<tr>
+					<td><code>oy</code></td>
+					<td><code>H − ch×110</code></td>
+					<td>垂直偏移，讓圖貼齊底部</td>
+			</tr>
+	</tbody>
+</table>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="nx">cw</span> <span class="o">=</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nx">width</span> <span class="o">/</span> <span class="nx">H</span><span class="p">.</span><span class="nx">cols</span><span class="p">,</span> <span class="nx">r</span><span class="p">.</span><span class="nx">height</span> <span class="o">/</span> <span class="p">(</span><span class="nx">H</span><span class="p">.</span><span class="nx">rows</span> <span class="o">*</span> <span class="nx">H</span><span class="p">.</span><span class="nx">ratio</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl"><span class="nx">ch</span> <span class="o">=</span> <span class="nx">cw</span> <span class="o">*</span> <span class="nx">H</span><span class="p">.</span><span class="nx">ratio</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nx">fs</span> <span class="o">=</span> <span class="nx">cw</span> <span class="o">*</span> <span class="mf">1.62</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nx">ox</span> <span class="o">=</span> <span class="nx">r</span><span class="p">.</span><span class="nx">width</span> <span class="o">-</span> <span class="nx">cw</span> <span class="o">*</span> <span class="nx">H</span><span class="p">.</span><span class="nx">cols</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nx">oy</span> <span class="o">=</span> <span class="nx">r</span><span class="p">.</span><span class="nx">height</span> <span class="o">-</span> <span class="nx">ch</span> <span class="o">*</span> <span class="nx">H</span><span class="p">.</span><span class="nx">rows</span><span class="p">;</span>
+</span></span></code></pre></div><p><code>fs</code> 若等於 <code>cw</code>，字與字之間會出現縫隙，整張圖變成點陣。放大到 <code>1.62</code> 倍，相鄰字元互相咬住，才會出現掃描線的質感。</p>
+<p><code>cw</code> 同時受寬與高限制，哪邊先撞到就用哪邊。在 1168 版心下，hero 右欄約 544 px；寬度算出 <code>544/132 ≈ 4.12</code>。要讓寬度成為限制，hero 高度得超過 <code>4.12 × 110 × 1.85 ≈ 839</code> px。一般筆電不到這個高度，所以兔子通常由高度決定大小。</p>
+<p><code>ox</code> 與 <code>oy</code> 把剩餘空間留在左側與上方。兔子的右下角貼齊容器。視覺重量落在 hero 的右下，文字區則從左上開始。</p>
+<p>色階索引也固定：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="nx">ctx</span><span class="p">.</span><span class="nx">fillStyle</span> <span class="o">=</span> <span class="nx">ramp</span><span class="p">[</span><span class="nx">v</span> <span class="o">-</span> <span class="mi">1</span><span class="p">];</span>
+</span></span></code></pre></div><p><code>v</code> 從 1 到 8，<code>ramp</code> 有 8 個位置。寫成 <code>ramp[v]</code> 會讓 <code>v=1</code> 吃到第二階，<code>v=8</code> 超出陣列；索引必須減一。</p>
+<p>字重與字級也跟著 <code>v</code> 變：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="nx">ctx</span><span class="p">.</span><span class="nx">font</span> <span class="o">=</span> <span class="sb">`</span><span class="si">${</span><span class="nx">v</span> <span class="o">&gt;</span> <span class="mi">6</span> <span class="o">?</span> <span class="mi">700</span> <span class="o">:</span> <span class="mi">500</span><span class="si">}</span><span class="sb"> </span><span class="si">${</span><span class="p">(</span><span class="nx">fw</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span> <span class="o">*</span> <span class="nx">fs</span><span class="p">).</span><span class="nx">toFixed</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="sb">px &#34;Martian Mono&#34;, monospace`</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="kr">const</span> <span class="nx">fw</span> <span class="o">=</span> <span class="p">(</span><span class="nx">v</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="mf">0.62</span> <span class="o">+</span> <span class="mf">0.38</span> <span class="o">*</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nx">v</span> <span class="o">/</span> <span class="mi">6</span><span class="p">);</span>
+</span></span></code></pre></div><p>字級係數從 0.62 起跳，<code>v=1</code> 約 0.68，<code>v≥6</code> 才到 1.0。浮雕感來自字級差，透明度做不到同樣的效果。</p>
+<p>Canvas 不設 <code>font-stretch</code>。原版也沒設，字元重疊約 20% 正是它的樣子。<code>&lt;pre&gt;</code> 那邊才需要 <code>87.5%</code> 才能對齊。</p>
+<h2 id="5-字型先等載入再開始畫">5. 字型：先等載入，再開始畫</h2>
+<p>兔子用 Martian Mono，一個 38 KB 的變體字型（weight 100–800、stretch 75%–112.5%）。OFL 授權檔 <code>assets/fonts/OFL.txt</code> 跟著字型一起發佈，不能刪。</p>
+<p>partial 用 assets pipeline 註冊 <code>@font-face</code>，檔名會帶 fingerprint：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nx">resources</span><span class="na">.Get</span><span class="w"> </span><span class="s">&#34;fonts/martian-mono-latin-var.woff2&#34;</span><span class="w"> </span><span class="cp">}}</span>
+</span></span><span class="line"><span class="cl">  <span class="cp">{{-</span><span class="w"> </span><span class="nx">$font</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="na">.</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">fingerprint</span><span class="w"> </span><span class="cp">}}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">&lt;</span><span class="nt">style</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">@</span><span class="k">font-face</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="nt">font-family</span><span class="o">:</span> <span class="s2">&#34;Martian Mono&#34;</span><span class="o">;</span>
+</span></span><span class="line"><span class="cl">      <span class="nt">src</span><span class="o">:</span> <span class="nt">url</span><span class="o">(</span><span class="s2">&#34;</span><span class="cp">{{</span><span class="w"> </span><span class="nx">$font</span><span class="na">.RelPermalink</span><span class="w"> </span><span class="cp">}}</span><span class="s2">&#34;</span><span class="o">)</span> <span class="nt">format</span><span class="o">(</span><span class="s2">&#34;woff2&#34;</span><span class="o">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nt">font-weight</span><span class="o">:</span> <span class="nt">100</span> <span class="nt">800</span><span class="o">;</span>
+</span></span><span class="line"><span class="cl">      <span class="nt">font-stretch</span><span class="o">:</span> <span class="nt">75</span><span class="o">%</span> <span class="nt">112</span><span class="p">.</span><span class="nc">5</span><span class="o">%;</span>
+</span></span><span class="line"><span class="cl">      <span class="nt">font-display</span><span class="o">:</span> <span class="nt">swap</span><span class="o">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">&lt;/</span><span class="nt">style</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="cp">}}</span>
+</span></span></code></pre></div><p>字型只在首頁註冊，因為只有首頁呼叫這個 partial。其他頁面不會多下載 38 KB。</p>
+<p>自架字型有三個好處。版本固定、沒有第三方請求、OFL 允許再發佈。變體字型用一個檔案涵蓋 weight 100–800 與 stretch 75%–112.5%。一個檔案比註冊四、五個靜態字重小。38 KB 是 latin subset 的大小；兔子只用 ASCII，不需要載入 CJK 字型。</p>
+<p>dotfiles 裡有 <code>-&gt;</code>、<code>&lt;=</code>、<code>!=</code> 這類序列。<code>&lt;pre&gt;</code> 若套用合字，advance 會改變，跟 Canvas 的固定格寬對不起來。<code>font-variant-ligatures: none</code> 關掉它。</p>
+<p>字型載入完成前不能量字寬：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="kr">const</span> <span class="nx">fontReady</span> <span class="o">=</span> <span class="nb">document</span><span class="p">.</span><span class="nx">fonts</span>
+</span></span><span class="line"><span class="cl">  <span class="o">?</span> <span class="nb">document</span><span class="p">.</span><span class="nx">fonts</span><span class="p">.</span><span class="nx">load</span><span class="p">(</span><span class="s1">&#39;500 12px &#34;Martian Mono&#34;&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="o">:</span> <span class="nb">Promise</span><span class="p">.</span><span class="nx">resolve</span><span class="p">();</span>
+</span></span></code></pre></div><p>沒有等 <code>document.fonts.load</code> 完成，瀏覽器會先用替代字型量字寬。替代字型的字寬不同。<code>cw</code> 沒變，但每個字實際佔的寬度變了，整張圖會錯位。<code>font-display: swap</code> 只保證文字會出現。不保證第一次測量就拿到正確字型。</p>
+<h2 id="6-無-js-也要長一樣">6. 無 JS 也要長一樣</h2>
+<p>沒有 JS 時，<code>glyph_art.html</code> 輸出 <code>hare.txt</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go-html-template" data-lang="go-html-template"><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="nx">resources</span><span class="na">.Get</span><span class="w"> </span><span class="s">&#34;glyph-art/hare.txt&#34;</span><span class="w"> </span><span class="cp">}}</span>
+</span></span><span class="line"><span class="cl"><span class="p">&lt;</span><span class="nt">pre</span> <span class="na">class</span><span class="o">=</span><span class="s">&#34;lab-glyph__still&#34;</span><span class="p">&gt;</span><span class="cp">{{</span><span class="w"> </span><span class="na">.Content</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">safeHTML</span><span class="w"> </span><span class="cp">}}</span><span class="p">&lt;/</span><span class="nt">pre</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="cp">{{-</span><span class="w"> </span><span class="k">end</span><span class="w"> </span><span class="cp">}}</span>
+</span></span></code></pre></div><p><code>safeHTML</code> 不能省。<code>.Content</code> 是字串，Hugo 會把 <code>+</code> 轉成 <code>&amp;#43;</code>，整張圖變成實體碼。非空白字元會從 6,306 暴增到一萬多。</p>
+<p><code>hare.txt</code> 的每一列都對應網格的一列。最後一列是空的，行尾空白也被裁掉。最長的一列只有 125 個字元，不是 132。所以 <code>&lt;pre&gt;</code> 要靠右下對齊，不能靠左。</p>
+<p>文字版的字級用容器單位算：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-css" data-lang="css"><span class="line"><span class="cl"><span class="p">.</span><span class="nc">lab-glyph</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">container-type</span><span class="p">:</span> <span class="k">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">.</span><span class="nc">lab-glyph__still</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">position</span><span class="p">:</span> <span class="kc">absolute</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">right</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">bottom</span><span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">font-size</span><span class="p">:</span> <span class="nf">min</span><span class="p">(</span><span class="nb">calc</span><span class="p">(</span><span class="mi">100</span><span class="n">cqw</span> <span class="o">/</span> <span class="mf">85.8</span><span class="p">),</span> <span class="nb">calc</span><span class="p">(</span><span class="mi">100</span><span class="n">cqh</span> <span class="o">/</span> <span class="mf">132.3</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="k">line-height</span><span class="p">:</span> <span class="mf">1.2025</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">white-space</span><span class="p">:</span> <span class="kc">pre</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>85.8</code> 是 132 欄乘以每字 0.65em；<code>132.3</code> 是 110 列乘以行高 <code>1.85 × 0.65</code>。<code>87.5%</code> 字寬下，Martian Mono 的實測 advance 約 0.65em。</p>
+<p><code>line-height: 1.2025</code> 正好等於 <code>1.85 × 0.65</code>，讓 110 列剛好塞滿高度。換字型或改 <code>font-stretch</code>，兩個數字都要重算。</p>
+<p>只寫 <code>100cqw / 85.8</code> 只顧寬度。hero 通常由高度限制，<code>&lt;pre&gt;</code> 會超出容器，兔子的耳朵被裁掉。<code>min()</code> 同時考慮寬與高，兩個版本才會對齊。</p>
+<div class="mermaid">flowchart TD
+    W[&#34;容器寬 100cqw&#34;] --&gt; A[&#34;字級 A = 100cqw / 85.8&#34;]
+    H[&#34;容器高 100cqh&#34;] --&gt; B[&#34;字級 B = 100cqh / 132.3&#34;]
+    A --&gt; M[&#34;font-size = min(A, B)&#34;]
+    B --&gt; M</div>
+<p><em>示意：<code>&lt;pre&gt;</code> 的字級取寬、高兩個上限的較小值。</em></p>
+<p>少了 <code>container-type: size</code>，<code>cqw</code> 與 <code>cqh</code> 就沒有參考容器，計算會失效。</p>
+<p>JS 啟動前，canvas 是 <code>display: none</code>，<code>&lt;pre&gt;</code> 是唯一可見版本。<code>start()</code> 加上 <code>.is-live</code> 後才交換。若字型載入失敗，<code>fontReady.then(start, start)</code> 仍會啟動。只是用替代字型，版面不會空白。</p>
+<p><code>.lab-glyph</code> 的 <code>overflow: clip</code> 是為了讓 <code>&lt;pre&gt;</code> 不溢出 hero。</p>
+<h2 id="7-互動與省電">7. 互動與省電</h2>
+<div class="mermaid">stateDiagram-v2
+    [*] --&gt; Idle
+    Idle --&gt; Entrance: IntersectionObserver
+    Entrance --&gt; Settled: 約 1.5 秒
+    Settled --&gt; Heat: pointermove
+    Heat --&gt; Settled: heat &lt; 0.04
+    Settled --&gt; Paused: 分頁隱藏
+    Paused --&gt; Settled: 回到前景</div>
+<p><em>示意：進場、熱點與暫停都只是同一條繪製路徑的開關。</em></p>
+<p>熱點的距離用橢圓算，不是矩形：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="kr">const</span> <span class="nx">d</span> <span class="o">=</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">hypot</span><span class="p">((</span><span class="nx">x</span> <span class="o">-</span> <span class="nx">gx</span><span class="p">)</span> <span class="o">/</span> <span class="nx">R</span><span class="p">,</span> <span class="p">(</span><span class="nx">y</span> <span class="o">-</span> <span class="nx">gy</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nx">R</span> <span class="o">/</span> <span class="mi">2</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="nx">d</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span> <span class="nx">c</span><span class="p">.</span><span class="nx">heat</span> <span class="o">=</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">max</span><span class="p">(</span><span class="nx">c</span><span class="p">.</span><span class="nx">heat</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="nx">d</span><span class="p">);</span>
+</span></span></code></pre></div><p>格子是扁的，半徑 7 格的圓在畫面上會變成長橢圓。除以 <code>R/2</code> 補回比例，熱點才會貼著兔子的形狀走。</p>
+<p><code>pointermove</code> 只掃游標附近約 15×8 格，不是 6,306 格。<code>grid</code> 是 <code>Map</code>，key 為 <code>y × cols + x</code>，命中測試不用走完整個陣列。</p>
+<p>熱度每幀乘 <code>0.9</code>，低於 <code>0.04</code> 就停止重畫。<code>heat &gt; 0.5</code> 用 <code>--glyph-hot</code>，其餘用比原亮度高兩階的顏色。這一小段決定游標掃過時是「發光」還是「換色」。</p>
+<p>省電交給四個判斷：</p>
+<ul>
+<li><code>prefers-reduced-motion</code>：所有格子的 <code>at</code> 設成 <code>-1e6</code>，只畫一幀。</li>
+<li><code>(hover: hover) and (pointer: fine)</code>：手機不接 <code>pointermove</code>，避免拖曳誤觸。</li>
+<li><code>visibilitychange</code>：分頁隱藏時 <code>cancelAnimationFrame</code>，回到前景再續。</li>
+<li><code>ResizeObserver</code>：容器尺寸變了才重算 <code>cw</code>，不是每幀讀 <code>getBoundingClientRect</code>。</li>
+</ul>
+<p>三個觸發來源各管一件事：<code>IntersectionObserver</code> 開始、<code>ResizeObserver</code> 重算、<code>visibilitychange</code> 暫停。<code>still</code> 與 <code>fine</code> 只在載入時算一次，之後不重讀 media query。</p>
+<p>Canvas 的像素密度上限是 2：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-js" data-lang="js"><span class="line"><span class="cl"><span class="kr">const</span> <span class="nx">dpr</span> <span class="o">=</span> <span class="nb">Math</span><span class="p">.</span><span class="nx">min</span><span class="p">(</span><span class="nx">devicePixelRatio</span> <span class="o">||</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
+</span></span></code></pre></div><p>3x 手機用 3 倍解析度畫 14,520 格，畫布像素是 DPR 2 版的 2.25 倍。肉眼差別很小，上限因此設 2。</p>
+<h2 id="8-版面只放寬-hero">8. 版面：只放寬 hero</h2>
+<p>首頁的版心比其他頁寬，但只有 hero 變寬。實作靠 <code>:has()</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-css" data-lang="css"><span class="line"><span class="cl"><span class="p">.</span><span class="nc">main</span><span class="p">:</span><span class="nd">has</span><span class="o">(</span><span class="p">.</span><span class="nc">lab-hero</span><span class="o">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">max-width</span><span class="p">:</span> <span class="nb">calc</span><span class="p">(</span><span class="mi">1120</span><span class="kt">px</span> <span class="o">+</span> <span class="nf">var</span><span class="p">(</span><span class="o">--</span><span class="n">gap</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="p">.</span><span class="nc">main</span><span class="p">:</span><span class="nd">has</span><span class="o">(</span><span class="p">.</span><span class="nc">lab-hero</span><span class="o">)</span> <span class="o">&gt;</span> <span class="p">:</span><span class="nd">not</span><span class="o">(</span><span class="p">.</span><span class="nc">lab-hero</span><span class="o">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">max-width</span><span class="p">:</span> <span class="nf">var</span><span class="p">(</span><span class="o">--</span><span class="n">main</span><span class="o">-</span><span class="n">width</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">margin-inline</span><span class="p">:</span> <span class="kc">auto</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>hero 用 12 欄 grid：文字佔 1–6 欄，兔子佔 7–13 欄。桌機的 <code>--nav-width</code> 也設成 1120，logo 才會跟 hero 左緣對齊。</p>
+<p>用 <code>:has()</code> 的原因是不用改 template。CSS 自己判斷頁面有沒有 <code>.lab-hero</code>，首頁放寬，其他頁維持 720。若在 <code>body</code> 加 class，每個 layout 都要記得設，漏一個就回到窄版。</p>
+<p>手機（<code>max-width: 59.999rem</code>）改成上下堆疊，兔子高度 <code>min(70svh, 620px)</code>。<code>svh</code> 用較小的視窗高度，手機網址列伸縮時 hero 不會跟著跳。沒有 <code>:has()</code> 的舊瀏覽器走 <code>@supports not selector(:has(*))</code>。直接改成上下堆疊，不保留兩欄。</p>
+<p><code>.lab-glyph</code> 的底色固定是深綠黑 <code>oklch(12.5% 0.012 150)</code>。淺色模式下它仍然是一塊深色，跟 Console 一樣。</p>
+<p>色票 scope 在 <code>.lab-glyph</code> 上：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-css" data-lang="css"><span class="line"><span class="cl"><span class="p">.</span><span class="nc">lab-glyph</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="nv">--glyph-0</span><span class="p">:</span> <span class="nf">oklch</span><span class="p">(</span><span class="mi">30</span><span class="kt">%</span> <span class="mf">0.06</span> <span class="mi">146</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nv">--glyph-4</span><span class="p">:</span> <span class="nf">oklch</span><span class="p">(</span><span class="mi">67</span><span class="kt">%</span> <span class="mf">0.17</span> <span class="mi">142</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nv">--glyph-7</span><span class="p">:</span> <span class="nf">oklch</span><span class="p">(</span><span class="mi">94</span><span class="kt">%</span> <span class="mf">0.12</span> <span class="mi">138</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nv">--glyph-hot</span><span class="p">:</span> <span class="nf">oklch</span><span class="p">(</span><span class="mi">87</span><span class="kt">%</span> <span class="mf">0.2</span> <span class="mi">142</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>JS 用 <code>getComputedStyle(box)</code> 讀，不是 <code>documentElement</code>。搬到 <code>:root</code> 只會讓全站多 9 個變數，換不到好處。</p>
+<h2 id="9-驗收與踩坑">9. 驗收與踩坑</h2>
+<table>
+	<thead>
+			<tr>
+					<th>症狀</th>
+					<th>原因</th>
+					<th>修法</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>字重錯位、整張圖歪掉</td>
+					<td>字型還沒載入就量寬</td>
+					<td>等 <code>document.fonts.load</code></td>
+			</tr>
+			<tr>
+					<td><code>&lt;pre&gt;</code> 比 Canvas 高、耳朵被裁</td>
+					<td>只算寬度</td>
+					<td><code>min(100cqw/85.8, 100cqh/132.3)</code></td>
+			</tr>
+			<tr>
+					<td>圖變成 <code>&amp;#43;</code> 實體碼</td>
+					<td><code>.Content</code> 沒過 <code>safeHTML</code></td>
+					<td>加 <code>| safeHTML</code></td>
+			</tr>
+			<tr>
+					<td>每頁都下載 38 KB 字型</td>
+					<td>partial 放進共用模板</td>
+					<td>只在 <code>layouts/index.html</code> 呼叫</td>
+			</tr>
+			<tr>
+					<td>手機拖曳也發光</td>
+					<td>沒擋 coarse pointer</td>
+					<td><code>(hover:hover) and (pointer:fine)</code></td>
+			</tr>
+			<tr>
+					<td>分頁在背景持續重畫</td>
+					<td>沒取消 raf</td>
+					<td><code>visibilitychange</code></td>
+			</tr>
+			<tr>
+					<td>高 DPR 螢幕邊緣模糊</td>
+					<td>沒乘 devicePixelRatio</td>
+					<td><code>min(devicePixelRatio, 2)</code></td>
+			</tr>
+			<tr>
+					<td>熱點邊緣方方的</td>
+					<td>用矩形距離</td>
+					<td>橢圓公式</td>
+			</tr>
+	</tbody>
+</table>
+<p>建置後可以這樣確認：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-sh" data-lang="sh"><span class="line"><span class="cl">rm -rf public <span class="o">&amp;&amp;</span> hugo --minify
+</span></span><span class="line"><span class="cl">rg -c <span class="s1">&#39;lab-glyph&#39;</span> public/index.html
+</span></span><span class="line"><span class="cl">rg -c <span class="s1">&#39;&lt;script[^&gt;]*glyph-art&#39;</span> public/posts/&lt;slug&gt;/index.html   <span class="c1"># 應為 0</span>
+</span></span></code></pre></div><p>再從 <code>public/index.html</code> 抽出 <code>&lt;pre&gt;</code>，數非空白字元與最長列：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">re</span><span class="o">,</span> <span class="nn">html</span>
+</span></span><span class="line"><span class="cl"><span class="n">h</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;public/index.html&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="n">t</span> <span class="o">=</span> <span class="n">html</span><span class="o">.</span><span class="n">unescape</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;&lt;pre class=lab-glyph__still[^&gt;]*&gt;(.*?)&lt;/pre&gt;&#39;</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">S</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">([</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">t</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">c</span><span class="o">.</span><span class="n">isspace</span><span class="p">()]),</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)))</span>
+</span></span><span class="line"><span class="cl"><span class="c1"># 6306 125</span>
+</span></span></code></pre></div><p><code>glyph-art</code> 的 script 只該出現在首頁。其他文章若也載入，通常是 partial 被放進了共用的 <code>extend_head.html</code> 或 <code>extend_footer.html</code>。</p>
+<p><code>hugo --minify</code> 預設不含 draft；這篇已設為非 draft，所以會直接輸出。若日後改回草稿，驗稿指令才要加 <code>--buildDrafts</code>。</p>
+<p>DevTools 的 Performance 面板可以錄 3 秒。穩定的首頁不該出現連續的 rAF。滑過兔子時才會有短暫的繪製工作。</p>
+<p>封面與內文圖都是 JPEG 或 WebP。<code>check_generated_images.py --check</code> 會擋下 content 裡的 PNG。</p>
+<h2 id="10-帶得走的做法">10. 帶得走的做法</h2>
+<ol>
+<li>資料、渲染器、降級版本分開放。換一張圖只要換資料，不動 JS。</li>
+<li>先量字型，再算幾何。字型沒載入前的尺寸都是暫時的。</li>
+<li>能用 CSS 容器單位處理的縮放，不要留給 JS。</li>
+<li>無障礙與省電開關放在渲染器入口，不要散在事件裡。</li>
+</ol>
+<p>若改 <code>cols</code>、<code>rows</code> 或 <code>ratio</code>，<code>&lt;pre&gt;</code> 的 <code>85.8</code>、<code>132.3</code> 與 <code>line-height</code> 也要跟著重算。</p>
+<p>這套做法適合裝飾性的 hero。不適合需要選取、搜尋或朗讀的文字。Canvas 裡的 6,306 個字元對瀏覽器來說是像素，不是文字。容器因此設了 <code>aria-hidden=&quot;true&quot;</code>，可讀內容留在左側標題與說明。若文字本身是內容，該用 HTML，不該用 Canvas。</p>
+<p>首頁其他終端機元件的做法在<a href="/blog/posts/hugo-papermod-devlog/#7-%e6%8a%8a%e9%a6%96%e9%a0%81%e5%be%9e-papermod-%e9%a0%90%e8%a8%ad%e6%94%b9%e6%88%90%e7%b5%82%e7%ab%af%e6%a9%9f">建站日誌第 7 節</a>。</p>
+]]></content:encoded></item><item><title>DeepSeek-V4.1-Flash：把 global KV 壓到 890 bytes/token，骨幹反而大了近一倍</title><link>https://jiejiefu.github.io/blog/posts/deepseek-v4-1-flash/</link><pubDate>Tue, 27 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/posts/deepseek-v4-1-flash/</guid><description>DeepSeek-V4.1-Flash 用 CED 把 decoder 的 global KV 從 encoder 長出來、用 CSA2 跨層共享 KV 與 index、再把 global KV 壓到 FP4，做到 890 bytes/token。本文拆解 40 層配置、FP4 位元帳、SWA Bounded Replay 的近似代價，以及 1017 更新後與 Anthropic Opus-5 的 4 勝 4 負。</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <p>V4.1-Flash 把 global KV 壓到 <strong>890 bytes</strong>。
 這是每個 token 的用量。
