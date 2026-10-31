@@ -14,6 +14,9 @@
 | `layouts/shortcodes/video.html` | `{{< video src="demo.mp4" width="80%" >}}` — HTML5 video player |
 | `layouts/shortcodes/audio.html` | `{{< audio src="audio/introduction.m4a" caption="..." >}}` — page bundle 音檔播放器（原生 `<audio>`，MIME 依副檔名，`.m4a` → `audio/mp4`；有同名 `.vtt` 或 `captions="..."` 時另掛同步字幕） |
 | `assets/js/audio-captions.js` | 音檔同步字幕：fetch VTT、依 `timeupdate` / `seeking` 換句（ES5，無相依） |
+| `layouts/shortcodes/youtube.html` | `{{< youtube id="..." >}}` — 覆寫 Hugo 內建版；先顯示縮圖，點擊才載入 iframe，斷網時保留縮圖（見 [youtube.md](youtube.md)） |
+| `assets/js/youtube-lite.js` | YouTube 縮圖 facade：點擊／鍵盤載入 iframe、離線判斷、遠端縮圖 fallback |
+| `assets/css/extended/youtube-lite.css` | `.yt-lite` 16:9 容器、播放鍵、離線提示 |
 | `layouts/shortcodes/tldr.html` | `{{< tldr >}}...{{< /tldr >}}` — 文章開頭的 TL;DR callout（標籤用 `<p>`，不會進 TOC） |
 | `layouts/shortcodes/code-fold.html` | `{{< code-fold label="..." open="true" >}}...{{< /code-fold >}}` — 可收合程式碼；預設收合，`open="true"` 預設展開 |
 | `layouts/shortcodes/share-link.html` | `{{< share-link >}}` — 轉呼叫 `share_link.html` partial（正常情況不會用到，全站已自動插入） |

@@ -82,6 +82,16 @@
 {{- end }}
 {{- end }}
 
+{{- /* YouTube 縮圖 facade（約 1.5 KB）。先顯示 page bundle 的
+       images/maxresdefault.jpg，點擊才載入 iframe；斷網時只顯示縮圖與提示。
+       逐頁判斷只能放 head（footer 是 partialCached）。 */ -}}
+{{- if .HasShortcode "youtube" }}
+{{- with resources.Get "js/youtube-lite.js" }}
+{{- $js := . | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}"></script>
+{{- end }}
+{{- end }}
+
 {{- if .HasShortcode "memory" }}
 {{- with resources.Get "js/memory-fold.js" }}
 {{- $js := . | minify | fingerprint }}

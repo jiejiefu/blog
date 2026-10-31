@@ -1,0 +1,51 @@
+{{- /* YouTube 嵌入：先顯示縮圖，點擊後才載入 iframe（lite embed）。
+       斷網或擋 YouTube 時仍看得到縮圖；縮圖優先用 page bundle 的
+       images/maxresdefault.jpg，沒有才退回 i.ytimg.com。
+
+       用法：
+         {{< youtube id="EKOU3JWDNLI" >}}
+         {{< youtube id="..." title="影片標題" class="my-class" >}}
+         {{< youtube id="..." thumb="images/custom.jpg" hl="en" >}}
+
+       英文版刻意維持手寫 iframe（上方保留註解掉的 shortcode），不要改成這個。 */ -}}
+{{- $id := .Get "id" | default (.Get 0) -}}
+{{- if not $id -}}
+{{- errorf "youtube: 缺少 id（%s）" .Page.File.Path -}}
+{{- end -}}
+{{- $title := .Get "title" | default (i18n "youtube_title" | default "YouTube video") -}}
+{{- $class := .Get "class" -}}
+{{- $loading := .Get "loading" | default "lazy" -}}
+{{- $hl := .Get "hl" -}}
+{{- $thumb := .Get "thumb" -}}
+{{- if not $thumb -}}
+{{- $local := or (.Page.Resources.GetMatch "images/maxresdefault.*") (.Page.Resources.GetMatch "maxresdefault.*") -}}
+{{- if $local -}}
+{{- $thumb = $local.RelPermalink -}}
+{{- else -}}
+{{- $thumb = printf "https://i.ytimg.com/vi/%s/maxresdefault.jpg" $id -}}
+{{- end -}}
+{{- end -}}
+{{- $src := printf "https://www.youtube-nocookie.com/embed/%s?autoplay=1&rel=0&playsinline=1" $id -}}
+{{- with $hl -}}
+{{- $src = printf "%s&hl=%s" $src . -}}
+{{- end -}}
+{{- $play := i18n "youtube_play" | default "Play video" -}}
+{{- $offline := i18n "youtube_offline" | default "YouTube could not load — showing the video thumbnail." -}}
+<div class="yt-lite{{ with $class }} {{ . }}{{ end }}"
+     data-yt-src="{{ $src }}"
+     data-yt-offline="{{ $offline }}"
+     role="button" tabindex="0"
+     aria-label="{{ $play }}: {{ $title }}">
+  <img class="yt-lite__thumb" src="{{ $thumb }}" alt="{{ $title }}" loading="{{ $loading }}" width="1280" height="720" referrerpolicy="no-referrer">
+  <span class="yt-lite__play" aria-hidden="true">
+    <svg viewBox="0 0 68 48" focusable="false">
+      <path class="yt-lite__play-bg" d="M66.52 7.74c-.78-2.93-2.49-5.08-5.42-5.86C56.13.6 34 .6 34 .6s-22.13 0-27.1 1.28c-2.93.78-4.64 2.93-5.42 5.86C.2 12.71.2 24 .2 24s0 11.29 1.28 16.26c.78 2.93 2.49 5.08 5.42 5.86C11.87 47.4 34 47.4 34 47.4s22.13 0 27.1-1.28c2.93-.78 4.64-2.93 5.42-5.86C67.8 35.29 67.8 24 67.8 24s0-11.29-1.28-16.26z"/>
+      <path class="yt-lite__play-arrow" d="M27 34.5l18-10.5-18-10.5z"/>
+    </svg>
+  </span>
+  <span class="yt-lite__note" role="status"></span>
+</div>
+<noscript>
+  <style>.yt-lite{display:none}</style>
+  <iframe class="yt-lite__noscript" src="https://www.youtube-nocookie.com/embed/{{ $id }}" title="{{ $title }}" loading="lazy" allowfullscreen></iframe>
+</noscript>

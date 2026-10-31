@@ -1,0 +1,134 @@
+/* YouTube lite embed — 由 layouts/shortcodes/youtube.html 輸出。
+ *
+ * 先顯示縮圖（page bundle 的 images/maxresdefault.jpg，或遠端 i.ytimg.com），
+ * 點擊後由 assets/js/youtube-lite.js 換成 youtube-nocookie iframe。
+ * 斷網時 JS 不換 iframe，縮圖與提示會留在畫面上。
+ */
+.yt-lite {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    margin: 20px 0;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #000;
+    cursor: pointer;
+}
+
+/* 蓋掉 .post-content img 的 margin / 圓角（選擇器特異度要高於它） */
+.yt-lite > .yt-lite__thumb {
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    object-fit: cover;
+    transition: transform 0.25s ease;
+}
+
+.yt-lite:hover > .yt-lite__thumb {
+    transform: scale(1.02);
+}
+
+.yt-lite.is-loading {
+    cursor: progress;
+}
+
+.yt-lite.is-loading .yt-lite__play svg {
+    opacity: 0.55;
+}
+
+.yt-lite__play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.yt-lite__play svg {
+    display: block;
+    width: 68px;
+    height: 48px;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+    transition: transform 0.2s ease;
+}
+
+.yt-lite:hover .yt-lite__play svg {
+    transform: scale(1.08);
+}
+
+.yt-lite__play-bg {
+    fill: #f00;
+}
+
+.yt-lite__play-arrow {
+    fill: #fff;
+}
+
+.yt-lite__note {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.78);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.yt-lite[data-offline] .yt-lite__note {
+    opacity: 1;
+}
+
+.yt-lite:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
+.yt-lite.is-playing {
+    cursor: default;
+}
+
+.yt-lite__iframe {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.yt-lite__iframe.is-ready {
+    opacity: 1;
+}
+
+/* JS 關閉時的後備：直接載入 iframe（等同舊行為） */
+.yt-lite__noscript {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    margin: 20px 0;
+    border: 0;
+    border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .yt-lite > .yt-lite__thumb,
+    .yt-lite__play svg {
+        transition: none;
+    }
+
+    .yt-lite:hover > .yt-lite__thumb,
+    .yt-lite:hover .yt-lite__play svg {
+        transform: none;
+    }
+}

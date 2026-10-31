@@ -18,3 +18,12 @@
 
 - id: audio_download
   translation: "下載"
+
+- id: youtube_play
+  translation: "播放影片"
+
+- id: youtube_title
+  translation: "YouTube 影片"
+
+- id: youtube_offline
+  translation: "無法載入 YouTube，僅顯示影片縮圖。"

@@ -22,7 +22,7 @@ cover:
 **Bottom line:** Power shifts from software narratives to physical infrastructure — electricity, silicon, and digital sovereignty.
 {{< /tldr >}}
 
-{{< youtube id="EKOU3JWDNLI">}}
+<!-- {{< youtube id="EKOU3JWDNLI">}} -->
 
 <iframe 
   width="100%" 
