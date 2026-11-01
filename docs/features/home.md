@@ -339,7 +339,7 @@ print('main 內死鏈數:',len(re.findall(r'(projects|resume)/',main)))"   # 應
 
 ```sh
 hugo server -D &
-CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CH="${CHROME_BIN:?請先設定 Chrome 執行檔路徑}"
 "$CH" --headless=new --disable-gpu --user-data-dir="$(mktemp -d)" \
   --virtual-time-budget=20000 --dump-dom "http://localhost:1313/" > /tmp/lab.html
 rg -c 'class="lab-log ' /tmp/lab.html    # > 5 代表 JS 有在串流

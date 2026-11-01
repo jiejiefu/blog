@@ -68,7 +68,7 @@ python3 -c "import re,json;h=open('public/posts/<slug>/index.html',encoding='utf
 
 ```sh
 hugo server -D -p 1413 &
-CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CH="${CHROME_BIN:?請先設定 Chrome 執行檔路徑}"
 "$CH" --headless=new --disable-gpu --user-data-dir="$(mktemp -d)" \
   --virtual-time-budget=10000 --dump-dom \
   "http://localhost:1413/blog/posts/<slug>/" > /tmp/vc.html

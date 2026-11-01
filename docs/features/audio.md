@@ -32,7 +32,7 @@
 VoiceStudio 的 runtime venv 已有 `faster-whisper`，HF cache 也有 `Systran/faster-whisper-large-v3`。腳本會設 `HF_HUB_OFFLINE=1` 並用 `local_files_only=True`，**不會下載模型**：
 
 ```sh
-V=~/Library/Application\ Support/VoiceStudio/runtime/project/.venv/bin/python
+V="${VOICESTUDIO_PYTHON:?請先設定 VoiceStudio runtime 的 python 路徑}"
 "$V" scripts/build_audio_vtt.py \
   content/en/projects/fab-predictive-maintenance-ppt169/audio/morty-introduction.m4a \
   --cues scripts/fab-predictive-maintenance-ppt169/morty-introduction.cues.txt \

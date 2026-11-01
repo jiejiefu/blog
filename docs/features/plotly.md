@@ -94,7 +94,7 @@ python3 -c "import re,json;h=open('$P',encoding='utf-8').read();[json.loads(s) f
 
 ```sh
 hugo server -D -p 1413 &
-CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CH="${CHROME_BIN:?請先設定 Chrome 執行檔路徑}"
 "$CH" --headless=new --disable-gpu --user-data-dir="$(mktemp -d)" \
   --virtual-time-budget=40000 --dump-dom \
   "http://localhost:1413/blog/posts/plotly-smoke-test/" > /tmp/plotly.html

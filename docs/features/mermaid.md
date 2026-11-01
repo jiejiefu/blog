@@ -153,7 +153,7 @@ re.findall(r'<pre class="?mermaid"?>.*?</pre>', html, re.S)
 
 ```sh
 hugo server -D &
-CH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CH="${CHROME_BIN:?請先設定 Chrome 執行檔路徑}"
 "$CH" --headless=new --disable-gpu --user-data-dir="$(mktemp -d)" \
   --virtual-time-budget=60000 --dump-dom \
   "http://localhost:1313/posts/mermaid-smoke-test/" > /tmp/d.html
