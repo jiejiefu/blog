@@ -7,6 +7,7 @@ tags: ["ai", "llm", "deepseek", "kv-cache", "model-architecture", "system-design
 ShowToc: true
 TocOpen: false
 math: true
+featured: true
 cover:
     image: "images/cover.jpg"
     alt: "DeepSeek 鯨魚標誌與 890 bytes/token 的 global KV 壓縮示意封面"
