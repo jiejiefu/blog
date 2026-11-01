@@ -20,6 +20,7 @@ hugo --minify                     # 產出 ./public/
 python3 scripts/check_slug_style.py
 python3 scripts/check_generated_images.py --check
 python3 scripts/ai_slop_check.py content/zh-tw/posts/<slug>/index.md
+python3 scripts/intro-to-jupyter-notebook/build.py
 ```
 
 ⚠️ `hugo server` 會改寫 `public/`。要檢查 `public/` 前先 `rm -rf public && hugo --minify`。
@@ -31,6 +32,7 @@ python3 scripts/ai_slop_check.py content/zh-tw/posts/<slug>/index.md
 content/
   zh-tw/                    # 預設語言
     posts/<slug>/           # leaf page bundle：index.md + images/
+    notebooks/<slug>/       # leaf page bundle：index.md + notebook.json + images/
     projects/<slug>/
     resume/  search.md
   en/                       # 鏡像結構；刻意沒有 images/
@@ -43,6 +45,7 @@ content/
 - **新文章 `draft: true`**，front matter 用 YAML `---`。常用欄位：`draft`、`date`、`title`、`tags`、`description`、`math`、`cover`。
 - **`cover.relative: true` 只給 zh-tw**。en 用絕對網址（`https://jiejiefu.github.io/blog/...`），否則 og:image 404。驗證：`rg -o 'og:image" content="[^"]+' public/<lang>/posts/<slug>/index.html`。
 - **en 刻意沒有 `images/`**，靠 Hugo 跨 bundle 解析到 zh-tw。不要在 en 複製圖片。
+- **Notebook 由 builder 產生**。改 `.ipynb` 後跑 `scripts/<slug>/build.py`，不要手改 `notebook.json` 或 `images/cell-*.webp`。
 - TECH_TRENDS 系列（2021–2026）全部 `draft: true`。
 
 ## 投影片系列
@@ -66,10 +69,11 @@ content/
 | `layouts/partials/extend_head.html` | 逐頁載入 KaTeX／Mermaid／Plotly／音檔字幕 |
 | `layouts/partials/extend_footer.html` | AOS、share-link |
 | `layouts/partials/share_link.html` / `viewer_comment.html` | 文章底部區塊 |
-| `layouts/shortcodes/` | `tldr`、`animate`、`video`、`audio`、`plotly`、`mermaid`、`code-fold` |
+| `layouts/shortcodes/` | `tldr`、`animate`、`video`、`audio`、`plotly`、`mermaid`、`code-fold`、`notebook` |
+| `layouts/partials/notebook/` | notebook shell、cell、output、icon partials |
 | `layouts/_default/single.html` | **覆寫 PaperMod**，多了分享框與觀眾留言 |
 | `assets/js/` | console、文字畫、分享、留言、mermaid（唯一 ESM）、plotly、字幕 |
-| `assets/css/extended/` | `custom.css`、`lab-console.css`、`lab-glyph.css`、`chroma-*.css`、`zz-chroma.css` |
+| `assets/css/extended/` | `custom.css`、`lab-console.css`、`lab-glyph.css`、`chroma-*.css`、`zz-chroma.css`、`zz-notebook.css` |
 | `data/home.yaml` | 首頁雙語文案 |
 | `scripts/` | 共用工具；每篇文章一個資料夾（完整對照：`docs/features/layouts-map.md`） |
 
@@ -81,6 +85,7 @@ content/
 ## `scripts/`
 
 - 文章專屬封面 SVG、產圖腳本放 `scripts/<slug>/`；封面 JPG 正本在 `content/zh-tw/posts/<slug>/images/cover.jpg`，不要複製到 `scripts/`。
+- Notebook 的 `.ipynb` 與 `build.py` 放 `scripts/<slug>/`；輸出進 `content/zh-tw/notebooks/<slug>/`。共用 builder 是 `scripts/notebook_build.py`。
 - 共用工具留在 `scripts/` 根目錄，腳本路徑以 repo 根為基準（`Path(__file__).resolve().parents[2]`）。
 - 產圖一律用 `scripts/image_utils.py` 的 `save_figure_webp()`；PNG 只留暫存，不寫進 `content/`。
 - `check_generated_images.py --check` 發現 PNG 會擋 CI；`--fix` 只處理未被 markdown 引用的 PNG。
@@ -113,6 +118,7 @@ content/
 | Mermaid | [`docs/features/mermaid.md`](docs/features/mermaid.md) |
 | Plotly | [`docs/features/plotly.md`](docs/features/plotly.md) |
 | 程式碼高亮 | [`docs/features/code-highlight.md`](docs/features/code-highlight.md) |
+| Notebook 區塊、builder、JSON schema | [`docs/features/notebook.md`](docs/features/notebook.md) |
 | YouTube 嵌入、離線縮圖 | [`docs/features/youtube.md`](docs/features/youtube.md) |
 | 全站底色、PaperMod 變數、列表頁灰底 | [`docs/features/theme-colors.md`](docs/features/theme-colors.md) |
 | 版面與 shortcode 對照 | [`docs/features/layouts-map.md`](docs/features/layouts-map.md) |

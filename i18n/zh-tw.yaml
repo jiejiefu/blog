@@ -27,3 +27,24 @@
 
 - id: youtube_offline
   translation: "無法載入 YouTube，僅顯示影片縮圖。"
+
+- id: notebook_output_options
+  translation: "輸出選項"
+
+- id: notebook_copy_output
+  translation: "複製儲存格輸出"
+
+- id: notebook_copy_image
+  translation: "複製圖片"
+
+- id: notebook_save_image
+  translation: "儲存圖片"
+
+- id: notebook_copied
+  translation: "已複製"
+
+- id: notebook_copy_failed
+  translation: "複製失敗"
+
+- id: notebook_downloaded
+  translation: "已下載"

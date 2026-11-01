@@ -92,6 +92,10 @@ __pycache__/
 .venv/
 venv/
 
+# --- Notebook build intermediates ---
+scripts/**/executed.ipynb
+scripts/**/notebook.md
+
 # --- Go (Hugo modules) ---
 bin/
 pkg/

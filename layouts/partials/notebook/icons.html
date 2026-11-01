@@ -1,0 +1,28 @@
+{{- $name := .name -}}
+{{- if eq $name "notebook" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M9 3v18"/><path d="M12 8h4M12 12h4M12 16h3"/></svg>
+{{- else if eq $name "save" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3"/><path d="M8 14h8v7H8z"/></svg>
+{{- else if eq $name "add" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>
+{{- else if eq $name "cut" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M8 7.5 20 18M8 16.5 20 6"/></svg>
+{{- else if eq $name "copy" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+{{- else if eq $name "paste" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4h6v3H9z"/><path d="M8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2"/><path d="M8 12h8M8 16h5"/></svg>
+{{- else if eq $name "run" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="jp-icon-fill" d="M8 5v14l11-7z"/></svg>
+{{- else if eq $name "interrupt" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+{{- else if eq $name "restart" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v6h-6"/></svg>
+{{- else if eq $name "code" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13 5l-2 14"/></svg>
+{{- else if eq $name "chevron" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7 10 5 5 5-5"/></svg>
+{{- else if eq $name "more" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+{{- else if eq $name "download" -}}
+<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 20h14"/></svg>
+{{- end -}}

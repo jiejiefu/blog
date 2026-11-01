@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "meta": {
+    "title": "用一個小例子認識 Jupyter Notebook",
+    "filename": "notebook.ipynb",
+    "kernel": "Python 3 (ipykernel)",
+    "language": "python",
+    "python_version": "3.13.14",
+    "executed_at": "2026-10-31 21:16 CST",
+    "duration_ms": 2169,
+    "cell_count": 13,
+    "code_cell_count": 5,
+    "readonly": true
+  },
+  "cells": [
+    {
+      "type": "markdown",
+      "source": "## 這篇 Notebook 在做什麼\n\n這頁用一個小實驗示範 Jupyter Notebook 的三種基本元素：Markdown 說明、Python 程式碼、執行後的輸出。\n\n資料是隨機產生的三維點。程式碼會算出基本統計量、畫一張散佈圖，最後用 pandas 整理成表格。整頁在本地執行，瀏覽器只負責顯示結果。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 準備環境\n\n先匯入 NumPy、Matplotlib 與 pandas，並固定隨機種子。固定種子讓每次重建的圖與數字一致，方便對照。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "%matplotlib inline\nimport numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\n\nnp.random.seed(0)\n\nplt.rcParams[\"font.sans-serif\"] = [\n    \"PingFang TC\",\n    \"Heiti TC\",\n    \"Arial Unicode MS\",\n    \"DejaVu Sans\",\n]\nplt.rcParams[\"axes.unicode_minus\"] = False\n\nprint(\"NumPy\", np.__version__)\nprint(\"pandas\", pd.__version__)\nprint(\"Matplotlib\", plt.matplotlib.__version__)",
+      "execution_count": 1,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "NumPy 2.4.6\npandas 3.0.6\nMatplotlib 3.11.2"
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 產生資料\n\n用 `np.random.normal` 產生三組常態分布資料，再把三軸組合成一個 `(100, 3)` 的陣列。這一步只用到 NumPy，不需要外部檔案。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "n = 100\nx = np.random.normal(0, 1, n)\ny = np.random.normal(0, 1, n)\nz = np.random.normal(0, 1, n)\n\npoints = np.column_stack([x, y, z])\npoints.shape",
+      "execution_count": 2,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "(100, 3)",
+          "execution_count": 2
+        }
+      ]
+    },
+    {
+      "type": "code",
+      "source": "points[:5].round(2)",
+      "execution_count": 3,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "array([[ 1.76,  1.88, -0.37],\n       [ 0.4 , -1.35, -0.24],\n       [ 0.98, -1.27,  1.1 ],\n       [ 2.24,  0.97,  0.66],\n       [ 1.87, -1.17,  0.64]])",
+          "execution_count": 3
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 畫一張散佈圖\n\n下圖把三軸兩兩配對，畫成三張子圖。顏色代表 `z` 軸數值，方便看出第三維的變化。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "fig, axes = plt.subplots(\n    1, 3, figsize=(12, 4), dpi=150, constrained_layout=True\n)\npairs = [(\"x\", \"y\", x, y), (\"x\", \"z\", x, z), (\"y\", \"z\", y, z)]\n\nfor ax, (xlabel, ylabel, a, b) in zip(axes, pairs):\n    scatter = ax.scatter(\n        a,\n        b,\n        c=z,\n        cmap=\"viridis\",\n        s=28,\n        alpha=0.82,\n        edgecolors=\"white\",\n        linewidths=0.4,\n    )\n    ax.set_xlabel(xlabel)\n    ax.set_ylabel(ylabel)\n    ax.grid(alpha=0.25)\n\nfig.colorbar(scatter, ax=axes, shrink=0.82, label=\"z\")\nfig.suptitle(\"三維隨機資料的三組投影\", fontsize=13)\nfig.patch.set_facecolor(\"white\")\nplt.show()",
+      "execution_count": 4,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "image",
+          "src": "images/cell-08-out-01.webp",
+          "alt": "三張子圖分別顯示 x-y、x-z、y-z 的散佈圖，顏色代表 z 軸數值",
+          "caption": "以 NumPy 產生的 100 個三維隨機點，分別投影到三個平面。",
+          "width": 1813,
+          "height": 617,
+          "execution_count": 4
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 整理成表格\n\n最後把三軸的平均、標準差與相關係數放進 DataFrame。Notebook 會把 DataFrame 轉成 HTML 表格，直接顯示在輸出區。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "summary = pd.DataFrame(\n    {\n        \"平均\": points.mean(axis=0),\n        \"標準差\": points.std(axis=0),\n        \"最小值\": points.min(axis=0),\n        \"最大值\": points.max(axis=0),\n    },\n    index=[\"x\", \"y\", \"z\"],\n)\n\nsummary.round(2)",
+      "execution_count": 5,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "html",
+          "html": "<div>\n\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr>\n      <th></th>\n      <th>平均</th>\n      <th>標準差</th>\n      <th>最小值</th>\n      <th>最大值</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>x</th>\n      <td>0.06</td>\n      <td>1.01</td>\n      <td>-2.55</td>\n      <td>2.27</td>\n    </tr>\n    <tr>\n      <th>y</th>\n      <td>0.08</td>\n      <td>1.03</td>\n      <td>-2.22</td>\n      <td>2.38</td>\n    </tr>\n    <tr>\n      <th>z</th>\n      <td>-0.06</td>\n      <td>0.95</td>\n      <td>-2.77</td>\n      <td>2.30</td>\n    </tr>\n  </tbody>\n</table>\n</div>",
+          "execution_count": 5
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 怎麼讀這張圖\n\n三張子圖共用同一個 `z` 色階。顏色越亮，`z` 越大。三個平面各自看得到不同的分布形狀，合起來才是完整的三維資料。\n\n散佈圖適合看群集與離群點，不適合直接讀出精確數值。需要數字時，看上一節的表格。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 這個頁面怎麼運作\n\nNotebook 在本地用 `nbclient` 執行，輸出會轉成 `notebook.json` 與 WebP 圖片。Hugo 讀取這些檔案，產生你現在看到的唯讀頁面。\n\n瀏覽器不會載入 Python，也不會執行任何 cell。這樣的好處是載入快、沒有伺服器成本；代價是不能互動，也不能即時改參數。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 限制\n\n這頁只支援靜態輸出。互動式 widget、Plotly 圖表與需要即時輸入的範例，不在第一版範圍內。\n\n如果要更新內容，改 `scripts/intro-to-jupyter-notebook/notebook.ipynb`，再跑一次 `build.py`。",
+      "tags": []
+    }
+  ]
+}

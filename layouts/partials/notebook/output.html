@@ -1,0 +1,89 @@
+{{- $page := .page -}}
+{{- $output := .output -}}
+{{- $cellID := .cellID -}}
+{{- $showActions := .showActions -}}
+
+{{- if eq $output.type "stream" -}}
+<div class="jp-output jp-output-stream jp-output-{{ $output.name }}" data-jp-output-type="stream">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt" aria-hidden="true"></div>
+    {{- if $showActions -}}
+      {{- partial "notebook/output_actions.html" (dict "cellID" $cellID) -}}
+    {{- end -}}
+  </div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">{{ $output.text }}</pre>
+  </div>
+</div>
+{{- else if eq $output.type "result" -}}
+<div class="jp-output jp-output-result" data-jp-output-type="result">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">{{ if $output.execution_count }}Out[{{ $output.execution_count }}]:{{ else }}Out[ ]:{{ end }}</div>
+    {{- if $showActions -}}
+      {{- partial "notebook/output_actions.html" (dict "cellID" $cellID) -}}
+    {{- end -}}
+  </div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">{{ $output.text }}</pre>
+  </div>
+</div>
+{{- else if eq $output.type "image" -}}
+{{- $img := $page.Resources.GetMatch $output.src -}}
+{{- if not $img -}}
+  {{- errorf "notebook output: missing image %q in %s" $output.src $page.File.Path -}}
+{{- end -}}
+<div class="jp-output jp-output-image" data-jp-output-type="image">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">{{ if $output.execution_count }}Out[{{ $output.execution_count }}]:{{ else }}Out[ ]:{{ end }}</div>
+    {{- if $showActions -}}
+      {{- partial "notebook/output_actions.html" (dict "cellID" $cellID) -}}
+    {{- end -}}
+  </div>
+  <div class="jp-output-body">
+    <figure class="jp-figure">
+      <span class="jp-image-wrap">
+        <img src="{{ $img.RelPermalink }}" alt="{{ $output.alt }}" width="{{ $output.width }}" height="{{ $output.height }}" loading="lazy" decoding="async">
+        <span class="jp-image-actions">
+          <button class="jp-image-action" type="button" data-jp-copy-image
+                  aria-label="{{ T "notebook_copy_image" | default "Copy image" }}"
+                  title="{{ T "notebook_copy_image" | default "Copy image" }}">
+            {{ partial "notebook/icons.html" (dict "name" "copy") }}
+          </button>
+          <a class="jp-image-action" href="{{ $img.RelPermalink }}" download
+             aria-label="{{ T "notebook_save_image" | default "Save image" }}"
+             title="{{ T "notebook_save_image" | default "Save image" }}">
+            {{ partial "notebook/icons.html" (dict "name" "download") }}
+          </a>
+        </span>
+      </span>
+      {{- with $output.caption -}}
+      <figcaption>{{ . }}</figcaption>
+      {{- end -}}
+    </figure>
+  </div>
+</div>
+{{- else if eq $output.type "html" -}}
+<div class="jp-output jp-output-html" data-jp-output-type="html">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">{{ if $output.execution_count }}Out[{{ $output.execution_count }}]:{{ else }}Out[ ]:{{ end }}</div>
+    {{- if $showActions -}}
+      {{- partial "notebook/output_actions.html" (dict "cellID" $cellID) -}}
+    {{- end -}}
+  </div>
+  <div class="jp-output-body">
+    <div class="jp-html-table">{{ $output.html | safeHTML }}</div>
+  </div>
+</div>
+{{- else if eq $output.type "error" -}}
+<div class="jp-output jp-output-error" data-jp-output-type="error">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt" aria-hidden="true"></div>
+    {{- if $showActions -}}
+      {{- partial "notebook/output_actions.html" (dict "cellID" $cellID) -}}
+    {{- end -}}
+  </div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">{{ $output.traceback | default (printf "%s: %s" $output.ename $output.evalue) }}</pre>
+  </div>
+</div>
+{{- end -}}

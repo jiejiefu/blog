@@ -1,0 +1,16 @@
+{{- $cellID := .cellID -}}
+<div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="{{ $cellID }}-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="{{ $cellID }}-output-menu"
+          aria-label="{{ T "notebook_output_options" | default "Output options" }}"
+          title="{{ T "notebook_output_options" | default "Output options" }}">
+    {{ partial "notebook/icons.html" (dict "name" "more") }}
+  </button>
+  <div class="jp-output-menu" id="{{ $cellID }}-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      {{ partial "notebook/icons.html" (dict "name" "copy") }}
+      <span data-jp-copy-label>{{ T "notebook_copy_output" | default "Copy Cell Output" }}</span>
+    </button>
+  </div>
+</div>

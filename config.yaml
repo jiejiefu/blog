@@ -92,6 +92,11 @@ menu:
       url: posts/
       weight: 10
 
+    - identifier: notebooks
+      name: Notebook
+      url: notebooks/
+      weight: 15
+
     - identifier: projects
       name: Projects
       url: projects/

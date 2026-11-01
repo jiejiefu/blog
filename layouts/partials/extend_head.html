@@ -111,3 +111,12 @@
 <script defer src="{{ $js.RelPermalink }}"></script>
 {{- end }}
 {{- end }}
+
+{{- /* Notebook 輸出選單與圖片操作。只有含 notebook shortcode 的頁面才載入。 */ -}}
+{{- if and .IsPage (.HasShortcode "notebook") }}
+<script>window.notebookOutputLabels = { copied: {{ i18n "notebook_copied" | default "Copied" | jsonify | safeJS }}, copyFailed: {{ i18n "notebook_copy_failed" | default "Copy failed" | jsonify | safeJS }}, downloaded: {{ i18n "notebook_downloaded" | default "Downloaded" | jsonify | safeJS }} };</script>
+{{- with resources.Get "js/notebook-output.js" }}
+{{- $js := . | minify | fingerprint }}
+<script defer src="{{ $js.RelPermalink }}"></script>
+{{- end }}
+{{- end }}

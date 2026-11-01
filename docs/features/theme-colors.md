@@ -61,6 +61,20 @@
 
 若日後想回到「卡片也全白」，把淺色 `--entry` 改回 `rgb(255,255,255)` 即可；`.list` 畫布覆寫不受影響。
 
+## Notebook 區塊
+
+`assets/css/extended/zz-notebook.css` 在 `.jp-notebook` 內另外宣告一組 `--jp-*` 變數，不動全站變數：
+
+| 變數 | 淺色 | 深色 | 用途 |
+|---|---|---|---|
+| `--jp-bg` | `#ffffff` | `#1e1e1e` | 內容畫布 |
+| `--jp-panel` | `#f5f5f5` | `#252526` | menubar／toolbar／statusbar |
+| `--jp-border` | `#d9d9d9` | `#3c3c3c` | 外框與分隔線 |
+| `--jp-code-bg` | `#f6f8fa` | `#1a1b26` | code cell 底色 |
+| `--jp-blue` | `#1976d2` | `#64b5f6` | input prompt／連結 |
+
+同一個 scope 內把 `--code-block-bg`、`--code-bg` 指到 `--jp-code-bg`，所以 `zz-chroma.css` 的 code block 規則不會把 notebook 拉回全站底色。Output 不使用獨立底色，直接透出 `--jp-bg`。檔名用 `zz-` 是為了排在 `zz-chroma.css` 之後。
+
 ## 驗證
 
 ```sh

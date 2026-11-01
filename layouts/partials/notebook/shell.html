@@ -1,0 +1,61 @@
+{{- $page := .page -}}
+{{- $data := .data -}}
+{{- $meta := $data.meta -}}
+{{- $lang := site.Language.Lang -}}
+{{- $readonly := cond (eq $lang "zh-tw") "唯讀快照 · 本地執行後產生" "Read-only snapshot · built from a local run" -}}
+{{- $cellCount := len $data.cells -}}
+<section class="jp-notebook" aria-label="Jupyter Notebook snapshot">
+  <div class="jp-menubar" aria-hidden="true">
+    <span>File</span>
+    <span>Edit</span>
+    <span>View</span>
+    <span>Run</span>
+    <span>Kernel</span>
+    <span>Tabs</span>
+    <span>Settings</span>
+    <span>Help</span>
+  </div>
+
+  <div class="jp-tabbar">
+    <div class="jp-tab">
+      <span class="jp-tab-icon">{{ partial "notebook/icons.html" (dict "name" "notebook") }}</span>
+      <span class="jp-tab-name">{{ $meta.title | default $meta.filename }}</span>
+      <span class="jp-badge jp-badge-trusted">Trusted</span>
+      <span class="jp-badge jp-badge-readonly">Read-only</span>
+    </div>
+  </div>
+
+  <div class="jp-toolbar" aria-hidden="true">
+    <button class="jp-tool" type="button" disabled title="Save">{{ partial "notebook/icons.html" (dict "name" "save") }}</button>
+    <button class="jp-tool" type="button" disabled title="Add cell">{{ partial "notebook/icons.html" (dict "name" "add") }}</button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool" type="button" disabled title="Cut">{{ partial "notebook/icons.html" (dict "name" "cut") }}</button>
+    <button class="jp-tool" type="button" disabled title="Copy">{{ partial "notebook/icons.html" (dict "name" "copy") }}</button>
+    <button class="jp-tool" type="button" disabled title="Paste">{{ partial "notebook/icons.html" (dict "name" "paste") }}</button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool" type="button" disabled title="Run">{{ partial "notebook/icons.html" (dict "name" "run") }}</button>
+    <button class="jp-tool" type="button" disabled title="Interrupt">{{ partial "notebook/icons.html" (dict "name" "interrupt") }}</button>
+    <button class="jp-tool" type="button" disabled title="Restart">{{ partial "notebook/icons.html" (dict "name" "restart") }}</button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool jp-tool-wide" type="button" disabled>
+      {{ partial "notebook/icons.html" (dict "name" "code") }}
+      <span>Code</span>
+      {{ partial "notebook/icons.html" (dict "name" "chevron") }}
+    </button>
+    <span class="jp-toolbar-label">{{ $meta.kernel }}</span>
+  </div>
+
+  <div class="jp-cells">
+    {{- range $index, $cell := $data.cells -}}
+      {{- partial "notebook/cell.html" (dict "page" $page "cell" $cell "index" $index) -}}
+    {{- end -}}
+  </div>
+
+  <div class="jp-statusbar">
+    <span class="jp-status-note">{{ $readonly }}</span>
+    <span>{{ $cellCount }} cells</span>
+    <span>{{ index $meta "executed_at" }}</span>
+    <span>{{ index $meta "duration_ms" }} ms</span>
+    <span class="jp-status-idle">Idle</span>
+  </div>
+</section>

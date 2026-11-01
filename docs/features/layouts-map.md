@@ -22,6 +22,15 @@
 | `layouts/shortcodes/share-link.html` | `{{< share-link >}}` — 轉呼叫 `share_link.html` partial（正常情況不會用到，全站已自動插入） |
 | `layouts/shortcodes/plotly.html` | `{{< plotly >}}…{{< /plotly >}}` — body 是 JSON（data/layout/config），見「Plotly 互動圖表」節 |
 | `assets/js/plotly-init.js` | Plotly 初始化 + 依 `data-plotly-bundle` 動態載入 Basic/Full（ES5，無相依） |
+| `layouts/shortcodes/notebook.html` | `{{< notebook >}}` — 讀取 page bundle 的 `notebook.json`，交給 notebook partials 渲染 |
+| `layouts/partials/notebook/shell.html` | JupyterLab 外框、tab、toolbar、狀態列 |
+| `layouts/partials/notebook/cell.html` | markdown／code cell；處理 `hide-input`、`hide-output`、決定 output 選單掛在哪個 output |
+| `layouts/partials/notebook/output.html` | stream／result／image／html／error output；prompt 與圖片複製／儲存操作 |
+| `layouts/partials/notebook/output_actions.html` | output 三點選單（每 cell 一次，複製整個 cell 輸出） |
+| `layouts/partials/notebook/icons.html` | notebook 專用 inline SVG icon（含 more、download） |
+| `assets/js/notebook-output.js` | output 三點選單、複製儲存格輸出（文字／TSV／圖片）、圖片複製與下載 fallback |
+| `assets/css/extended/zz-notebook.css` | `.jp-*` 樣式、wide breakout、output menu、image actions、深色模式、手機版與列印 |
+| `scripts/notebook_build.py` | 執行 `.ipynb`、轉 WebP、寫 `notebook.json`／`executed.ipynb`／`notebook.md` |
 | `layouts/index.html` | **首頁專屬模板** — Hero / Console / 技術領域卡 / 精選文章 / 最新文章 |
 | `layouts/partials/home_posts_list.html` | 首頁底部的文章列表（從 PaperMod `_default/list.html` 抽出） |
 | `layouts/partials/lab_icon.html` | 首頁技術卡的 inline SVG icon（4 個，24×24） |

@@ -1,0 +1,10 @@
+{{- $src := .Get "src" | default "notebook.json" -}}
+{{- $resource := .Page.Resources.GetMatch $src -}}
+{{- if not $resource -}}
+  {{- errorf "notebook shortcode: missing %q in %s" $src .Page.File.Path -}}
+{{- end -}}
+{{- $data := $resource.Content | transform.Unmarshal -}}
+{{- if ne (int $data.schema) 1 -}}
+  {{- errorf "notebook shortcode: unsupported schema %v in %s" $data.schema .Page.File.Path -}}
+{{- end -}}
+{{- partial "notebook/shell.html" (dict "page" .Page "data" $data) -}}

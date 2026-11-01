@@ -1,0 +1,49 @@
+{{- $page := .page -}}
+{{- $cell := .cell -}}
+{{- $index := .index -}}
+{{- $tags := $cell.tags -}}
+{{- $hideInput := false -}}
+{{- $hideOutput := false -}}
+{{- range $tags -}}
+  {{- if eq . "hide-input" -}}{{- $hideInput = true -}}{{- end -}}
+  {{- if eq . "hide-output" -}}{{- $hideOutput = true -}}{{- end -}}
+{{- end -}}
+{{- $showInput := not $hideInput -}}
+{{- $showOutput := not $hideOutput -}}
+{{- $cellID := printf "nb-cell-%d" (add $index 1) -}}
+
+{{- if eq $cell.type "markdown" -}}
+<div class="jp-cell jp-cell-markdown" id="{{ $cellID }}">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown">{{ $page.RenderString $cell.source }}</div>
+</div>
+{{- else if eq $cell.type "code" -}}
+{{- $count := $cell.execution_count -}}
+<div class="jp-cell jp-cell-code" id="{{ $cellID }}">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">{{ if $count }}In [{{ $count }}]:{{ else }}In [ ]:{{ end }}</div>
+  <div class="jp-code">
+    {{- if $showInput -}}
+      {{ highlight $cell.source "python" "" }}
+    {{- else -}}
+      <div class="jp-input-hidden">Input hidden</div>
+    {{- end -}}
+  </div>
+  {{- if and $showOutput $cell.outputs -}}
+  {{- $scratch := newScratch -}}
+  {{- $scratch.Set "menuIndex" 0 -}}
+  {{- $scratch.Set "menuFound" false -}}
+  {{- range $i, $output := $cell.outputs -}}
+    {{- if and (not ($scratch.Get "menuFound")) $output.execution_count -}}
+      {{- $scratch.Set "menuIndex" $i -}}
+      {{- $scratch.Set "menuFound" true -}}
+    {{- end -}}
+  {{- end -}}
+  <div class="jp-outputs" data-jp-outputs>
+    {{- range $i, $output := $cell.outputs -}}
+      {{- partial "notebook/output.html" (dict "page" $page "output" $output "cellID" $cellID "showActions" (eq $i ($scratch.Get "menuIndex"))) -}}
+    {{- end -}}
+    <span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div>
+  {{- end -}}
+</div>
+{{- end -}}
