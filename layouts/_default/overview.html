@@ -1,0 +1,280 @@
+{{- define "main" }}
+
+{{- /*
+  內容總覽
+  ===========================================================================
+  這頁刻意不是第二個「即時監控 dashboard」：
+  - 所有數字在 Hugo build 時算完，沒有 setInterval、沒有隨機波動。
+  - 統計與圖表只看 draft: false；總表在 `hugo server -D` 會列出草稿。
+  - 這一頁自己的 front matter 有 `build.list: never`，不會進 Posts 列表、
+    首頁統計、RSS、search index 或 llms.txt。下面仍用 RelPermalink 再排除
+    自己一次，避免 Hugo 版本差异造成遞迴。
+
+  資料來源：
+  - 文案 → data/overview.yaml（語言用 site.Language.Lang 分組）
+  - 文章 / Notebook / 專案 → site.RegularPages
+  - 年份與 tag 統計 → 由已發布頁面現算
+
+  ⚠️ JS 由這個模板載入，不要放 extend_footer.html：
+     footer 是 partialCached，快取鍵是 .Layout/.Kind，會變成第一頁決定全站。
+*/ -}}
+
+{{- $t := index hugo.Data "overview" site.Language.Lang | default (index hugo.Data "overview" "zh-tw") }}
+{{- $sections := slice "posts" "notebooks" "projects" }}
+{{- $all := where site.RegularPages "Section" "in" $sections }}
+{{- $all = where $all "RelPermalink" "ne" .RelPermalink }}
+{{- $published := where $all "Draft" false }}
+{{- $rows := sort $all "Date" "desc" }}
+
+{{- $postsCount := len (where $published "Section" "posts") }}
+{{- $notebooksCount := len (where $published "Section" "notebooks") }}
+{{- $projectsCount := len (where $published "Section" "projects") }}
+
+{{- $tagSet := slice }}
+{{- range $published }}
+  {{- with .Params.tags }}{{ $tagSet = $tagSet | append . }}{{ end }}
+{{- end }}
+{{- $tagCount := len (uniq $tagSet) }}
+
+{{- /* ---------- 每年產出 ---------- */ -}}
+{{- $yearCounts := dict }}
+{{- range $published }}
+  {{- $y := .Date.Format "2006" }}
+  {{- $yearCounts = merge $yearCounts (dict $y (add (index $yearCounts $y | default 0) 1)) }}
+{{- end }}
+{{- $yearData := slice }}
+{{- range $y, $c := $yearCounts }}
+  {{- $yearData = $yearData | append (dict "year" $y "count" $c) }}
+{{- end }}
+{{- $yearData = sort $yearData "year" "asc" }}
+{{- $yearBars := slice }}
+{{- if $yearData }}
+  {{- $startYear := int ((index $yearData 0).year) }}
+  {{- $endYear := int ((index $yearData (sub (len $yearData) 1)).year) }}
+  {{- $windowStart := sub $endYear 4 }}
+  {{- if lt $windowStart $startYear }}{{ $startYear = $windowStart }}{{ end }}
+  {{- range seq $startYear $endYear }}
+    {{- $y := printf "%d" . }}
+    {{- $yearBars = $yearBars | append (dict "year" $y "count" (index $yearCounts $y | default 0)) }}
+  {{- end }}
+{{- end }}
+{{- $yearMax := 1 }}
+{{- range $yearBars }}{{ if gt .count $yearMax }}{{ $yearMax = .count }}{{ end }}{{ end }}
+
+{{- /* ---------- 標籤分佈 ---------- */ -}}
+{{- $tagMap := dict }}
+{{- range $published }}
+  {{- range .GetTerms "tags" }}
+    {{- $name := .LinkTitle }}
+    {{- $entry := index $tagMap $name | default (dict "name" $name "url" .RelPermalink "count" 0) }}
+    {{- $entry = merge $entry (dict "count" (add (int (index $entry "count")) 1)) }}
+    {{- $tagMap = merge $tagMap (dict $name $entry) }}
+  {{- end }}
+{{- end }}
+{{- $tagData := slice }}
+{{- range $name, $entry := $tagMap }}
+  {{- $tagData = $tagData | append (merge $entry (dict "sortkey" (printf "%05d-%s" (sub 100000 (int $entry.count)) $name))) }}
+{{- end }}
+{{- $tagData = sort $tagData "sortkey" "asc" }}
+{{- $tagTop := first 12 $tagData }}
+{{- $tagMax := 1 }}
+{{- range $tagTop }}{{ if gt .count $tagMax }}{{ $tagMax = .count }}{{ end }}{{ end }}
+
+{{- /* ---------- 篩選選項 ---------- */ -}}
+{{- $years := slice }}
+{{- range $rows }}{{ $years = $years | append (.Date.Format "2006") }}{{ end }}
+{{- $years = sort (uniq $years) "value" "desc" }}
+{{- $filterTags := slice }}
+{{- range $rows }}
+  {{- range .GetTerms "tags" }}{{ $filterTags = $filterTags | append .LinkTitle }}{{ end }}
+{{- end }}
+{{- $filterTags = sort (uniq $filterTags) }}
+
+<div class="ov-page">
+  <header class="ov-hero">
+    <p class="ov-eyebrow">{{ $t.eyebrow }}</p>
+    <h1 class="ov-title" id="ov-title">{{ $t.title }}</h1>
+    <p class="ov-intro">{{ $t.intro }}</p>
+    <p class="ov-note">{{ $t.note }}</p>
+  </header>
+
+  <div class="ov-stats" role="list" aria-label="{{ $t.title }}">
+    <div class="ov-stat" role="listitem">
+      <span class="ov-stat__num">{{ $postsCount }}</span>
+      <span class="ov-stat__label">{{ $t.stats.posts }}</span>
+    </div>
+    <div class="ov-stat" role="listitem">
+      <span class="ov-stat__num">{{ $notebooksCount }}</span>
+      <span class="ov-stat__label">{{ $t.stats.notebooks }}</span>
+    </div>
+    <div class="ov-stat" role="listitem">
+      <span class="ov-stat__num">{{ $projectsCount }}</span>
+      <span class="ov-stat__label">{{ $t.stats.projects }}</span>
+    </div>
+    <div class="ov-stat" role="listitem">
+      <span class="ov-stat__num">{{ $tagCount }}</span>
+      <span class="ov-stat__label">{{ $t.stats.tags }}</span>
+    </div>
+  </div>
+
+  <div class="ov-charts">
+    <figure class="ov-chart">
+      <figcaption>
+        <span class="ov-chart__title">{{ $t.charts.yearly_title }}</span>
+        <span class="ov-chart__desc">{{ $t.charts.yearly_desc }}</span>
+      </figcaption>
+      {{- if $yearBars }}
+      <div class="ov-yearbars" role="list">
+        {{- range $yearBars }}
+        {{- $pct := 0 }}
+        {{- if gt .count 0 }}{{ $pct = math.Round (div (mul (float .count) 100) (float $yearMax)) }}{{ end }}
+        <div class="ov-yearbar{{ if eq .count 0 }} ov-yearbar--zero{{ end }}" role="listitem" title="{{ .year }}: {{ .count }}">
+          <span class="ov-yearbar__count">{{ .count }}</span>
+          <span class="ov-yearbar__track">
+            <span class="ov-yearbar__fill{{ if eq .count 0 }} ov-yearbar__fill--zero{{ end }}" style="--h: {{ $pct }}%"></span>
+          </span>
+          <span class="ov-yearbar__year">{{ .year }}</span>
+        </div>
+        {{- end }}
+      </div>
+      {{- else }}
+      <p class="ov-chart__empty">{{ $t.empty }}</p>
+      {{- end }}
+    </figure>
+
+    <figure class="ov-chart">
+      <figcaption>
+        <span class="ov-chart__title">{{ $t.charts.tags_title }}</span>
+        <span class="ov-chart__desc">{{ $t.charts.tags_desc }}</span>
+      </figcaption>
+      {{- if $tagTop }}
+      <div class="ov-tagbars">
+        {{- range $tagTop }}
+        {{- $pct := math.Round (div (mul (float .count) 100) (float $tagMax)) }}
+        <div class="ov-tagbar">
+          <a class="ov-tagbar__label" href="{{ .url }}">{{ .name }}</a>
+          <span class="ov-tagbar__track">
+            <span class="ov-tagbar__fill" style="--w: {{ $pct }}%"></span>
+          </span>
+          <span class="ov-tagbar__count">{{ .count }}</span>
+        </div>
+        {{- end }}
+      </div>
+      {{- else }}
+      <p class="ov-chart__empty">{{ $t.empty }}</p>
+      {{- end }}
+    </figure>
+  </div>
+
+  <section class="ov-list" aria-labelledby="ov-list-title">
+    <div class="ov-list__head">
+      <h2 class="ov-list__title" id="ov-list-title">{{ $t.table.heading }}</h2>
+      <p class="ov-list__count" id="ov-count" aria-live="polite"
+         data-count-template="{{ $t.count }}">{{ replace $t.count "{n}" (printf "%d" (len $rows)) }}</p>
+    </div>
+
+    <div class="ov-filters">
+      <label class="ov-field ov-field--search">
+        <span class="ov-label">{{ $t.filters.search_label }}</span>
+        <input id="ov-search" type="search" placeholder="{{ $t.filters.search }}" autocomplete="off">
+      </label>
+      <label class="ov-field">
+        <span class="ov-label">{{ $t.filters.type }}</span>
+        <select id="ov-type">
+          <option value="all">{{ $t.filters.all_types }}</option>
+          {{- range $sections }}
+          <option value="{{ . }}">{{ index $t.types . }}</option>
+          {{- end }}
+        </select>
+      </label>
+      <label class="ov-field">
+        <span class="ov-label">{{ $t.filters.year }}</span>
+        <select id="ov-year">
+          <option value="all">{{ $t.filters.all_years }}</option>
+          {{- range $years }}
+          <option value="{{ . }}">{{ . }}</option>
+          {{- end }}
+        </select>
+      </label>
+      <label class="ov-field">
+        <span class="ov-label">{{ $t.filters.tag }}</span>
+        <select id="ov-tag">
+          <option value="all">{{ $t.filters.all_tags }}</option>
+          {{- range $filterTags }}
+          <option value="{{ . }}">{{ . }}</option>
+          {{- end }}
+        </select>
+      </label>
+      <button class="ov-reset" id="ov-reset" type="button">{{ $t.filters.reset }}</button>
+    </div>
+
+    <noscript><p class="ov-noscript">{{ $t.noscript }}</p></noscript>
+
+    <div class="ov-table-wrap">
+      <table class="ov-table" id="ov-table" data-sort="date" data-order="desc">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none">
+              <button class="ov-sort" type="button" data-sort-key="title">
+                {{ $t.table.item }}<span class="ov-sort__icon" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th scope="col" aria-sort="none">
+              <button class="ov-sort" type="button" data-sort-key="type">
+                {{ $t.table.type }}<span class="ov-sort__icon" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th scope="col" aria-sort="descending">
+              <button class="ov-sort" type="button" data-sort-key="date">
+                {{ $t.table.date }}<span class="ov-sort__icon" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th scope="col">{{ $t.table.tags }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{- range $rows }}
+          {{- $summary := .Description | default (.Summary | plainify | truncate 160) }}
+          {{- $terms := .GetTerms "tags" }}
+          {{- $tagNames := slice }}
+          {{- range $terms }}{{ $tagNames = $tagNames | append .LinkTitle }}{{ end }}
+          <tr
+            data-type="{{ .Section }}"
+            data-year="{{ .Date.Format "2006" }}"
+            data-date="{{ .Date.Format "2006-01-02" }}"
+            data-title="{{ .Title }}"
+            data-tags="{{ delimit $tagNames "|" }}"
+            data-search="{{ printf "%s %s %s" .Title $summary (delimit $tagNames " ") | lower }}">
+            <td data-label="{{ $t.table.item }}">
+              <a class="ov-row__title" href="{{ .RelPermalink }}">{{ .Title }}</a>
+              {{- if .Draft }}<span class="ov-draft">{{ $t.draft }}</span>{{ end }}
+              {{- with $summary }}<span class="ov-row__desc">{{ . }}</span>{{ end }}
+            </td>
+            <td data-label="{{ $t.table.type }}">
+              <span class="ov-type ov-type--{{ .Section }}">{{ index $t.types .Section }}</span>
+            </td>
+            <td data-label="{{ $t.table.date }}">
+              <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
+            </td>
+            <td data-label="{{ $t.table.tags }}">
+              {{- with $terms }}
+              <span class="ov-row__tags">
+                {{- range . }}<a class="ov-tag" href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>{{ end }}
+              </span>
+              {{- else }}
+              <span class="ov-muted">{{ $t.no_tags }}</span>
+              {{- end }}
+            </td>
+          </tr>
+          {{- end }}
+        </tbody>
+      </table>
+    </div>
+    <p class="ov-empty" id="ov-empty" hidden>{{ $t.empty }}</p>
+  </section>
+</div>
+
+{{- $js := resources.Get "js/overview.js" | minify | fingerprint }}
+<script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" defer></script>
+
+{{- end }}

@@ -3,7 +3,7 @@ draft: true
 date: 2026-10-20
 title: "從黑鏡到巨人：十部一生摯愛的科幻與人性史詩"
 description: "十部科幻與奇幻作品、五組對讀。從手機螢幕、複製人的記憶，一路走到救世主、歷史與自由。"
-tags: ["film", "sci-fi", "cyberpunk", "anime", "essay"]
+tags: ["Film", "Sci-Fi", "Cyberpunk", "Anime", "Essay"]
 ShowToc: true
 TocOpen: false
 cover:

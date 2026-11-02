@@ -1,6 +1,6 @@
 ---
 title: "Tech Trends for 2026"
-tags: ["tech trends", "AI", "frontier"]
+tags: ["Tech Trends", "AI", "Frontier"]
 draft: true
 date: 2026-03-01
 cover:

@@ -43,6 +43,7 @@ content/
 - **slug 一律 hyphen**，不用底線。URL 由目錄名直接產生，沒有 front matter 覆寫。新文章用 `hugo new posts/my-new-post/index.md`；圖片檔名不受限。
 - **草稿不進 `content/`**。bundle 裡任何 `.md` 都會被渲染；曾因草稿內含 `{{< mermaid >}}` 讓 build 失敗。草稿放 repo 根的 `drafts/`。
 - **新文章 `draft: true`**，front matter 用 YAML `---`。常用欄位：`draft`、`date`、`title`、`tags`、`description`、`math`、`cover`。
+- **Tag 一律英文 Title Case**，多字用空格，縮寫全大寫：`AI`、`Edge AI`、`System Design`、`KV Cache`、`PHM`、`LLM`、`GitHub Pages`。不要新增中文 tag；URL 由 Hugo `urlize` 產生（`Edge AI` → `/tags/edge-ai/`），front matter 不寫 slug。
 - **`cover.relative: true` 只給 zh-tw**。en 用絕對網址（`https://jiejiefu.github.io/blog/...`），否則 og:image 404。驗證：`rg -o 'og:image" content="[^"]+' public/<lang>/posts/<slug>/index.html`。
 - **en 刻意沒有 `images/`**，靠 Hugo 跨 bundle 解析到 zh-tw。不要在 en 複製圖片。
 - **Notebook 由 builder 產生**。改 `.ipynb` 後跑 `scripts/<slug>/build.py`，不要手改 `notebook.json` 或 `images/cell-*.webp`。
@@ -111,6 +112,7 @@ content/
 | 開新文章、規劃圖表 | [`docs/article-brief.md`](docs/article-brief.md) |
 | 改寫、去 AI 感 | [`docs/ai-slop-style-guide.md`](docs/ai-slop-style-guide.md) |
 | 首頁、Console、文字畫 | [`docs/features/home.md`](docs/features/home.md) |
+| 內容總覽、篩選總表 | [`docs/features/overview.md`](docs/features/overview.md) |
 | 分享框 | [`docs/features/share.md`](docs/features/share.md) |
 | 觀眾留言 | [`docs/features/viewer-comment.md`](docs/features/viewer-comment.md) |
 | 口述音檔、字幕 | [`docs/features/audio.md`](docs/features/audio.md) |

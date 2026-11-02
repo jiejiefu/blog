@@ -3,7 +3,7 @@ draft: false
 date: 2026-10-22
 title: "PPT Master 深度解析：工程師不再親手做投影片"
 description: "AI 如何從 SVG 編譯出原生 PPTX——拆解專案內的 SVG 中介語言、六條生成路線、品質閘門，以及 70 份公開範例背後沒說的事。"
-tags: ["ai-agent", "developer-tools", "open-source", "svg", "powerpoint", "system-design"]
+tags: ["AI Agent", "Developer Tools", "Open Source", "SVG", "PowerPoint", "System Design"]
 featured: true
 cover:
     image: "images/cover.jpg"

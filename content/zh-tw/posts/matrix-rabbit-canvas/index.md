@@ -3,7 +3,7 @@ draft: false
 date: 2026-10-31
 title: "那隻駭客任務綠色兔子：文字畫怎麼用 Canvas 畫出來"
 description: "首頁 hero 右側的綠色兔子是一張 132×110 的亮度網格。這篇拆解資料格式、八階色票、字型載入、Canvas 繪製、無 JS 降級與版面配置。"
-tags: ["hugo", "canvas", "javascript", "typography", "homepage"]
+tags: ["Hugo", "Canvas", "JavaScript", "Typography", "Homepage"]
 cover:
     image: "images/cover.jpg"
     alt: "深綠背景上的磷光兔子剪影，外框是終端機視窗"

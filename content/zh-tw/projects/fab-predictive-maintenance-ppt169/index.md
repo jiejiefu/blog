@@ -5,9 +5,9 @@ draft: false
 math: true
 tags:
   - Edge AI
-  - 預測性維護
+  - Predictive Maintenance
   - Fab Domain
-  - 系統設計
+  - System Design
   - AI Agent
 description: "從感測器串流、異常偵測、剩餘壽命預測，到邊緣部署與工業知識檢索，說明一套智慧工廠邊緣 AI 系統的分層架構與設計取捨。"
 cover:

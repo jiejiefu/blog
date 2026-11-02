@@ -3,7 +3,7 @@ draft: false
 date: 2026-10-20
 title: "這個部落格是怎麼長出來的：Hugo × PaperMod × GitHub Pages 建站日誌"
 description: "從空資料夾到 push 就上線的雙語部落格。這篇記錄 Hugo 與 PaperMod 的選擇、GitHub Actions 部署、首頁改造、圖片管線，以及十幾個只有真的踩過才會知道的坑。"
-tags: ["hugo", "papermod", "github-pages", "devlog"]
+tags: ["Hugo", "PaperMod", "GitHub Pages", "Devlog"]
 cover:
     image: "images/cover.jpg"
     alt: "Hugo、PaperMod 與 GitHub Pages 建站日誌封面"

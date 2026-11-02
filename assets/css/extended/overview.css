@@ -1,0 +1,696 @@
+/* 內容總覽
+   ------------------------------------------------------------------
+   這一頁刻意不是即時 dashboard：沒有 setInterval、沒有隨機波形。
+   所有數字都是 Hugo build 產物；樣式只負責把資料排清楚。
+
+   版面放寬到 1120px，但只在有 .ov-page 的頁面生效。
+   body 的灰底用 :has() 模擬 PaperMod 的 .list，不改 baseof。 */
+
+.main:has(.ov-page) {
+    max-width: calc(1120px + var(--gap) * 2);
+}
+
+body:has(.ov-page) {
+    background: var(--code-bg);
+}
+
+:root[data-theme="dark"] body:has(.ov-page) {
+    background: var(--theme);
+}
+
+.ov-page {
+    --ov-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    padding-block: 8px 72px;
+}
+
+.ov-page [hidden] {
+    display: none !important;
+}
+
+/* ---------- Hero ---------- */
+
+.ov-hero {
+    max-width: 780px;
+    padding-bottom: 26px;
+    margin-bottom: 26px;
+    border-bottom: 1px solid var(--border);
+}
+
+.ov-eyebrow {
+    margin: 0 0 10px;
+    font-family: var(--ov-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--secondary);
+}
+
+.ov-title {
+    margin: 0 0 14px;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+}
+
+.ov-intro {
+    margin: 0;
+    max-width: 68ch;
+    font-size: 1.02rem;
+    line-height: 1.72;
+    color: var(--content);
+}
+
+.ov-note {
+    margin: 14px 0 0;
+    padding-left: 12px;
+    border-left: 2px solid var(--tertiary);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--secondary);
+}
+
+/* ---------- Stats ---------- */
+
+.ov-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.ov-stat {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px 18px 15px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+}
+
+.ov-stat::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 18px;
+    width: 28px;
+    height: 2px;
+    background: var(--primary);
+    opacity: 0.75;
+}
+
+.ov-stat__num {
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.035em;
+    font-variant-numeric: tabular-nums;
+}
+
+.ov-stat__label {
+    font-family: var(--ov-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--secondary);
+}
+
+/* ---------- Charts ---------- */
+
+.ov-charts {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.ov-chart {
+    min-width: 0;
+    margin: 0;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+}
+
+.ov-chart figcaption {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 18px;
+}
+
+.ov-chart__title {
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.ov-chart__desc {
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: var(--secondary);
+}
+
+.ov-chart__empty {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--secondary);
+}
+
+.ov-yearbars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: clamp(6px, 1.2vw, 14px);
+    height: 180px;
+    padding-top: 12px;
+}
+
+.ov-yearbar {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+    max-width: 72px;
+    height: 100%;
+}
+
+.ov-yearbar__count,
+.ov-yearbar__year {
+    font-size: 0.7rem;
+    line-height: 1;
+    color: var(--secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.ov-yearbar--zero .ov-yearbar__count {
+    order: 2;
+}
+
+.ov-yearbar--zero .ov-yearbar__year {
+    order: 3;
+}
+
+.ov-yearbar__track {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    background: var(--code-bg);
+    border-radius: 3px 3px 0 0;
+}
+
+.ov-yearbar__fill {
+    width: 100%;
+    height: var(--h);
+    min-height: 2px;
+    background: var(--primary);
+    border-radius: 3px 3px 0 0;
+    transition: height 0.35s ease;
+}
+
+.ov-yearbar__fill--zero {
+    min-height: 0;
+}
+
+.ov-tagbars {
+    display: grid;
+    gap: 10px;
+}
+
+.ov-tagbar {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 9rem) minmax(0, 1fr) 2.2rem;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+}
+
+.ov-tagbar__label {
+    overflow: hidden;
+    color: var(--primary);
+    text-overflow: ellipsis;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.ov-tagbar__label:hover {
+    text-decoration: underline;
+}
+
+.ov-tagbar__track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--code-bg);
+}
+
+.ov-tagbar__fill {
+    display: block;
+    width: var(--w);
+    min-width: 3px;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary);
+    transition: width 0.35s ease;
+}
+
+.ov-tagbar__count {
+    font-size: 0.7rem;
+    text-align: right;
+    color: var(--secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Table ---------- */
+
+.ov-list {
+    padding: clamp(16px, 2.5vw, 28px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+}
+
+.ov-list__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 16px;
+}
+
+.ov-list__title {
+    margin: 0;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+}
+
+.ov-list__count {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.ov-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)) auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 14px;
+}
+
+.ov-field {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+
+.ov-field--search {
+    min-width: 0;
+}
+
+.ov-label {
+    font-family: var(--ov-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--secondary);
+}
+
+.ov-field input,
+.ov-field select {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    background: var(--theme);
+    color: var(--primary);
+    font: inherit;
+    font-size: 0.84rem;
+    line-height: 1.4;
+}
+
+.ov-field input::placeholder {
+    color: var(--secondary);
+}
+
+.ov-field input:hover,
+.ov-field select:hover {
+    border-color: var(--secondary);
+}
+
+.ov-reset {
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    background: transparent;
+    color: var(--secondary);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.ov-reset:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.ov-noscript {
+    margin: 0 0 12px;
+    font-size: 0.78rem;
+    color: var(--secondary);
+}
+
+.ov-table-wrap {
+    overflow-x: auto;
+}
+
+.ov-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+}
+
+.ov-table th {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--ov-mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-align: left;
+    text-transform: uppercase;
+    color: var(--secondary);
+    white-space: nowrap;
+}
+
+.ov-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+}
+
+.ov-sort:hover {
+    color: var(--primary);
+}
+
+.ov-sort__icon {
+    font-size: 0.85em;
+    opacity: 0.4;
+}
+
+.ov-table th[aria-sort="ascending"] .ov-sort__icon,
+.ov-table th[aria-sort="descending"] .ov-sort__icon {
+    color: var(--primary);
+    opacity: 1;
+}
+
+.ov-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--content);
+}
+
+.ov-table time {
+    white-space: nowrap;
+}
+
+.ov-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.ov-table tbody tr:hover {
+    background: var(--code-bg);
+}
+
+.ov-row__title {
+    color: var(--primary);
+    font-weight: 600;
+    line-height: 1.45;
+    text-decoration: none;
+}
+
+.ov-row__title:hover {
+    text-decoration: underline;
+}
+
+.ov-draft {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border: 1px solid var(--tertiary);
+    border-radius: 999px;
+    vertical-align: 0.08em;
+    font-family: var(--ov-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--secondary);
+}
+
+.ov-row__desc {
+    display: block;
+    max-width: 58ch;
+    margin-top: 4px;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: var(--secondary);
+}
+
+.ov-type {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--theme);
+    font-size: 0.68rem;
+    line-height: 1.6;
+    color: var(--secondary);
+    white-space: nowrap;
+}
+
+.ov-row__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.ov-tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--code-bg);
+    font-size: 0.68rem;
+    line-height: 1.6;
+    color: var(--secondary);
+    text-decoration: none;
+}
+
+.ov-tag:hover {
+    background: var(--tertiary);
+    color: var(--primary);
+}
+
+.ov-muted {
+    color: var(--secondary);
+}
+
+.ov-empty {
+    margin: 0;
+    padding: 28px 0 8px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--secondary);
+}
+
+/* ---------- Posts 頁入口 ---------- */
+
+.posts-overview-link {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    margin: 24px 0 8px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+    text-decoration: none;
+}
+
+.posts-overview-link:hover {
+    border-color: var(--primary);
+}
+
+.posts-overview-link__eyebrow {
+    flex-basis: 100%;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--secondary);
+}
+
+.posts-overview-link__text {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.posts-overview-link__desc {
+    flex-basis: 100%;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--secondary);
+}
+
+.posts-overview-link__arrow {
+    margin-left: auto;
+    color: var(--secondary);
+}
+
+/* ---------- Focus ---------- */
+
+.ov-field input:focus-visible,
+.ov-field select:focus-visible,
+.ov-reset:focus-visible,
+.ov-sort:focus-visible,
+.ov-tag:focus-visible,
+.ov-row__title:focus-visible,
+.ov-tagbar__label:focus-visible,
+.posts-overview-link:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+    .ov-charts {
+        grid-template-columns: 1fr;
+    }
+
+    .ov-filters {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .ov-field--search {
+        grid-column: 1 / -1;
+    }
+
+    .ov-reset {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 720px) {
+    .ov-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .ov-yearbars {
+        height: 150px;
+        gap: 6px;
+    }
+
+    .ov-tagbar {
+        grid-template-columns: minmax(5.5rem, 7.5rem) minmax(0, 1fr) 2rem;
+    }
+
+    .ov-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .ov-field--search,
+    .ov-reset {
+        grid-column: auto;
+    }
+
+    .ov-reset {
+        width: 100%;
+    }
+
+    .ov-list {
+        padding: 16px;
+    }
+
+    .ov-table thead {
+        display: none;
+    }
+
+    .ov-table,
+    .ov-table tbody,
+    .ov-table tr,
+    .ov-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .ov-table tr {
+        margin-bottom: 10px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--theme);
+    }
+
+    .ov-table tr:last-child {
+        margin-bottom: 0;
+    }
+
+    .ov-table td {
+        display: grid;
+        grid-template-columns: 5.2rem minmax(0, 1fr);
+        gap: 10px;
+        padding: 5px 0;
+        border: 0;
+    }
+
+    .ov-table td::before {
+        content: attr(data-label);
+        padding-top: 0.2em;
+        font-family: var(--ov-mono);
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--secondary);
+    }
+
+    .ov-table td:first-child {
+        display: block;
+        padding-top: 0;
+    }
+
+    .ov-table td:first-child::before {
+        display: none;
+    }
+
+    .ov-row__desc {
+        max-width: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ov-yearbar__fill,
+    .ov-tagbar__fill {
+        transition: none;
+    }
+}

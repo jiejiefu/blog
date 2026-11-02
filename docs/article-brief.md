@@ -42,6 +42,16 @@
 - 參考文章只借結構與密度，不抄內容。
 - 封面風格沿用終端機／藍圖，和既有兩篇一致。
 
+## Tags 規則
+
+front matter 的 `tags` 一律用英文 Title Case，多字用空格，縮寫全大寫：
+
+```yaml
+tags: ["AI", "Edge AI", "System Design", "KV Cache", "PHM"]
+```
+
+不要寫中文 tag，也不要寫 hyphen 版本（`edge-ai`、`system-design`）。URL 由 Hugo `urlize` 產生，總覽頁的篩選值也是同一套。
+
 ## 提示 2：補圖
 
 ```text

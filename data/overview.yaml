@@ -1,0 +1,117 @@
+# 內容總覽（雙語）
+# ------------------------------------------------------------------
+# 與 data/home.yaml 相同：頂層以語言代碼分組，模板用
+# `index hugo.Data "overview" site.Language.Lang` 取值。
+# 不要拆成 overview.zh-tw.yaml；Hugo 會註冊成 key "overview.zh-tw"。
+#
+# 這裡只放文案。文章數、標籤數、年份與表格資料全部由
+# layouts/_default/overview.html 從 site.RegularPages 現算。
+# 統計與圖表只算 draft: false；總表在 hugo server -D 會列出草稿。
+
+zh-tw:
+  eyebrow: "INDEX / ALL CONTENT"
+  title: "內容總覽"
+  intro: >-
+    把站上的文章、Notebook 與專案攤在同一張表上。數字來自 Hugo build，
+    沒有即時連線，也沒有假的系統狀態。
+  note: "統計只計入已發布內容；草稿只在開發模式（hugo server -D 或 hugo --buildDrafts）出現在總表。"
+
+  link:
+    eyebrow: "INDEX"
+    text: "查看內容總覽"
+    desc: "所有文章、Notebook 與專案，一張表看完。"
+
+  stats:
+    posts: "文章"
+    notebooks: "Notebooks"
+    projects: "專案"
+    tags: "標籤"
+
+  filters:
+    search: "搜尋標題、摘要、標籤…"
+    search_label: "搜尋"
+    type: "類型"
+    year: "年份"
+    tag: "標籤"
+    all_types: "全部類型"
+    all_years: "全部年份"
+    all_tags: "全部標籤"
+    reset: "重設"
+
+  types:
+    posts: "文章"
+    notebooks: "Notebook"
+    projects: "專案"
+
+  table:
+    heading: "所有內容"
+    item: "項目"
+    type: "類型"
+    date: "日期"
+    tags: "標籤"
+
+  charts:
+    yearly_title: "每年產出"
+    yearly_desc: "依發布日期計算已發布內容；不足 5 年時補齊年份，長條上的數字是篇數。"
+    tags_title: "標籤分佈"
+    tags_desc: "已發布內容的 tag 出現次數，取前 12 名。"
+
+  count: "共 {n} 筆"
+  draft: "草稿"
+  empty: "沒有符合條件的內容。"
+  no_tags: "—"
+  noscript: "篩選與排序需要 JavaScript；所有內容仍列在下方。"
+
+en:
+  eyebrow: "INDEX / ALL CONTENT"
+  title: "Content Overview"
+  intro: >-
+    Every post, notebook, and project on one page. The numbers come from the
+    Hugo build — no live connection, no fake system status.
+  note: "Stats count published content only. Drafts appear in the table in development mode (hugo server -D or hugo --buildDrafts)."
+
+  link:
+    eyebrow: "INDEX"
+    text: "View content overview"
+    desc: "Every post, notebook, and project in one table."
+
+  stats:
+    posts: "Posts"
+    notebooks: "Notebooks"
+    projects: "Projects"
+    tags: "Tags"
+
+  filters:
+    search: "Search titles, summaries, tags…"
+    search_label: "Search"
+    type: "Type"
+    year: "Year"
+    tag: "Tag"
+    all_types: "All types"
+    all_years: "All years"
+    all_tags: "All tags"
+    reset: "Reset"
+
+  types:
+    posts: "Post"
+    notebooks: "Notebook"
+    projects: "Project"
+
+  table:
+    heading: "All content"
+    item: "Item"
+    type: "Type"
+    date: "Date"
+    tags: "Tags"
+
+  charts:
+    yearly_title: "Output by Year"
+    yearly_desc: "Published items by publish date, padded to at least five years; the number on each bar is the count."
+    tags_title: "Tag Distribution"
+    tags_desc: "Tag occurrences across published content, top 12."
+
+  count: "{n} items"
+  draft: "Draft"
+  empty: "Nothing matches these filters."
+  no_tags: "—"
+  noscript: "Filtering and sorting need JavaScript; every item is still listed below."

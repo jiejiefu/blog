@@ -3,7 +3,7 @@ draft: false
 date: 2026-10-19
 title: "REA 深度解析：36 萬星的 MCP 逆向工程閘道，如何讓 AI Agent 從 App 拆到二進位"
 description: "REA（Reverse Engineer Anything）把 Hopper、Ghidra、IDA 這些重型反編譯引擎包成一個本地 MCP 閘道，讓 AI Agent 用自然語言對已編譯的軟體提問。本文拆解它的雙路徑架構、Evidence 模型與重建責任帳本，並整理實務維運會踩到的坑。"
-tags: ["ai-agent", "mcp", "reverse-engineering", "developer-tools", "open-source", "system-design"]
+tags: ["AI Agent", "MCP", "Reverse Engineering", "Developer Tools", "Open Source", "System Design"]
 featured: true
 math: true
 cover:

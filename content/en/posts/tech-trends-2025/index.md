@@ -1,6 +1,6 @@
 ---
 title: "Tech Trends for 2025"
-tags: ["tech trends", "AI", "frontier"]
+tags: ["Tech Trends", "AI", "Frontier"]
 draft: true
 date: 2026-03-02
 cover:

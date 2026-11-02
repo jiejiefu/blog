@@ -5,9 +5,9 @@ draft: false
 math: true
 tags:
   - Edge AI
-  - 預測性維護
+  - Predictive Maintenance
   - Fab Domain
-  - 系統設計
+  - System Design
   - AI Agent
 description: "An engineering guide to edge deployment, predictive maintenance, Edge Agents, Industrial RAG, MLOps, and autonomous decision systems for smart factories."
 cover:

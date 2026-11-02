@@ -3,7 +3,7 @@ draft: false
 date: 2026-10-27
 title: "DeepSeek-V4.1-Flash：把 global KV 壓到 890 bytes/token，骨幹反而大了近一倍"
 description: "DeepSeek-V4.1-Flash 用 CED 把 decoder 的 global KV 從 encoder 長出來、用 CSA2 跨層共享 KV 與 index、再把 global KV 壓到 FP4，做到 890 bytes/token。本文拆解 40 層配置、FP4 位元帳、SWA Bounded Replay 的近似代價，以及 1017 更新後與 Anthropic Opus-5 的 4 勝 4 負。"
-tags: ["ai", "llm", "deepseek", "kv-cache", "model-architecture", "system-design"]
+tags: ["AI", "LLM", "DeepSeek", "KV Cache", "Model Architecture", "System Design"]
 ShowToc: true
 TocOpen: false
 math: true

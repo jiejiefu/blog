@@ -1,6 +1,6 @@
 ---
 title: "2021年的科技趨勢"
-tags: ["科技趨勢", "AI", "前沿"]
+tags: ["Tech Trends", "AI", "Frontier"]
 draft: true
 date: 2026-03-06
 cover:

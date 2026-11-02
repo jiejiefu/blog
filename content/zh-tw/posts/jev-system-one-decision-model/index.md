@@ -3,7 +3,7 @@ draft: false
 date: 2026-10-25
 title: "Jev 深度解析：不聊天、只做決定的 System One 模型，如何把 AI 變成程式裡的一個 if"
 description: "Jev 不生成文字，只吃 state 與 typed questions，回傳可直接餵給程式的答案與 confidence。本文拆解 Choice、Score、Noul、平行批次、70–500ms 的真實邊界，以及把它放進 agent guardrail 時會踩的坑。"
-tags: ["ai", "system-one", "llm", "ai-agent", "api-design", "system-design"]
+tags: ["AI", "System One", "LLM", "AI Agent", "API Design", "System Design"]
 featured: true
 math: true
 cover:

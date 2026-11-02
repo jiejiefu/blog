@@ -38,6 +38,11 @@
 | `assets/js/lab-console.js` | Console 的假日誌串流 / 指標 / 時鐘（ES5，無相依） |
 | `assets/css/extended/lab-console.css` | Console 的終端機樣式（`.lab-term*`） |
 | `data/home.yaml` | 首頁雙語文案（hero / 卡片 / console / 區塊標題）+ `shared.console`（兩種語言共用的假日誌） |
+| `layouts/_default/overview.html` | 內容總覽頁：統計、年度／標籤圖、篩選器、總表（見 [overview.md](overview.md)） |
+| `layouts/shortcodes/posts-overview-link.html` | Posts 列表頁的內容總覽入口卡片 |
+| `assets/js/overview.js` | 內容總覽的 client-side 篩選、排序、URL 同步 |
+| `assets/css/extended/overview.css` | `.ov-*`、內容總覽入口、手機版卡片式表格 |
+| `data/overview.yaml` | 內容總覽雙語文案與統計 / 篩選標籤 |
 | `assets/css/extended/custom.css` | Fade-up keyframe animation + `.share-box` + `.mermaid` + `.tldr` + `.plotly-*` + `.post-audio*` + 首頁 `.lab-*` 樣式與 `--accent` |
 | `assets/css/extended/chroma-00-reset.css` | Chroma **reset 層**（把 PaperMod 內建 Catppuccin 的 token 色歸零），見「程式碼高亮」節 |
 | `assets/css/extended/chroma-atom-one-light.css` / `chroma-tokyonight-night.css` | 淺色 Atom One Light、深色 Tokyo Night token 配色，分別 scope 在 `:root:not([data-theme=dark])` / `:root[data-theme=dark]` |

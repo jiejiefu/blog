@@ -1,0 +1,7 @@
+{{- $t := index hugo.Data "overview" site.Language.Lang | default (index hugo.Data "overview" "zh-tw") -}}
+<a class="posts-overview-link" href="{{ "posts/overview/" | absLangURL }}">
+  <span class="posts-overview-link__eyebrow">{{ $t.link.eyebrow }}</span>
+  <span class="posts-overview-link__text">{{ $t.link.text }}</span>
+  <span class="posts-overview-link__arrow" aria-hidden="true">&#8599;</span>
+  <span class="posts-overview-link__desc">{{ $t.link.desc }}</span>
+</a>

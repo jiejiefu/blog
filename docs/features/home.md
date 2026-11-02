@@ -103,10 +103,9 @@ Console 原本在精選文章之後，移到 Hero 正下方 —— 它是整頁 
 | `{code}` | 1/2/125/126/127/134/137/139/143 | 行程結束碼（`{n}` 是四位數，不像 exit code） |
 | `{ver}` | `v2.3.14` | **已自帶 `v`**，寫 `phm-v{ver}` 會變成 `phm-vv2.3.14` |
 
-⚠️ **四格統計必須先 `where "Draft" false`。** 站上目前只有 2 篇 `draft: false`
-（其餘 TECH_TRENDS 系列 / `mermaid-smoke-test` / `hello-world` 全是草稿），
-Hugo 的 `site.RegularPages` 與 `site.Taxonomies` 都把草稿算進去，直接用會顯示
-「文章 10」。`hugo --buildDrafts` **不會**把 `.Draft` 改成 true（它只是把草稿納入建置），
+⚠️ **四格統計必須先 `where "Draft" false`。** Hugo 的 `site.RegularPages` 與
+`site.Taxonomies` 都會把草稿算進去，直接用會把 TECH_TRENDS 系列等草稿當成已發布。
+`hugo --buildDrafts` **不會**把 `.Draft` 改成 true（它只是把草稿納入建置），
 所以這裡過濾後 `-D` 與正式 build 的數字一致。
 
 ⚠️ 標籤數**刻意不用** `len site.Taxonomies.tags`，改成從已發布文章的 `.Params.tags`
@@ -233,7 +232,7 @@ en:
 
 這是刻意的：與其輸出一個 404 的入口，不如先不給這張卡。但副作用是 —— **在 `data/home.yaml` 加新 tag 之前，一定要先確認那個分類真的有文章**，否則卡片會無聲消失。
 
-站上實際存在的 tag：`edge-ai` / `machine-learning` / `system-design` / `ai-agent` / `predictive-maintenance` / `backend-engineering` / `phm` / `fab-domain` / `預測性維護` / `系統設計`。
+站上 tag URL 以 `public/tags/` 為準；技術卡用的 tag 必須存在，例如 `edge-ai` / `machine-learning` / `system-design` / `ai-agent` / `predictive-maintenance` / `backend-engineering` / `phm` / `fab-domain`。front matter 寫 Title Case（`Edge AI`），模板用 `urlize` 查 `edge-ai`。
 
 ### ⚠️ 踩過的坑 4：首頁**刻意不用** AOS 的 `data-aos`
 
@@ -296,14 +295,12 @@ for theme in ('light','dark'):
 PY
 ```
 
-### 已知死鏈（本次未修）
+### 已知死鏈
 
-首頁原本的 4 個入口在正式 build 全部 404，本次已從首頁移除，但**頂部選單仍然是死鏈**：
+- `/resume/` — `content/{zh-tw,en}/resume/index.md` 仍是 `draft: true`，正式 build 是 404。
+- `/projects/` 已發布，頂部選單的 Projects 連結可用；section 由 `content/{zh-tw,en}/projects/_index.md` 產生。
 
-- `/projects/` — `content/zh-tw/projects/index.md` 是 `draft: true`，而且內容只有一行 `## Signal Proecessing`（拼錯了）
-- `/resume/` — `content/{zh-tw,en}/resume/index.md` 也是 `draft: true`
-
-待 `projects` 頁真的寫完、resume 拿掉 draft，再把選單打開。
+Resume 拿掉 draft 後再確認選單連結。
 
 ### 驗證
 
@@ -323,15 +320,15 @@ python3 -c "import re,json;h=open('public/index.html',encoding='utf-8').read();j
 ⚠️ **`hugo --minify` 會把屬性的引號拿掉**，所以 `href="x"` 在正式 build 是
 `href=x`。正則要寫成 `href=["\x27]?` 才兩種都收，否則會出現「明明有 4 條卻抓到 0 條」。
 
-⚠️ **負向測試（首頁不該有 projects / resume 死鏈）不能用 `rg 'href=.*(projects|resume)'`** ——
-那會抓到 PaperMod 頂部選單的兩個連結，而那正是 AGENTS.md 已記載的「已知死鏈」。
+⚠️ **負向測試（首頁 main 內不該有 resume 死鏈）不能用 `rg 'href=.*(projects|resume)'`** ——
+那會抓到 PaperMod 頂部選單；Projects 現在是有效連結，Resume 仍是死鏈。
 要測的是首頁**內文**，必須先切出 `<main>`：
 
 ```sh
 python3 -c "
 import re;h=open('public/index.html',encoding='utf-8').read()
 main=re.search(r'<main[^>]*>(.*?)</main>',h,re.S).group(1)
-print('main 內死鏈數:',len(re.findall(r'(projects|resume)/',main)))"   # 應為 0
+print('main 內 resume 死鏈數:',len(re.findall(r'resume/',main)))"   # 應為 0
 ```
 
 **JS 有沒有真的跑起來**只能在瀏覽器驗（`public/` 是 client 渲染前的產物）。

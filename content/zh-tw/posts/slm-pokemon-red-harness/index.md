@@ -3,7 +3,7 @@ draft: false
 date: 2026-10-22
 title: "小模型不像是大腦：0.8B 小型語言模型 × Pokémon Red 的 Harness 工程"
 description: "用 0.8B 本地 SLM 玩 Pokémon Red，從 VLM 截圖的 1–2 秒延遲與幻覺，改用 RAM／TileMap 的 0.01 ms 觀測，再用三層 Agent Harness 把反射、記憶與導航從模型身上拆出去。這是一場把小型語言模型放對位置的工程實驗，不是模型評測。"
-tags: ["small-language-models", "ai-agent", "edge-ai", "reverse-engineering", "game-boy", "system-design"]
+tags: ["Small Language Models", "AI Agent", "Edge AI", "Reverse Engineering", "Game Boy", "System Design"]
 ShowToc: true
 TocOpen: false
 cover:

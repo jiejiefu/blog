@@ -3,7 +3,7 @@ draft: true
 date: 2026-10-21
 title: "AI 把 Bug 修好了，我這工程師只剩 BI"
 description: "AI 讓寫程式變得前所未有地容易。但當錯誤訊息、程式碼和解決方案都能交給 AI，我開始思考：效率提升之後，我真正累積下來的能力還剩多少？"
-tags: ["ai", "software-engineering", "developer-tools", "career", "essay"]
+tags: ["AI", "Software Engineering", "Developer Tools", "Career", "Essay"]
 ShowToc: true
 TocOpen: false
 cover:
