@@ -1,0 +1,220 @@
+{
+  "schema": 1,
+  "meta": {
+    "title": "用轉動的圓畫出方波：傅立葉級數的視覺直覺",
+    "filename": "notebook.ipynb",
+    "kernel": "Python 3 (ipykernel)",
+    "language": "python",
+    "python_version": "3.13.14",
+    "executed_at": "2026-11-10 17:59 CST",
+    "duration_ms": 18438,
+    "cell_count": 20,
+    "code_cell_count": 9,
+    "readonly": true
+  },
+  "cells": [
+    {
+      "type": "markdown",
+      "source": "## 這頁在做什麼\n\n一個方波看起來只有高低兩段，但它其實可以由一堆不同頻率的正弦波疊出來。這頁用「轉動的圓」把這件事畫出來。每個圓代表一個頻率，半徑是振幅，圓心接在下一個圓上。把最外圈的點連起來，就會得到逼近的方波。\n\n先看結果。下面四列分別用 1、2、3、4 個奇次諧波逼近方波。列數越多，波形越接近方塊，但邊緣的振鈴不會完全消失。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "%matplotlib inline\nimport sys\nfrom pathlib import Path\n\nfor base in (Path.cwd(), Path.cwd().parent, Path.cwd() / \"scripts\"):\n    if (base / \"notebook_media.py\").exists():\n        sys.path.insert(0, str(base))\n        break\n\nfrom notebook_media import ensure_ffmpeg\nensure_ffmpeg()\n\nimport numpy as np\nimport matplotlib.pyplot as plt\nfrom matplotlib.patches import Circle\nfrom matplotlib.animation import FuncAnimation\n\nplt.rcParams.update({\n    \"figure.dpi\": 120,\n    \"savefig.dpi\": 120,\n    \"font.sans-serif\": [\"PingFang TC\", \"Heiti TC\", \"Arial Unicode MS\", \"DejaVu Sans\"],\n    \"axes.unicode_minus\": False,\n    \"axes.grid\": True,\n    \"grid.alpha\": 0.25,\n    \"axes.spines.top\": False,\n    \"axes.spines.right\": False,\n})\n\nTAU = 2 * np.pi",
+      "execution_count": 1,
+      "tags": [],
+      "outputs": []
+    },
+    {
+      "type": "code",
+      "source": "def epicycle_state(angle, n_terms, kind=\"square\"):\n    # Return harmonic terms, radii, and the tip-to-tail points.\n    if kind == \"square\":\n        terms = [2 * k + 1 for k in range(n_terms)]\n    elif kind == \"sawtooth\":\n        terms = list(range(1, n_terms + 1))\n    else:\n        raise ValueError(kind)\n\n    x = y = 0.0\n    points = [(0.0, 0.0)]\n    radii = []\n\n    for n in terms:\n        radius = (4 if kind == \"square\" else 2) / (n * np.pi)\n        phase = 0.0 if kind == \"square\" else (np.pi if n % 2 == 1 else 0.0)\n        x += radius * np.cos(n * angle + phase)\n        y += radius * np.sin(n * angle + phase)\n        radii.append(radius)\n        points.append((x, y))\n\n    return terms, radii, points",
+      "execution_count": 2,
+      "tags": [],
+      "outputs": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 先看結果：四列逐項逼近\n\n每一列多一個奇次諧波。左邊是圓的接力，右邊是接力終點留下的波形。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "def animate_wave(kind, filename, poster):\n    rows = 4\n    frames = 240\n    angles = np.linspace(0, TAU, frames)\n    colors = [\"tab:blue\", \"tab:orange\", \"tab:green\", \"tab:red\"]\n\n    fig, axes = plt.subplots(rows, 1, figsize=(10, 8), constrained_layout=True)\n    circles, arms, waves = [], [], []\n\n    for i, ax in enumerate(axes):\n        terms, radii, _ = epicycle_state(0.0, i + 1, kind)\n        row_circles = []\n        for j, radius in enumerate(radii):\n            circle = Circle((0, 0), radius, fill=False, color=colors[j], alpha=0.5, lw=0.8)\n            ax.add_patch(circle)\n            row_circles.append(circle)\n        arm, = ax.plot([], [], \"o-\", color=colors[i], lw=1, ms=2)\n        wave, = ax.plot([], [], color=colors[i], lw=1.5)\n        ax.set_xlim(-1.35, 5.2)\n        ax.set_ylim(-1.35, 1.35)\n        ax.set_aspect(\"equal\")\n        ax.axis(\"off\")\n        ax.text(-1.3, 0, f\"n={', '.join(str(n) for n in terms)}\",\n                fontsize=10, va=\"center\", ha=\"left\")\n        circles.append(row_circles)\n        arms.append(arm)\n        waves.append(wave)\n\n    history = [[] for _ in range(rows)]\n\n    def update(frame):\n        angle = angles[frame]\n        artists = []\n        for i in range(rows):\n            terms, radii, points = epicycle_state(angle, i + 1, kind)\n            for j, (radius, center) in enumerate(zip(radii, points[:-1])):\n                circles[i][j].set_center(center)\n                circles[i][j].set_radius(radius)\n            arms[i].set_data([p[0] for p in points], [p[1] for p in points])\n            history[i].insert(0, points[-1][1])\n            if len(history[i]) > frames:\n                history[i].pop()\n            xs = np.linspace(1.55, 1.55 + len(history[i]) * 0.012, len(history[i]))\n            waves[i].set_data(xs, history[i])\n            artists.extend([arms[i], waves[i]] + circles[i])\n        return artists\n\n    anim = FuncAnimation(fig, update, frames=frames, interval=50, blit=True)\n    for i in range(frames):\n        update(i)\n    fig.savefig(poster, dpi=120, bbox_inches=\"tight\")\n    anim.save(\n        filename,\n        writer=\"ffmpeg\",\n        fps=20,\n        codec=\"libx264\",\n        extra_args=[\"-pix_fmt\", \"yuv420p\", \"-crf\", \"23\"],\n    )\n    plt.close(fig)",
+      "execution_count": 3,
+      "tags": [],
+      "outputs": []
+    },
+    {
+      "type": "code",
+      "source": "animate_wave(\n    \"square\",\n    \"square_wave_increasing_terms.mp4\",\n    \"square_wave_increasing_terms.png\",\n)",
+      "execution_count": 4,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "video",
+          "src": "videos/square_wave_increasing_terms.mp4",
+          "poster": "images/square_wave_increasing_terms.webp",
+          "alt": "方波逐項逼近動畫，四列分別使用 1、2、3、4 個奇次諧波",
+          "caption": "方波的逐項逼近。每一列多一個奇次諧波，右側波形越來越接近方波。",
+          "width": 1200,
+          "height": 960,
+          "controls": true,
+          "autoplay": false,
+          "muted": true,
+          "loop": true,
+          "playsinline": true
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 一個圓的投影就是正弦波\n\n把一個點放在半徑 1 的圓上，讓它等速旋轉。這個點的 $y$ 座標隨時間變化，就是一條正弦波。圓的半徑是振幅，轉一圈的時間決定頻率，起始角度決定相位。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "theta = np.linspace(0, TAU, 400)\nangle = np.pi / 4\n\nfig, axes = plt.subplots(1, 2, figsize=(10, 4), constrained_layout=True)\n\naxes[0].plot(np.cos(theta), np.sin(theta), color=\"tab:blue\")\naxes[0].plot([0, np.cos(angle)], [0, np.sin(angle)], color=\"tab:red\")\naxes[0].plot([np.cos(angle)], [np.sin(angle)], \"o\", color=\"tab:red\")\naxes[0].set_aspect(\"equal\")\naxes[0].set_xlim(-1.2, 1.2)\naxes[0].set_ylim(-1.2, 1.2)\naxes[0].set_title(\"等速圓周運動\")\naxes[0].set_xlabel(\"x\")\naxes[0].set_ylabel(\"y\")\n\naxes[1].plot(theta, np.sin(theta), color=\"tab:blue\")\naxes[1].plot([angle], [np.sin(angle)], \"o\", color=\"tab:red\")\naxes[1].axhline(0, color=\"0.5\", lw=0.8)\naxes[1].set_title(\"投影到 y 軸就是正弦波\")\naxes[1].set_xlabel(\"角度 [rad]\")\naxes[1].set_ylabel(\"sin(theta)\")",
+      "execution_count": 5,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "Text(0, 0.5, 'sin(theta)')",
+          "execution_count": 5
+        },
+        {
+          "type": "image",
+          "src": "images/cell-08-out-02.webp",
+          "alt": "左圖是單位圓與旋轉點，右圖是同一角度對應的正弦波投影",
+          "caption": "同一個旋轉角度，左邊看位置，右邊看高度。高度就是正弦波。",
+          "width": 1204,
+          "height": 493,
+          "execution_count": 5
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 把多個圓接起來\n\n把第二個圓的圓心接到第一個圓的終點，再把第三個圓接到第二個圓的終點。最外圈的點會走出比較複雜的軌跡。這些圓的轉速分別是基頻的 1、3、5、7 倍，半徑則是 $4/(n\\pi)$。\n\n下圖把四個不同項數的接力畫在同一個角度。圓越多，終點越接近方波的邊緣。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "fig, axes = plt.subplots(4, 1, figsize=(9, 8), constrained_layout=True)\ncolors = [\"tab:blue\", \"tab:orange\", \"tab:green\", \"tab:red\"]\nangle = 0.9\n\nfor i, ax in enumerate(axes):\n    terms, radii, points = epicycle_state(angle, i + 1, \"square\")\n    for j, (radius, center) in enumerate(zip(radii, points[:-1])):\n        ax.add_patch(Circle(center, radius, fill=False, color=colors[j], alpha=0.5, lw=0.8))\n    ax.plot([p[0] for p in points], [p[1] for p in points], \"o-\", color=colors[i], lw=1, ms=2)\n    ax.plot([points[-1][0], 1.55], [points[-1][1]] * 2, \"--\", color=\"0.4\", lw=0.8)\n    ax.set_xlim(-1.3, 1.7)\n    ax.set_ylim(-1.3, 1.3)\n    ax.set_aspect(\"equal\")\n    ax.axis(\"off\")\n    ax.set_title(f\"n={', '.join(str(n) for n in terms)}\", loc=\"left\", fontsize=10)",
+      "execution_count": 6,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "image",
+          "src": "images/cell-10-out-01.webp",
+          "alt": "四列圓的接力，項數分別為 1、3、5、7",
+          "caption": "圓心接到下一個圓的圓心。最外圈的終點就是當下的近似值。",
+          "width": 261,
+          "height": 973,
+          "execution_count": 6
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 方波為什麼只有奇次諧波\n\n方波是奇函數，而且左右對稱。把這個對稱性放進傅立葉級數，偶次諧波會互相抵銷，只剩下 1、3、5、7 這些奇次項。\n\n方波的級數可以寫成：\n\n$$\nf(t)=\\frac{4}{\\pi}\\left(\\sin t+\\frac{\\sin 3t}{3}+\\frac{\\sin 5t}{5}+\\cdots\\right)\n$$\n\n每一項的振幅是 $4/(n\\pi)$，所以頻率越高，振幅越小。這也是為什麼只取前幾項時，波形已經有方塊的輪廓。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 從 1 項到 7 項\n\n下圖把部分和畫出來。虛線是理想的方波，彩色線是不同項數的近似。項數增加時，平頂越來越平，邊緣越來越陡。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "def square_partial(t, n_terms):\n    y = np.zeros_like(t)\n    for k in range(n_terms):\n        n = 2 * k + 1\n        y += 4 / (n * np.pi) * np.sin(n * t)\n    return y\n\nt = np.linspace(0, TAU, 2000)\n\nfig, axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True, constrained_layout=True)\nfor i, ax in enumerate(axes):\n    terms = [2 * k + 1 for k in range(i + 1)]\n    y = square_partial(t, i + 1)\n    ax.plot(t, y, color=\"tab:blue\", lw=1.4, label=f\"{len(terms)} terms\")\n    ax.axhline(1, color=\"0.5\", ls=\"--\", lw=0.8)\n    ax.axhline(-1, color=\"0.5\", ls=\"--\", lw=0.8)\n    ax.set_ylim(-1.5, 1.5)\n    ax.set_ylabel(\"amplitude\")\n    ax.set_title(f\"n={', '.join(str(n) for n in terms)}\", loc=\"left\", fontsize=10)\n    ax.legend(loc=\"upper right\", fontsize=8)\naxes[-1].set_xlabel(\"angle [rad]\")",
+      "execution_count": 7,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "Text(0.5, 0, 'angle [rad]')",
+          "execution_count": 7
+        },
+        {
+          "type": "image",
+          "src": "images/cell-13-out-02.webp",
+          "alt": "四張子圖顯示方波部分和，項數增加時波形越來越接近方波",
+          "caption": "奇次諧波的部分和。虛線是理想方波，彩色線是近似。",
+          "width": 1213,
+          "height": 973,
+          "execution_count": 7
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 邊緣的振鈴：Gibbs phenomenon\n\n項數增加不會讓邊緣的過衝消失。過衝會變窄，但高度仍然存在，約為理想值的 9%。這個現象叫 Gibbs phenomenon。\n\n下圖把邊緣放大。項數從 5 增加到 50，過衝的位置越來越靠近跳變點，但峰值幾乎不變。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "t = np.linspace(0, TAU, 5000)\n\nfig, ax = plt.subplots(figsize=(10, 4), constrained_layout=True)\nfor n_terms, color in [(5, \"tab:blue\"), (15, \"tab:orange\"), (50, \"tab:green\")]:\n    ax.plot(t, square_partial(t, n_terms), color=color, lw=1.2, label=f\"{n_terms} terms\")\n\nax.axhline(1.0895, color=\"0.4\", ls=\":\", lw=1)\nax.text(0.08, 1.115, \"Gibbs overshoot ≈ 1.0895\", fontsize=9, color=\"0.3\")\nax.set_xlim(0, np.pi / 2)\nax.set_ylim(0.6, 1.25)\nax.set_xlabel(\"angle [rad]\")\nax.set_ylabel(\"amplitude\")\nax.legend(loc=\"lower right\", fontsize=9)",
+      "execution_count": 8,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "<matplotlib.legend.Legend at 0x10fcab890>",
+          "execution_count": 8
+        },
+        {
+          "type": "image",
+          "src": "images/cell-15-out-02.webp",
+          "alt": "三條部分和曲線在方波跳變點附近都出現約 1.0895 的過衝",
+          "caption": "項數增加只會讓過衝變窄，不會讓它消失。",
+          "width": 1213,
+          "height": 493,
+          "execution_count": 8
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 換成鋸齒波\n\n鋸齒波用所有整數諧波，不是只有奇次。係數換成 $2/(n\\pi)$，而且每隔一項要加 $180^\\circ$ 的相位。相位交錯讓波形往同一個方向傾斜。\n\n下面這支動畫把方波換成鋸齒波。程式只改了三個地方：諧波清單、半徑公式、相位。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "animate_wave(\n    \"sawtooth\",\n    \"sawtooth_wave_approximation.mp4\",\n    \"sawtooth_wave_approximation.png\",\n)",
+      "execution_count": 9,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "video",
+          "src": "videos/sawtooth_wave_approximation.mp4",
+          "poster": "images/sawtooth_wave_approximation.webp",
+          "alt": "鋸齒波逐項逼近動畫，四列使用 1 到 4 個整數諧波",
+          "caption": "鋸齒波的逐項逼近。所有整數諧波都用上，相位每隔一項交錯。",
+          "width": 1200,
+          "height": 960,
+          "controls": true,
+          "autoplay": false,
+          "muted": true,
+          "loop": true,
+          "playsinline": true
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 程式實作的三個關鍵\n\n`epicycle_state()` 只做一件事：給定角度與項數，回傳每個圓的半徑、圓心與終點。三個關鍵參數是：\n\n- 半徑：方波用 $4/(n\\pi)$，鋸齒波用 $2/(n\\pi)$。\n- 頻率：方波只取奇數 $n$，鋸齒波取所有整數。\n- 相位：鋸齒波在奇數項加 $\\pi$，讓正負號交錯。\n\n`animate_wave()` 把每個角度算出的終點放進 `history`，再把 `history` 畫成右側波形。動畫每一幀只更新圓心、半徑、手臂與波形，不需要重新計算整條曲線。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 可以自己改的參數\n\n- `n_terms`：每一列要用幾個諧波。項數越多，逼近越好，但計算越慢。\n- `kind`：`\"square\"` 或 `\"sawtooth\"`。\n- `frames`：動畫幀數。240 幀、20 fps 大約 12 秒。\n- `figsize` 與 `dpi`：輸出尺寸。這頁用 1200×960。\n- `crf`：影片品質。數字越小，檔案越大。\n\n改完 `animate_wave()` 的參數後，重新執行呼叫的 cell，就會覆寫 mp4 與 poster。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 小結\n\n- 圓的投影是正弦波。半徑是振幅，轉速是頻率，起始角是相位。\n- 把多個圓接起來，就是多個頻率的疊加。\n- 方波只有奇次諧波，鋸齒波用所有整數諧波。\n- 項數增加會讓波形更接近目標，但 Gibbs 過衝不會消失。\n\n同樣的「把訊號拆成頻率」的想法，可以用來看機器震動。下一篇〈[一段震動訊號的五種看法](/notebooks/vibration-signal-five-views/)〉從時間域找事件。〈[馬達的八種壞法](/notebooks/motor-fault-spectra/)〉則把訊號轉成頻譜，看不同故障留下的指紋。",
+      "tags": []
+    }
+  ]
+}

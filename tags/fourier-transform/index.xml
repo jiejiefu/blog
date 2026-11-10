@@ -1,0 +1,515 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Fourier Transform on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/fourier-transform/</link><description>Recent content in Fourier Transform on Jay Fu 的科技部落格</description><generator>Hugo -- 0.169.0</generator><language>zh-tw</language><lastBuildDate>Fri, 06 Nov 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/fourier-transform/index.xml" rel="self" type="application/rss+xml"/><item><title>用轉動的圓畫出方波：傅立葉級數的視覺直覺</title><link>https://jiejiefu.github.io/blog/notebooks/fourier-epicycles/</link><pubDate>Fri, 06 Nov 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/notebooks/fourier-epicycles/</guid><description>用轉動的圓與逐項逼近，從視覺直覺理解傅立葉級數、奇次諧波與 Gibbs phenomenon。</description><content:encoded><![CDATA[<section class="jp-notebook" aria-label="Jupyter Notebook snapshot">
+  <div class="jp-menubar" aria-hidden="true">
+    <span>File</span>
+    <span>Edit</span>
+    <span>View</span>
+    <span>Run</span>
+    <span>Kernel</span>
+    <span>Tabs</span>
+    <span>Settings</span>
+    <span>Help</span>
+  </div>
+
+  <div class="jp-tabbar">
+    <div class="jp-tab">
+      <span class="jp-tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M9 3v18"/><path d="M12 8h4M12 12h4M12 16h3"/></svg></span>
+      <span class="jp-tab-name">用轉動的圓畫出方波：傅立葉級數的視覺直覺</span>
+      <span class="jp-badge jp-badge-trusted">Trusted</span>
+      <span class="jp-badge jp-badge-readonly">Read-only</span>
+    </div>
+  </div>
+
+  <div class="jp-toolbar" aria-hidden="true">
+    <button class="jp-tool" type="button" disabled title="Save"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3"/><path d="M8 14h8v7H8z"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Add cell"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg></button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool" type="button" disabled title="Cut"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M8 7.5 20 18M8 16.5 20 6"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Copy"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Paste"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4h6v3H9z"/><path d="M8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2"/><path d="M8 12h8M8 16h5"/></svg></button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool" type="button" disabled title="Run"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="jp-icon-fill" d="M8 5v14l11-7z"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Interrupt"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="7" width="10" height="10" rx="1"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Restart"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v6h-6"/></svg></button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool jp-tool-wide" type="button" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13 5l-2 14"/></svg>
+      <span>Code</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7 10 5 5 5-5"/></svg>
+    </button>
+    <span class="jp-toolbar-label">Python 3 (ipykernel)</span>
+  </div>
+
+  <div class="jp-cells"><div class="jp-cell jp-cell-markdown" id="nb-cell-1">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="這頁在做什麼">這頁在做什麼</h2>
+<p>一個方波看起來只有高低兩段，但它其實可以由一堆不同頻率的正弦波疊出來。這頁用「轉動的圓」把這件事畫出來。每個圓代表一個頻率，半徑是振幅，圓心接在下一個圓上。把最外圈的點連起來，就會得到逼近的方波。</p>
+<p>先看結果。下面四列分別用 1、2、3、4 個奇次諧波逼近方波。列數越多，波形越接近方塊，但邊緣的振鈴不會完全消失。</p>
+</div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-2">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [1]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="o">%</span><span class="n">matplotlib</span> <span class="n">inline</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">sys</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">base</span> <span class="ow">in</span> <span class="p">(</span><span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">(),</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&#34;scripts&#34;</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">base</span> <span class="o">/</span> <span class="s2">&#34;notebook_media.py&#34;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">base</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="k">break</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">notebook_media</span> <span class="kn">import</span> <span class="n">ensure_ffmpeg</span>
+</span></span><span class="line"><span class="cl"><span class="n">ensure_ffmpeg</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Circle</span>
+</span></span><span class="line"><span class="cl"><span class="kn">from</span> <span class="nn">matplotlib.animation</span> <span class="kn">import</span> <span class="n">FuncAnimation</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;figure.dpi&#34;</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;savefig.dpi&#34;</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;font.sans-serif&#34;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&#34;PingFang TC&#34;</span><span class="p">,</span> <span class="s2">&#34;Heiti TC&#34;</span><span class="p">,</span> <span class="s2">&#34;Arial Unicode MS&#34;</span><span class="p">,</span> <span class="s2">&#34;DejaVu Sans&#34;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;axes.unicode_minus&#34;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;axes.grid&#34;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;grid.alpha&#34;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;axes.spines.top&#34;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;axes.spines.right&#34;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">})</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">TAU</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span></span></span></code></pre></div></div></div><div class="jp-cell jp-cell-code" id="nb-cell-3">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [2]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">epicycle_state</span><span class="p">(</span><span class="n">angle</span><span class="p">,</span> <span class="n">n_terms</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&#34;square&#34;</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="c1"># Return harmonic terms, radii, and the tip-to-tail points.</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&#34;square&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">terms</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_terms</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">    <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&#34;sawtooth&#34;</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">terms</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_terms</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="k">else</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">kind</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">x</span> <span class="o">=</span> <span class="n">y</span> <span class="o">=</span> <span class="mf">0.0</span>
+</span></span><span class="line"><span class="cl">    <span class="n">points</span> <span class="o">=</span> <span class="p">[(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">radii</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">        <span class="n">radius</span> <span class="o">=</span> <span class="p">(</span><span class="mi">4</span> <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&#34;square&#34;</span> <span class="k">else</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">phase</span> <span class="o">=</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&#34;square&#34;</span> <span class="k">else</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">x</span> <span class="o">+=</span> <span class="n">radius</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">angle</span> <span class="o">+</span> <span class="n">phase</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">y</span> <span class="o">+=</span> <span class="n">radius</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">angle</span> <span class="o">+</span> <span class="n">phase</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">radii</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">radius</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">points</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">terms</span><span class="p">,</span> <span class="n">radii</span><span class="p">,</span> <span class="n">points</span></span></span></code></pre></div></div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-4">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="先看結果四列逐項逼近">先看結果：四列逐項逼近</h2>
+<p>每一列多一個奇次諧波。左邊是圓的接力，右邊是接力終點留下的波形。</p></div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-5">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [3]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">animate_wave</span><span class="p">(</span><span class="n">kind</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">poster</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">rows</span> <span class="o">=</span> <span class="mi">4</span>
+</span></span><span class="line"><span class="cl">    <span class="n">frames</span> <span class="o">=</span> <span class="mi">240</span>
+</span></span><span class="line"><span class="cl">    <span class="n">angles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">TAU</span><span class="p">,</span> <span class="n">frames</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&#34;tab:blue&#34;</span><span class="p">,</span> <span class="s2">&#34;tab:orange&#34;</span><span class="p">,</span> <span class="s2">&#34;tab:green&#34;</span><span class="p">,</span> <span class="s2">&#34;tab:red&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">circles</span><span class="p">,</span> <span class="n">arms</span><span class="p">,</span> <span class="n">waves</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ax</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">axes</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">terms</span><span class="p">,</span> <span class="n">radii</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">epicycle_state</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">kind</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">row_circles</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">radius</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">radii</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="n">circle</span> <span class="o">=</span> <span class="n">Circle</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">radius</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">circle</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">row_circles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">circle</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arm</span><span class="p">,</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([],</span> <span class="p">[],</span> <span class="s2">&#34;o-&#34;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ms</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">wave</span><span class="p">,</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([],</span> <span class="p">[],</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">1.35</span><span class="p">,</span> <span class="mf">5.2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">1.35</span><span class="p">,</span> <span class="mf">1.35</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&#34;equal&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&#34;off&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="o">-</span><span class="mf">1.3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&#34;n=</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">)</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&#34;center&#34;</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s2">&#34;left&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">circles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row_circles</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arm</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">waves</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wave</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">history</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rows</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="n">frame</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">angle</span> <span class="o">=</span> <span class="n">angles</span><span class="p">[</span><span class="n">frame</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">        <span class="n">artists</span> <span class="o">=</span> <span class="p">[]</span>
+</span></span><span class="line"><span class="cl">        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rows</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="n">terms</span><span class="p">,</span> <span class="n">radii</span><span class="p">,</span> <span class="n">points</span> <span class="o">=</span> <span class="n">epicycle_state</span><span class="p">(</span><span class="n">angle</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">kind</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">radii</span><span class="p">,</span> <span class="n">points</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])):</span>
+</span></span><span class="line"><span class="cl">                <span class="n">circles</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">set_center</span><span class="p">(</span><span class="n">center</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">                <span class="n">circles</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">set_radius</span><span class="p">(</span><span class="n">radius</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="n">arms</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_data</span><span class="p">([</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">points</span><span class="p">],</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">points</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">            <span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">points</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">frames</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                <span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">            <span class="n">xs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">1.55</span><span class="p">,</span> <span class="mf">1.55</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">*</span> <span class="mf">0.012</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+</span></span><span class="line"><span class="cl">            <span class="n">waves</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">history</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">            <span class="n">artists</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">arms</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">waves</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">+</span> <span class="n">circles</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">artists</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">anim</span> <span class="o">=</span> <span class="n">FuncAnimation</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">update</span><span class="p">,</span> <span class="n">frames</span><span class="o">=</span><span class="n">frames</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">blit</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">frames</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">update</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">poster</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&#34;tight&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">anim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="n">filename</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">writer</span><span class="o">=</span><span class="s2">&#34;ffmpeg&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">fps</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">codec</span><span class="o">=</span><span class="s2">&#34;libx264&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">extra_args</span><span class="o">=</span><span class="p">[</span><span class="s2">&#34;-pix_fmt&#34;</span><span class="p">,</span> <span class="s2">&#34;yuv420p&#34;</span><span class="p">,</span> <span class="s2">&#34;-crf&#34;</span><span class="p">,</span> <span class="s2">&#34;23&#34;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span></span></span></code></pre></div></div></div><div class="jp-cell jp-cell-code" id="nb-cell-6">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [4]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">animate_wave</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;square&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;square_wave_increasing_terms.mp4&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;square_wave_increasing_terms.png&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-video" data-jp-output-type="video">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt" aria-hidden="true"></div>
+  </div>
+  <div class="jp-output-body">
+    <figure class="jp-figure jp-video-figure">
+      <video class="jp-video" src="/blog/notebooks/fourier-epicycles/videos/square_wave_increasing_terms.mp4" poster="/blog/notebooks/fourier-epicycles/images/square_wave_increasing_terms.webp" width="1200" height="960" controls muted loop playsinline
+             preload="metadata" aria-label="方波逐項逼近動畫，四列分別使用 1、2、3、4 個奇次諧波"></video><figcaption>方波的逐項逼近。每一列多一個奇次諧波，右側波形越來越接近方波。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-7">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="一個圓的投影就是正弦波">一個圓的投影就是正弦波</h2>
+<p>把一個點放在半徑 1 的圓上，讓它等速旋轉。這個點的 $y$ 座標隨時間變化，就是一條正弦波。圓的半徑是振幅，轉一圈的時間決定頻率，起始角度決定相位。</p></div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-8">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [5]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">TAU</span><span class="p">,</span> <span class="mi">400</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;tab:blue&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">)],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;tab:red&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">)],</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)],</span> <span class="s2">&#34;o&#34;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;tab:red&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&#34;equal&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">1.2</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">1.2</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&#34;等速圓周運動&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&#34;x&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&#34;y&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">theta</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;tab:blue&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">angle</span><span class="p">],</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)],</span> <span class="s2">&#34;o&#34;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;tab:red&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.5&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&#34;投影到 y 軸就是正弦波&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&#34;角度 [rad]&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&#34;sin(theta)&#34;</span><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-result" data-jp-output-type="result">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[5]:</div><div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="nb-cell-8-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="nb-cell-8-output-menu"
+          aria-label="輸出選項"
+          title="輸出選項">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+  </button>
+  <div class="jp-output-menu" id="nb-cell-8-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+      <span data-jp-copy-label>複製儲存格輸出</span>
+    </button>
+  </div>
+</div>
+</div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">Text(0, 0.5, &#39;sin(theta)&#39;)</pre>
+  </div>
+</div><div class="jp-output jp-output-image" data-jp-output-type="image">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[5]:</div></div>
+  <div class="jp-output-body">
+    <figure class="jp-figure">
+      <span class="jp-image-wrap">
+        <img src="/blog/notebooks/fourier-epicycles/images/cell-08-out-02.webp" alt="左圖是單位圓與旋轉點，右圖是同一角度對應的正弦波投影" width="1204" height="493" loading="lazy" decoding="async">
+        <span class="jp-image-actions">
+          <button class="jp-image-action" type="button" data-jp-copy-image
+                  aria-label="複製圖片"
+                  title="複製圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+          </button>
+          <a class="jp-image-action" href="/blog/notebooks/fourier-epicycles/images/cell-08-out-02.webp" download
+             aria-label="儲存圖片"
+             title="儲存圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 20h14"/></svg>
+          </a>
+        </span>
+      </span><figcaption>同一個旋轉角度，左邊看位置，右邊看高度。高度就是正弦波。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-9">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="把多個圓接起來">把多個圓接起來</h2>
+<p>把第二個圓的圓心接到第一個圓的終點，再把第三個圓接到第二個圓的終點。最外圈的點會走出比較複雜的軌跡。這些圓的轉速分別是基頻的 1、3、5、7 倍，半徑則是 $4/(n\pi)$。</p>
+<p>下圖把四個不同項數的接力畫在同一個角度。圓越多，終點越接近方波的邊緣。</p>
+</div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-10">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [6]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&#34;tab:blue&#34;</span><span class="p">,</span> <span class="s2">&#34;tab:orange&#34;</span><span class="p">,</span> <span class="s2">&#34;tab:green&#34;</span><span class="p">,</span> <span class="s2">&#34;tab:red&#34;</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl"><span class="n">angle</span> <span class="o">=</span> <span class="mf">0.9</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ax</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">axes</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">terms</span><span class="p">,</span> <span class="n">radii</span><span class="p">,</span> <span class="n">points</span> <span class="o">=</span> <span class="n">epicycle_state</span><span class="p">(</span><span class="n">angle</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&#34;square&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">center</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">radii</span><span class="p">,</span> <span class="n">points</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">Circle</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">points</span><span class="p">],</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">points</span><span class="p">],</span> <span class="s2">&#34;o-&#34;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ms</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">points</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="mf">1.55</span><span class="p">],</span> <span class="p">[</span><span class="n">points</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&#34;--&#34;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.4&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">1.3</span><span class="p">,</span> <span class="mf">1.7</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">1.3</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&#34;equal&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&#34;off&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;n=</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">)</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">&#34;left&#34;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-image" data-jp-output-type="image">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[6]:</div><div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="nb-cell-10-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="nb-cell-10-output-menu"
+          aria-label="輸出選項"
+          title="輸出選項">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+  </button>
+  <div class="jp-output-menu" id="nb-cell-10-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+      <span data-jp-copy-label>複製儲存格輸出</span>
+    </button>
+  </div>
+</div>
+</div>
+  <div class="jp-output-body">
+    <figure class="jp-figure">
+      <span class="jp-image-wrap">
+        <img src="/blog/notebooks/fourier-epicycles/images/cell-10-out-01.webp" alt="四列圓的接力，項數分別為 1、3、5、7" width="261" height="973" loading="lazy" decoding="async">
+        <span class="jp-image-actions">
+          <button class="jp-image-action" type="button" data-jp-copy-image
+                  aria-label="複製圖片"
+                  title="複製圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+          </button>
+          <a class="jp-image-action" href="/blog/notebooks/fourier-epicycles/images/cell-10-out-01.webp" download
+             aria-label="儲存圖片"
+             title="儲存圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 20h14"/></svg>
+          </a>
+        </span>
+      </span><figcaption>圓心接到下一個圓的圓心。最外圈的終點就是當下的近似值。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-11">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="方波為什麼只有奇次諧波">方波為什麼只有奇次諧波</h2>
+<p>方波是奇函數，而且左右對稱。把這個對稱性放進傅立葉級數，偶次諧波會互相抵銷，只剩下 1、3、5、7 這些奇次項。</p>
+<p>方波的級數可以寫成：</p>
+$$
+f(t)=\frac{4}{\pi}\left(\sin t+\frac{\sin 3t}{3}+\frac{\sin 5t}{5}+\cdots\right)
+$$<p>每一項的振幅是 $4/(n\pi)$，所以頻率越高，振幅越小。這也是為什麼只取前幾項時，波形已經有方塊的輪廓。</p>
+</div>
+</div><div class="jp-cell jp-cell-markdown" id="nb-cell-12">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="從-1-項到-7-項">從 1 項到 7 項</h2>
+<p>下圖把部分和畫出來。虛線是理想的方波，彩色線是不同項數的近似。項數增加時，平頂越來越平，邊緣越來越陡。</p></div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-13">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [7]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">square_partial</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">n_terms</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_terms</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">n</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl">        <span class="n">y</span> <span class="o">+=</span> <span class="mi">4</span> <span class="o">/</span> <span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">y</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">TAU</span><span class="p">,</span> <span class="mi">2000</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ax</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">axes</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">terms</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">y</span> <span class="o">=</span> <span class="n">square_partial</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;tab:blue&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">1.4</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">terms</span><span class="p">)</span><span class="si">}</span><span class="s2"> terms&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.5&#34;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&#34;--&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.5&#34;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&#34;--&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&#34;amplitude&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;n=</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">)</span><span class="si">}</span><span class="s2">&#34;</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">&#34;left&#34;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&#34;upper right&#34;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&#34;angle [rad]&#34;</span><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-result" data-jp-output-type="result">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[7]:</div><div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="nb-cell-13-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="nb-cell-13-output-menu"
+          aria-label="輸出選項"
+          title="輸出選項">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+  </button>
+  <div class="jp-output-menu" id="nb-cell-13-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+      <span data-jp-copy-label>複製儲存格輸出</span>
+    </button>
+  </div>
+</div>
+</div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">Text(0.5, 0, &#39;angle [rad]&#39;)</pre>
+  </div>
+</div><div class="jp-output jp-output-image" data-jp-output-type="image">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[7]:</div></div>
+  <div class="jp-output-body">
+    <figure class="jp-figure">
+      <span class="jp-image-wrap">
+        <img src="/blog/notebooks/fourier-epicycles/images/cell-13-out-02.webp" alt="四張子圖顯示方波部分和，項數增加時波形越來越接近方波" width="1213" height="973" loading="lazy" decoding="async">
+        <span class="jp-image-actions">
+          <button class="jp-image-action" type="button" data-jp-copy-image
+                  aria-label="複製圖片"
+                  title="複製圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+          </button>
+          <a class="jp-image-action" href="/blog/notebooks/fourier-epicycles/images/cell-13-out-02.webp" download
+             aria-label="儲存圖片"
+             title="儲存圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 20h14"/></svg>
+          </a>
+        </span>
+      </span><figcaption>奇次諧波的部分和。虛線是理想方波，彩色線是近似。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-14">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="邊緣的振鈴gibbs-phenomenon">邊緣的振鈴：Gibbs phenomenon</h2>
+<p>項數增加不會讓邊緣的過衝消失。過衝會變窄，但高度仍然存在，約為理想值的 9%。這個現象叫 Gibbs phenomenon。</p>
+<p>下圖把邊緣放大。項數從 5 增加到 50，過衝的位置越來越靠近跳變點，但峰值幾乎不變。</p>
+</div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-15">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [8]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">TAU</span><span class="p">,</span> <span class="mi">5000</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">n_terms</span><span class="p">,</span> <span class="n">color</span> <span class="ow">in</span> <span class="p">[(</span><span class="mi">5</span><span class="p">,</span> <span class="s2">&#34;tab:blue&#34;</span><span class="p">),</span> <span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="s2">&#34;tab:orange&#34;</span><span class="p">),</span> <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="s2">&#34;tab:green&#34;</span><span class="p">)]:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">square_partial</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">n_terms</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">n_terms</span><span class="si">}</span><span class="s2"> terms&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mf">1.0895</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.4&#34;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&#34;:&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="mf">0.08</span><span class="p">,</span> <span class="mf">1.115</span><span class="p">,</span> <span class="s2">&#34;Gibbs overshoot ≈ 1.0895&#34;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.3&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">1.25</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&#34;angle [rad]&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&#34;amplitude&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&#34;lower right&#34;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-result" data-jp-output-type="result">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[8]:</div><div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="nb-cell-15-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="nb-cell-15-output-menu"
+          aria-label="輸出選項"
+          title="輸出選項">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+  </button>
+  <div class="jp-output-menu" id="nb-cell-15-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+      <span data-jp-copy-label>複製儲存格輸出</span>
+    </button>
+  </div>
+</div>
+</div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">&lt;matplotlib.legend.Legend at 0x10fcab890&gt;</pre>
+  </div>
+</div><div class="jp-output jp-output-image" data-jp-output-type="image">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[8]:</div></div>
+  <div class="jp-output-body">
+    <figure class="jp-figure">
+      <span class="jp-image-wrap">
+        <img src="/blog/notebooks/fourier-epicycles/images/cell-15-out-02.webp" alt="三條部分和曲線在方波跳變點附近都出現約 1.0895 的過衝" width="1213" height="493" loading="lazy" decoding="async">
+        <span class="jp-image-actions">
+          <button class="jp-image-action" type="button" data-jp-copy-image
+                  aria-label="複製圖片"
+                  title="複製圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+          </button>
+          <a class="jp-image-action" href="/blog/notebooks/fourier-epicycles/images/cell-15-out-02.webp" download
+             aria-label="儲存圖片"
+             title="儲存圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 20h14"/></svg>
+          </a>
+        </span>
+      </span><figcaption>項數增加只會讓過衝變窄，不會讓它消失。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-16">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="換成鋸齒波">換成鋸齒波</h2>
+<p>鋸齒波用所有整數諧波，不是只有奇次。係數換成 $2/(n\pi)$，而且每隔一項要加 $180^\circ$ 的相位。相位交錯讓波形往同一個方向傾斜。</p>
+<p>下面這支動畫把方波換成鋸齒波。程式只改了三個地方：諧波清單、半徑公式、相位。</p>
+</div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-17">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [9]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">animate_wave</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;sawtooth&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;sawtooth_wave_approximation.mp4&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;sawtooth_wave_approximation.png&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-video" data-jp-output-type="video">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt" aria-hidden="true"></div>
+  </div>
+  <div class="jp-output-body">
+    <figure class="jp-figure jp-video-figure">
+      <video class="jp-video" src="/blog/notebooks/fourier-epicycles/videos/sawtooth_wave_approximation.mp4" poster="/blog/notebooks/fourier-epicycles/images/sawtooth_wave_approximation.webp" width="1200" height="960" controls muted loop playsinline
+             preload="metadata" aria-label="鋸齒波逐項逼近動畫，四列使用 1 到 4 個整數諧波"></video><figcaption>鋸齒波的逐項逼近。所有整數諧波都用上，相位每隔一項交錯。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-18">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="程式實作的三個關鍵">程式實作的三個關鍵</h2>
+<p><code>epicycle_state()</code> 只做一件事：給定角度與項數，回傳每個圓的半徑、圓心與終點。三個關鍵參數是：</p>
+<ul>
+<li>半徑：方波用 $4/(n\pi)$，鋸齒波用 $2/(n\pi)$。</li>
+<li>頻率：方波只取奇數 $n$，鋸齒波取所有整數。</li>
+<li>相位：鋸齒波在奇數項加 $\pi$，讓正負號交錯。</li>
+</ul>
+<p><code>animate_wave()</code> 把每個角度算出的終點放進 <code>history</code>，再把 <code>history</code> 畫成右側波形。動畫每一幀只更新圓心、半徑、手臂與波形，不需要重新計算整條曲線。</p>
+</div>
+</div><div class="jp-cell jp-cell-markdown" id="nb-cell-19">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="可以自己改的參數">可以自己改的參數</h2>
+<ul>
+<li><code>n_terms</code>：每一列要用幾個諧波。項數越多，逼近越好，但計算越慢。</li>
+<li><code>kind</code>：<code>&quot;square&quot;</code> 或 <code>&quot;sawtooth&quot;</code>。</li>
+<li><code>frames</code>：動畫幀數。240 幀、20 fps 大約 12 秒。</li>
+<li><code>figsize</code> 與 <code>dpi</code>：輸出尺寸。這頁用 1200×960。</li>
+<li><code>crf</code>：影片品質。數字越小，檔案越大。</li>
+</ul>
+<p>改完 <code>animate_wave()</code> 的參數後，重新執行呼叫的 cell，就會覆寫 mp4 與 poster。</p></div>
+</div><div class="jp-cell jp-cell-markdown" id="nb-cell-20">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="小結">小結</h2>
+<ul>
+<li>圓的投影是正弦波。半徑是振幅，轉速是頻率，起始角是相位。</li>
+<li>把多個圓接起來，就是多個頻率的疊加。</li>
+<li>方波只有奇次諧波，鋸齒波用所有整數諧波。</li>
+<li>項數增加會讓波形更接近目標，但 Gibbs 過衝不會消失。</li>
+</ul>
+<p>同樣的「把訊號拆成頻率」的想法，可以用來看機器震動。下一篇〈<a href="/blog/notebooks/vibration-signal-five-views/">一段震動訊號的五種看法</a>〉從時間域找事件。〈<a href="/blog/notebooks/motor-fault-spectra/">馬達的八種壞法</a>〉則把訊號轉成頻譜，看不同故障留下的指紋。</p></div>
+</div></div>
+
+  <div class="jp-statusbar">
+    <span class="jp-status-note">唯讀快照 · 本地執行後產生</span>
+    <span>20 cells</span>
+    <span>2026-11-10 17:59 CST</span>
+    <span>18438 ms</span>
+    <span class="jp-status-idle">Idle</span>
+  </div>
+</section>
+
+]]></content:encoded></item></channel></rss>

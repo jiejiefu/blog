@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Vibration Analysis on Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/tags/vibration-analysis/</link><description>Recent content in Vibration Analysis on Jay Fu 的科技部落格</description><generator>Hugo -- 0.169.0</generator><language>zh-tw</language><lastBuildDate>Fri, 06 Nov 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/tags/vibration-analysis/index.xml" rel="self" type="application/rss+xml"/><item><title>馬達的八種壞法：用頻譜讀出故障指紋</title><link>https://jiejiefu.github.io/blog/notebooks/motor-fault-spectra/</link><pubDate>Fri, 06 Nov 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/notebooks/motor-fault-spectra/</guid><description>用九張簡化頻譜，對照正常、不平衡、不對心、鬆動、軸承、齒輪、摩擦、電氣與彎軸的特徵頻率。</description><content:encoded><![CDATA[<section class="jp-notebook" aria-label="Jupyter Notebook snapshot">
+  <div class="jp-menubar" aria-hidden="true">
+    <span>File</span>
+    <span>Edit</span>
+    <span>View</span>
+    <span>Run</span>
+    <span>Kernel</span>
+    <span>Tabs</span>
+    <span>Settings</span>
+    <span>Help</span>
+  </div>
+
+  <div class="jp-tabbar">
+    <div class="jp-tab">
+      <span class="jp-tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M9 3v18"/><path d="M12 8h4M12 12h4M12 16h3"/></svg></span>
+      <span class="jp-tab-name">馬達的八種壞法：用頻譜讀出故障指紋</span>
+      <span class="jp-badge jp-badge-trusted">Trusted</span>
+      <span class="jp-badge jp-badge-readonly">Read-only</span>
+    </div>
+  </div>
+
+  <div class="jp-toolbar" aria-hidden="true">
+    <button class="jp-tool" type="button" disabled title="Save"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3"/><path d="M8 14h8v7H8z"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Add cell"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg></button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool" type="button" disabled title="Cut"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M8 7.5 20 18M8 16.5 20 6"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Copy"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Paste"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4h6v3H9z"/><path d="M8 5H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2"/><path d="M8 12h8M8 16h5"/></svg></button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool" type="button" disabled title="Run"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="jp-icon-fill" d="M8 5v14l11-7z"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Interrupt"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="7" width="10" height="10" rx="1"/></svg></button>
+    <button class="jp-tool" type="button" disabled title="Restart"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v6h-6"/></svg></button>
+    <span class="jp-tool-divider"></span>
+    <button class="jp-tool jp-tool-wide" type="button" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13 5l-2 14"/></svg>
+      <span>Code</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7 10 5 5 5-5"/></svg>
+    </button>
+    <span class="jp-toolbar-label">Python 3 (ipykernel)</span>
+  </div>
+
+  <div class="jp-cells"><div class="jp-cell jp-cell-markdown" id="nb-cell-1">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="這頁在做什麼">這頁在做什麼</h2>
+<p>這一頁把八種常見的馬達與旋轉機械狀態，各自轉成一張頻譜。訊號是簡化的教學模型：每個狀態用幾個正弦波與噪聲組合，頻率與振幅都是設定值。真實機器還會有軸承幾何、轉速波動、共振與負載變化。這裡的頻譜是「讀圖練習」，不是診斷公式。</p>
+<p>先看九張圖。每一張的 x 軸是 0–500 Hz，y 軸是振幅。標題是狀態名稱。</p>
+</div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-2">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [1]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="o">%</span><span class="n">matplotlib</span> <span class="n">inline</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;figure.dpi&#34;</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;savefig.dpi&#34;</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;font.sans-serif&#34;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&#34;PingFang TC&#34;</span><span class="p">,</span> <span class="s2">&#34;Heiti TC&#34;</span><span class="p">,</span> <span class="s2">&#34;Arial Unicode MS&#34;</span><span class="p">,</span> <span class="s2">&#34;DejaVu Sans&#34;</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;axes.unicode_minus&#34;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;axes.grid&#34;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;grid.alpha&#34;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;axes.spines.top&#34;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;axes.spines.right&#34;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl"><span class="p">})</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">FS</span> <span class="o">=</span> <span class="mi">2000</span>
+</span></span><span class="line"><span class="cl"><span class="n">DURATION</span> <span class="o">=</span> <span class="mf">1.2</span>
+</span></span><span class="line"><span class="cl"><span class="n">T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">DURATION</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">FS</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">F_ROT</span> <span class="o">=</span> <span class="mf">30.0</span>
+</span></span><span class="line"><span class="cl"><span class="n">F_LINE</span> <span class="o">=</span> <span class="mf">60.0</span>
+</span></span><span class="line"><span class="cl"><span class="n">F_BEARING</span> <span class="o">=</span> <span class="mf">123.5</span>
+</span></span><span class="line"><span class="cl"><span class="n">F_MESH</span> <span class="o">=</span> <span class="mf">250.0</span>
+</span></span><span class="line"><span class="cl"><span class="n">RNG</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span></span></span></code></pre></div></div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-3">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="先把八種狀態造出來">先把八種狀態造出來</h2>
+<p>每個狀態都只看 1.2 秒。取樣率 2000 Hz，所以頻率上限是 1000 Hz；圖只畫到 500 Hz。<code>Normal</code> 是基準，其他八個是常見故障的簡化模型。</p>
+<p>這些模型不模擬真實機器的完整物理。它們只把「某個故障會在哪個頻率留下峰值」單獨拉出來。這樣讀者可以先學會看圖，再去面對真實資料的複雜度。</p>
+</div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-4">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [2]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">noise</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mf">0.05</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">scale</span> <span class="o">*</span> <span class="n">RNG</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">T</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">signals</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Normal&#34;</span><span class="p">:</span> <span class="mf">0.10</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.04</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Unbalance&#34;</span><span class="p">:</span> <span class="mf">1.50</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.05</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Misalignment&#34;</span><span class="p">:</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="mf">0.80</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="mf">1.20</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Looseness&#34;</span><span class="p">:</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="nb">sum</span><span class="p">((</span><span class="mf">0.8</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">n</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.08</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Bearing fault&#34;</span><span class="p">:</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="mf">1.20</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_BEARING</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="mf">0.35</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">F_BEARING</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.10</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Gear mesh&#34;</span><span class="p">:</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="mf">0.80</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_MESH</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.06</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Rubbing&#34;</span><span class="p">:</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="mf">0.60</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="mf">0.80</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="mf">0.50</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1.5</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Electrical&#34;</span><span class="p">:</span> <span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="mf">1.00</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">F_LINE</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="mf">0.20</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="s2">&#34;Bent shaft&#34;</span><span class="p">:</span> <span class="mf">1.30</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">F_ROT</span> <span class="o">*</span> <span class="n">T</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="n">noise</span><span class="p">(</span><span class="mf">0.05</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span></span></span></code></pre></div></div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-5">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="九張頻譜">九張頻譜</h2>
+<p>把每個狀態做 FFT，取單邊振幅頻譜。這裡用 Hann window 降低 leakage，振幅用 window 的總和歸一化，所以峰值高度大致可以互相比較。</p></div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-6">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [3]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">def</span> <span class="nf">amplitude_spectrum</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">fs</span><span class="o">=</span><span class="n">FS</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">window</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hanning</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">spectrum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfft</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">window</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">amplitude</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">spectrum</span><span class="p">)</span> <span class="o">/</span> <span class="n">window</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">    <span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">rfftfreq</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">fs</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">frequency</span><span class="p">,</span> <span class="n">amplitude</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">sig</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">axes</span><span class="o">.</span><span class="n">flat</span><span class="p">,</span> <span class="n">signals</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+</span></span><span class="line"><span class="cl">    <span class="n">frequency</span><span class="p">,</span> <span class="n">amplitude</span> <span class="o">=</span> <span class="n">amplitude_spectrum</span><span class="p">(</span><span class="n">sig</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">,</span> <span class="n">amplitude</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;#1f4e79&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">500</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&#34;frequency [Hz]&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">axes</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&#34;amplitude&#34;</span><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-image" data-jp-output-type="image">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[3]:</div><div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="nb-cell-6-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="nb-cell-6-output-menu"
+          aria-label="輸出選項"
+          title="輸出選項">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+  </button>
+  <div class="jp-output-menu" id="nb-cell-6-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+      <span data-jp-copy-label>複製儲存格輸出</span>
+    </button>
+  </div>
+</div>
+</div>
+  <div class="jp-output-body">
+    <figure class="jp-figure">
+      <span class="jp-image-wrap">
+        <img src="/blog/notebooks/motor-fault-spectra/images/cell-06-out-01.webp" alt="九張頻譜排成 3×3，分別是正常、不平衡、不對心、鬆動、軸承、齒輪、摩擦、電氣與彎軸" width="1453" height="973" loading="lazy" decoding="async">
+        <span class="jp-image-actions">
+          <button class="jp-image-action" type="button" data-jp-copy-image
+                  aria-label="複製圖片"
+                  title="複製圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+          </button>
+          <a class="jp-image-action" href="/blog/notebooks/motor-fault-spectra/images/cell-06-out-01.webp" download
+             aria-label="儲存圖片"
+             title="儲存圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 20h14"/></svg>
+          </a>
+        </span>
+      </span><figcaption>八種故障與正常狀態的簡化頻譜。先看峰值出現在哪裡，再看它有幾個。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-7">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="這張圖的解析度">這張圖的解析度</h2>
+<p>訊號長度 1.2 秒，頻率解析度是 $f_s/N = 2000/2400 \approx 0.83$ Hz。這代表兩個很接近的峰值，在圖上可能黏在一起。軸承特徵頻率 123.5 Hz 與 4 倍轉頻 120 Hz 只差 3.5 Hz，大約是 4 個 bin。這個長度下還分得開，但再短就未必。</p></div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-8">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [4]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">df</span> <span class="o">=</span> <span class="n">FS</span> <span class="o">/</span> <span class="n">n</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;frequency resolution = </span><span class="si">{</span><span class="n">df</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> Hz&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;1x = </span><span class="si">{</span><span class="n">F_ROT</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> Hz, 2x = </span><span class="si">{</span><span class="mi">2</span> <span class="o">*</span> <span class="n">F_ROT</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> Hz&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;line = </span><span class="si">{</span><span class="n">F_LINE</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> Hz, 2*line = </span><span class="si">{</span><span class="mi">2</span> <span class="o">*</span> <span class="n">F_LINE</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> Hz&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&#34;bearing = </span><span class="si">{</span><span class="n">F_BEARING</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> Hz, gear mesh = </span><span class="si">{</span><span class="n">F_MESH</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> Hz&#34;</span><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-stream jp-output-stdout" data-jp-output-type="stream">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt" aria-hidden="true"></div><div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="nb-cell-8-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="nb-cell-8-output-menu"
+          aria-label="輸出選項"
+          title="輸出選項">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+  </button>
+  <div class="jp-output-menu" id="nb-cell-8-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+      <span data-jp-copy-label>複製儲存格輸出</span>
+    </button>
+  </div>
+</div>
+</div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">frequency resolution = 0.83 Hz
+1x = 30.0 Hz, 2x = 60.0 Hz
+line = 60.0 Hz, 2*line = 120.0 Hz
+bearing = 123.5 Hz, gear mesh = 250.0 Hz</pre>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-9">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="怎麼讀這張圖">怎麼讀這張圖</h2>
+<p>先記住幾個參考頻率：</p>
+<ul>
+<li><strong>1x</strong>：轉頻，這裡是 30 Hz。</li>
+<li><strong>2x</strong>：兩倍轉頻，60 Hz。</li>
+<li><strong>2× line</strong>：電源頻率的兩倍，這裡是 120 Hz。</li>
+<li><strong>軸承</strong>：123.5 Hz，通常不是轉頻的整數倍。</li>
+<li><strong>齒輪噛合</strong>：250 Hz，兩側可能出現轉頻間隔的 sideband。</li>
+</ul>
+<p>同一個峰值可能有多種解釋。120 Hz 可以是 4x，也可以是 2× line。只靠一張頻譜無法區分，還需要轉速、電源頻率與感測器位置。</p>
+</div>
+</div><div class="jp-cell jp-cell-markdown" id="nb-cell-10">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="逐項對照">逐項對照</h2>
+<table>
+	<thead>
+			<tr>
+					<th>狀態</th>
+					<th>主要頻率</th>
+					<th>讀法</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Normal</td>
+					<td>1x 很小</td>
+					<td>沒有明顯突出的峰值</td>
+			</tr>
+			<tr>
+					<td>Unbalance</td>
+					<td>1x</td>
+					<td>1x 振幅高，2x 相對小</td>
+			</tr>
+			<tr>
+					<td>Misalignment</td>
+					<td>1x、2x</td>
+					<td>2x 明顯，甚至超過 1x</td>
+			</tr>
+			<tr>
+					<td>Looseness</td>
+					<td>1x、2x、3x…</td>
+					<td>多個諧波一起出現</td>
+			</tr>
+			<tr>
+					<td>Bearing fault</td>
+					<td>123.5 Hz、247 Hz</td>
+					<td>高頻、非整數倍，可能出現邊帶</td>
+			</tr>
+			<tr>
+					<td>Gear mesh</td>
+					<td>250 Hz、250±30 Hz</td>
+					<td>噛合頻率與轉頻 sideband</td>
+			</tr>
+			<tr>
+					<td>Rubbing</td>
+					<td>0.5x、1x、1.5x</td>
+					<td>分數諧波</td>
+			</tr>
+			<tr>
+					<td>Electrical</td>
+					<td>120 Hz</td>
+					<td>2× line，可能伴隨 1x</td>
+			</tr>
+			<tr>
+					<td>Bent shaft</td>
+					<td>1x</td>
+					<td>與不平衡相似，需要相位或軸向資訊</td>
+			</tr>
+	</tbody>
+</table>
+<p>這張表是「頻率位置」的對照，不是「看到就確診」。真實診斷會把頻譜、時域波形、包絡、相位、趨勢與維修紀錄一起看。</p></div>
+</div><div class="jp-cell jp-cell-markdown" id="nb-cell-11">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="不對心1x-與-2x-一起出現">不對心：1x 與 2x 一起出現</h2>
+<p>下圖把「不對心」的頻譜放大，標出 1x 與 2x。兩個峰值都存在，而且 2x 比 1x 高。這是徑向頻譜的典型教學例子；實際比例會受轉速、負載與感測器方向影響。</p></div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-12">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [5]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">frequency</span><span class="p">,</span> <span class="n">amplitude</span> <span class="o">=</span> <span class="n">amplitude_spectrum</span><span class="p">(</span><span class="n">signals</span><span class="p">[</span><span class="s2">&#34;Misalignment&#34;</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">,</span> <span class="n">amplitude</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;#1f4e79&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">1.2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">target</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">offset</span> <span class="ow">in</span> <span class="p">[(</span><span class="n">F_ROT</span><span class="p">,</span> <span class="s2">&#34;1x&#34;</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">F_ROT</span><span class="p">,</span> <span class="s2">&#34;2x&#34;</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">)]:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">frequency</span> <span class="o">-</span> <span class="n">target</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">        <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">target</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> Hz&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="n">xy</span><span class="o">=</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">amplitude</span><span class="p">[</span><span class="n">idx</span><span class="p">]),</span>
+</span></span><span class="line"><span class="cl">        <span class="n">xytext</span><span class="o">=</span><span class="p">(</span><span class="n">target</span> <span class="o">+</span> <span class="mi">25</span><span class="p">,</span> <span class="n">amplitude</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">+</span> <span class="n">offset</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="n">arrowprops</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">arrowstyle</span><span class="o">=</span><span class="s2">&#34;-&gt;&#34;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.4&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">150</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&#34;frequency [Hz]&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&#34;amplitude&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&#34;Misalignment：1x 與 2x&#34;</span><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-result" data-jp-output-type="result">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[5]:</div><div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="nb-cell-12-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="nb-cell-12-output-menu"
+          aria-label="輸出選項"
+          title="輸出選項">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+  </button>
+  <div class="jp-output-menu" id="nb-cell-12-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+      <span data-jp-copy-label>複製儲存格輸出</span>
+    </button>
+  </div>
+</div>
+</div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">Text(0.5, 1.0, &#39;Misalignment：1x 與 2x&#39;)</pre>
+  </div>
+</div><div class="jp-output jp-output-image" data-jp-output-type="image">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[5]:</div></div>
+  <div class="jp-output-body">
+    <figure class="jp-figure">
+      <span class="jp-image-wrap">
+        <img src="/blog/notebooks/motor-fault-spectra/images/cell-12-out-02.webp" alt="不對心的頻譜在 30 Hz 與 60 Hz 各有一個峰值，60 Hz 較高" width="1213" height="493" loading="lazy" decoding="async">
+        <span class="jp-image-actions">
+          <button class="jp-image-action" type="button" data-jp-copy-image
+                  aria-label="複製圖片"
+                  title="複製圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+          </button>
+          <a class="jp-image-action" href="/blog/notebooks/motor-fault-spectra/images/cell-12-out-02.webp" download
+             aria-label="儲存圖片"
+             title="儲存圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 20h14"/></svg>
+          </a>
+        </span>
+      </span><figcaption>不對心的教學頻譜。1x 與 2x 同時出現，2x 可能比 1x 高。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-13">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="軸承與齒輪高頻區的指紋">軸承與齒輪：高頻區的指紋</h2>
+<p>軸承故障的特徵頻率由軸承幾何決定，通常不是轉頻的整數倍。這裡用 123.5 Hz 當代表，並加上 247 Hz 的二次諧波。真實軸承會出現撞擊重複頻率與共振帶，單看低頻頻譜不夠，通常還要做 envelope analysis。</p>
+<p>齒輪噛合頻率是齒數乘上轉頻。這裡設 250 Hz，並用 30 Hz 的轉頻去調變，所以主峰兩側會出現 220 Hz 與 280 Hz 的 sideband。</p>
+</div>
+</div><div class="jp-cell jp-cell-code" id="nb-cell-14">
+  <div class="jp-prompt jp-prompt-in" aria-hidden="true">In [6]:</div>
+  <div class="jp-code"><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">xmax</span> <span class="ow">in</span> <span class="p">[</span>
+</span></span><span class="line"><span class="cl">    <span class="p">(</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&#34;Bearing fault&#34;</span><span class="p">,</span> <span class="mi">320</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">    <span class="p">(</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s2">&#34;Gear mesh&#34;</span><span class="p">,</span> <span class="mi">340</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl"><span class="p">]:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">frequency</span><span class="p">,</span> <span class="n">amplitude</span> <span class="o">=</span> <span class="n">amplitude_spectrum</span><span class="p">(</span><span class="n">signals</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">,</span> <span class="n">amplitude</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;#1f4e79&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">1.2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">xmax</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&#34;frequency [Hz]&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&#34;amplitude&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">F_BEARING</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;tab:red&#34;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&#34;:&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">F_MESH</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;tab:red&#34;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&#34;:&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">F_MESH</span> <span class="o">-</span> <span class="n">F_ROT</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.5&#34;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&#34;--&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">F_MESH</span> <span class="o">+</span> <span class="n">F_ROT</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.5&#34;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s2">&#34;--&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span></span></span></code></pre></div></div><div class="jp-outputs" data-jp-outputs><div class="jp-output jp-output-result" data-jp-output-type="result">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[6]:</div><div class="jp-output-actions">
+  <button class="jp-output-menu-toggle" id="nb-cell-14-output-menu-toggle"
+          type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="nb-cell-14-output-menu"
+          aria-label="輸出選項"
+          title="輸出選項">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+  </button>
+  <div class="jp-output-menu" id="nb-cell-14-output-menu" role="menu" hidden>
+    <button class="jp-output-menu-item" type="button" role="menuitem" data-jp-copy-output>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+      <span data-jp-copy-label>複製儲存格輸出</span>
+    </button>
+  </div>
+</div>
+</div>
+  <div class="jp-output-body">
+    <pre class="jp-output-text">&lt;matplotlib.lines.Line2D at 0x12a2311d0&gt;</pre>
+  </div>
+</div><div class="jp-output jp-output-image" data-jp-output-type="image">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt jp-prompt-out" aria-hidden="true">Out[6]:</div></div>
+  <div class="jp-output-body">
+    <figure class="jp-figure">
+      <span class="jp-image-wrap">
+        <img src="/blog/notebooks/motor-fault-spectra/images/cell-14-out-02.webp" alt="左圖軸承頻譜在 123.5 Hz 有峰值，右圖齒輪頻譜在 250 Hz 與兩側 sideband 有峰值" width="1453" height="493" loading="lazy" decoding="async">
+        <span class="jp-image-actions">
+          <button class="jp-image-action" type="button" data-jp-copy-image
+                  aria-label="複製圖片"
+                  title="複製圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M5 16V5a1 1 0 0 1 1-1h10"/></svg>
+          </button>
+          <a class="jp-image-action" href="/blog/notebooks/motor-fault-spectra/images/cell-14-out-02.webp" download
+             aria-label="儲存圖片"
+             title="儲存圖片">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m8 11 4 4 4-4"/><path d="M5 20h14"/></svg>
+          </a>
+        </span>
+      </span><figcaption>高頻區的兩種指紋：軸承的非整數倍頻率，與齒輪的噛合頻率加 sideband。</figcaption></figure>
+  </div>
+</div><span class="jp-sr-only" data-jp-output-status role="status" aria-live="polite"></span>
+  </div></div><div class="jp-cell jp-cell-markdown" id="nb-cell-15">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="實務上不能只看一張頻譜">實務上不能只看一張頻譜</h2>
+<ul>
+<li><strong>轉速不是常數</strong>：負載與電源頻率會讓轉速漂移，峰值也跟著移動。變轉速下要用 order tracking。</li>
+<li><strong>感測器位置會改變振幅</strong>。徑向與軸向看到的分量不同，同一個故障在兩個方向可能長得不一樣。</li>
+<li><strong>共振會放大某些頻率</strong>：峰值高不代表故障嚴重，可能只是剛好接近結構共振。</li>
+<li><strong>相位與軸向資訊</strong>。彎軸與不平衡在振幅頻譜上都可能是 1x，要靠相位或軸向差異區分。</li>
+<li><strong>軸承需要包絡</strong>：軸承的撞擊重複頻率常被低頻成分蓋住，envelope analysis 比直接看頻譜有效。</li>
+</ul>
+<p>資料來源是 gng.tw 的「<a href="https://www.gng.tw/">馬達的八種壞法</a>」整理。本文把常見的故障頻率改寫成可執行的簡化模型。數字與比例是教學設定，不是原始資料的逐字重現。</p></div>
+</div><div class="jp-cell jp-cell-markdown" id="nb-cell-16">
+  <div class="jp-prompt jp-prompt-markdown" aria-hidden="true"></div>
+  <div class="jp-markdown jp-RenderedMarkdown"><h2 id="小結">小結</h2>
+<ul>
+<li>頻譜把時間域看不到的頻率成分攤開。1x、2x、分數諧波、軸承頻率、齒輪噛合，各自對應不同的物理來源。</li>
+<li>同一個峰值可能有多種解釋。120 Hz 可以是 4x，也可以是 2× line。</li>
+<li>振幅頻譜只給大小，不給相位。彎軸與不平衡需要更多資訊才能分開。</li>
+<li>真實診斷要把頻譜、時域、包絡、相位、趨勢與維修紀錄一起看。</li>
+</ul>
+<p>上一篇〈<a href="/blog/notebooks/vibration-signal-five-views/">一段震動訊號的五種看法</a>〉從時間域找事件。這一篇把同一套 2000 Hz 取樣率拿來看頻率。兩篇合起來，就是「什麼時候」與「為什麼」的兩半。〈<a href="/blog/notebooks/fourier-epicycles/">用轉動的圓畫出方波</a>〉則從視覺直覺解釋為什麼訊號可以拆成頻率。</p></div>
+</div></div>
+
+  <div class="jp-statusbar">
+    <span class="jp-status-note">唯讀快照 · 本地執行後產生</span>
+    <span>16 cells</span>
+    <span>2026-11-10 18:00 CST</span>
+    <span>2800 ms</span>
+    <span class="jp-status-idle">Idle</span>
+  </div>
+</section>
+
+]]></content:encoded></item></channel></rss>

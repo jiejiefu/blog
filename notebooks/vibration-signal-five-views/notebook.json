@@ -1,0 +1,280 @@
+{
+  "schema": 1,
+  "meta": {
+    "title": "一段震動訊號的五種看法",
+    "filename": "notebook.ipynb",
+    "kernel": "Python 3 (ipykernel)",
+    "language": "python",
+    "python_version": "3.13.14",
+    "executed_at": "2026-11-10 18:00 CST",
+    "duration_ms": 78904,
+    "cell_count": 24,
+    "code_cell_count": 11,
+    "readonly": true
+  },
+  "cells": [
+    {
+      "type": "markdown",
+      "source": "## 這頁在做什麼\n\n同一段震動訊號，可以用很多種方式看。這一頁用一段有四個運轉區間的模擬訊號。訊號分別用五種時間域方法來看：振幅門檻、峰值偵測、斜率、滑動窗相似度、rolling energy。每一種方法都只回答一部分問題。沒有一種能同時說出開始、結束與次數。\n\n這是 PHM 系列的監測篇。下一篇〈[馬達的八種壞法](/notebooks/motor-fault-spectra/)〉會把同一套取樣率與模擬器拿去做頻譜診斷。兩篇可以獨立讀，但一起看會更完整。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "%matplotlib inline\nimport sys\nfrom pathlib import Path\n\nfor base in (Path.cwd(), Path.cwd().parent, Path.cwd() / \"scripts\"):\n    if (base / \"notebook_media.py\").exists():\n        sys.path.insert(0, str(base))\n        break\n\nfrom notebook_media import ensure_ffmpeg\nensure_ffmpeg()\n\nimport numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib.animation import FuncAnimation\nfrom scipy.ndimage import uniform_filter1d\nfrom scipy.signal import find_peaks\nfrom numpy.lib.stride_tricks import sliding_window_view\n\nplt.rcParams.update({\n    \"figure.dpi\": 120,\n    \"savefig.dpi\": 120,\n    \"font.sans-serif\": [\"PingFang TC\", \"Heiti TC\", \"Arial Unicode MS\", \"DejaVu Sans\"],\n    \"axes.unicode_minus\": False,\n    \"axes.grid\": True,\n    \"grid.alpha\": 0.25,\n    \"axes.spines.top\": False,\n    \"axes.spines.right\": False,\n})\n\nFS = 2000\nDURATION = 12.0",
+      "execution_count": 1,
+      "tags": [],
+      "outputs": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 先把訊號造出來\n\n這段訊號的取樣率是 2000 Hz，長度 12 秒。背景是低振幅噪聲，中間有四段運轉區間。每段運轉的振幅、主頻與長度都不同，這樣才不會讓某一種方法剛好全對。\n\n橘色底色是 ground truth。實務上不會有這個答案，這裡只是為了等一下算指標。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "def simulate_signal(fs=FS, seed=7):\n    rng = np.random.default_rng(seed)\n    t = np.arange(0, DURATION, 1 / fs)\n    x = 0.02 * rng.normal(size=t.size)\n    truth = np.zeros_like(t, dtype=bool)\n\n    segments = [\n        (1.0, 2.0, 1.5, 8.0),\n        (4.0, 5.0, 2.0, 12.0),\n        (7.0, 8.0, 1.8, 6.0),\n        (9.5, 10.5, 2.2, 10.0),\n    ]\n    for start, end, amp, freq in segments:\n        mask = (t >= start) & (t < end)\n        x[mask] += amp * np.sin(2 * np.pi * freq * t[mask])\n        x[mask] += 0.35 * np.sin(2 * np.pi * (freq * 1.8) * t[mask])\n        truth[mask] = True\n\n    return t, x, truth\n\ntime, signal, truth = simulate_signal()\n\nfig, ax = plt.subplots(figsize=(12, 3.5), constrained_layout=True)\nax.plot(time, signal, color=\"0.55\", lw=0.7)\nax.fill_between(time, -3, 3, where=truth, color=\"tab:orange\", alpha=0.15, step=\"mid\")\nax.set_xlim(0, DURATION)\nax.set_ylim(-3, 3)\nax.set_xlabel(\"time [s]\")\nax.set_ylabel(\"amplitude\")\nax.set_title(\"模擬震動訊號：四個運轉區間\")",
+      "execution_count": 2,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "Text(0.5, 1.0, '模擬震動訊號：四個運轉區間')",
+          "execution_count": 2
+        },
+        {
+          "type": "image",
+          "src": "images/cell-04-out-02.webp",
+          "alt": "12 秒模擬震動訊號，四個橘色區間標出真正的運轉時段",
+          "caption": "四個運轉區間的振幅、主頻與長度都不同。橘色底色是 ground truth。",
+          "width": 1453,
+          "height": 433,
+          "execution_count": 2
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 先定義評估方式\n\n訊號層級的指標把每個取樣點當成一個判斷，適合看「區間抓得準不準」。事件層級的指標只看「每個真實事件有沒有被抓到」，適合看峰值偵測。\n\n`intervals_from_mask()` 把布林遮罩轉成連續區間。`sample_metrics()` 回傳 precision、recall、F1。`event_metrics()` 算峰值的事件 precision 與 event recall。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "def intervals_from_mask(mask):\n    mask = np.asarray(mask, dtype=bool)\n    if not mask.any():\n        return []\n    edges = np.diff(mask.astype(int))\n    starts = list(np.where(edges == 1)[0] + 1)\n    ends = list(np.where(edges == -1)[0] + 1)\n    if mask[0]:\n        starts = [0] + starts\n    if mask[-1]:\n        ends = ends + [len(mask)]\n    return list(zip(starts, ends))\n\n\ndef sample_metrics(pred, truth):\n    pred = np.asarray(pred, dtype=bool)\n    truth = np.asarray(truth, dtype=bool)\n    tp = np.sum(pred & truth)\n    fp = np.sum(pred & ~truth)\n    fn = np.sum(~pred & truth)\n    precision = tp / (tp + fp) if tp + fp else 0.0\n    recall = tp / (tp + fn) if tp + fn else 0.0\n    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0\n    return float(precision), float(recall), float(f1)\n\n\ndef event_metrics(peaks, truth):\n    truth = np.asarray(truth, dtype=bool)\n    peaks = np.asarray(peaks, dtype=int)\n    intervals = intervals_from_mask(truth)\n    if len(peaks) == 0:\n        return 0.0, 0.0\n    precision = float(np.mean(truth[peaks]))\n    recall = float(np.mean([any(s <= p < e for p in peaks) for s, e in intervals]))\n    return precision, recall\n\n\ndef shade(ax, mask, color=\"tab:orange\", alpha=0.18):\n    ax.fill_between(time, -3, 3, where=mask, color=color, alpha=alpha, step=\"mid\")",
+      "execution_count": 3,
+      "tags": [],
+      "outputs": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 方法一：振幅門檻\n\n最直接的做法是看振幅有沒有超過某個門檻。這裡不做平滑，直接對絕對值取門檻 0.8。運轉區間會被抓到。但訊號每次穿越零點都會掉到門檻以下，所以一個事件會被切成很多小段。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "m_threshold = np.abs(signal) > 0.8\n\nfig, ax = plt.subplots(figsize=(12, 4), constrained_layout=True)\nax.plot(time, np.abs(signal), color=\"0.55\", lw=0.6, label=\"|signal|\")\nax.axhline(0.8, color=\"tab:red\", ls=\"--\", lw=1, label=\"threshold = 0.8\")\nshade(ax, m_threshold)\nax.set_xlim(0, DURATION)\nax.set_ylim(0, 3)\nax.set_xlabel(\"time [s]\")\nax.set_ylabel(\"|amplitude|\")\nax.set_title(\"Threshold：只看振幅，不處理零點\")\nax.legend(loc=\"upper right\")",
+      "execution_count": 4,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "<matplotlib.legend.Legend at 0x126f4b770>",
+          "execution_count": 4
+        },
+        {
+          "type": "image",
+          "src": "images/cell-08-out-02.webp",
+          "alt": "絕對值訊號與 0.8 門檻，運轉區間被切成很多小段",
+          "caption": "門檻法抓到振幅，但零點附近的低振幅會讓同一個事件被切成多段。",
+          "width": 1453,
+          "height": 493,
+          "execution_count": 4
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 方法二：峰值偵測\n\n第二種做法是先取包絡，再找峰值。包絡用 50 ms 的 moving average 平滑絕對值，然後用 `find_peaks()` 找局部最大值。這裡把最小距離設成 1 秒，讓每個運轉區間只留下一個代表峰。\n\n峰值法很適合回答「發生了幾次」，但它不告訴你事件從什麼時候開始、到什麼時候結束。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "envelope = uniform_filter1d(np.abs(signal), int(0.05 * FS))\npeaks, properties = find_peaks(\n    envelope,\n    height=0.8,\n    distance=int(1.0 * FS),\n    prominence=0.2,\n)\n\nfig, ax = plt.subplots(figsize=(12, 4), constrained_layout=True)\nax.plot(time, envelope, color=\"tab:blue\", lw=1, label=\"envelope\")\nax.plot(time[peaks], envelope[peaks], \"o\", color=\"tab:red\", ms=6, label=\"peaks\")\nax.set_xlim(0, DURATION)\nax.set_ylim(0, 2.2)\nax.set_xlabel(\"time [s]\")\nax.set_ylabel(\"amplitude\")\nax.set_title(\"Peaks：每個事件留一個代表峰\")\nax.legend(loc=\"upper right\")",
+      "execution_count": 5,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "<matplotlib.legend.Legend at 0x1270dce10>",
+          "execution_count": 5
+        },
+        {
+          "type": "image",
+          "src": "images/cell-10-out-02.webp",
+          "alt": "訊號包絡與四個偵測到的峰值",
+          "caption": "峰值法只給事件中心。它答得出次數，答不出長度。",
+          "width": 1453,
+          "height": 493,
+          "execution_count": 5
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 方法三：斜率\n\n第三種做法看訊號變化有多快。先做 80 ms 的平滑，再算一階差分。運轉區間的高頻成分會讓斜率變大，背景噪聲的斜率則比較小。\n\n斜率法對突發的高頻很敏感，但門檻很難調。太低會把噪聲抓進來，太高會漏掉振幅較小的事件。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "smooth = uniform_filter1d(signal, int(0.08 * FS))\nslope = np.abs(np.gradient(smooth, 1 / FS))\nm_slope = slope > 5.0\n\nfig, ax = plt.subplots(figsize=(12, 4), constrained_layout=True)\nax.plot(time, signal, color=\"0.65\", lw=0.6)\nshade(ax, m_slope, color=\"tab:purple\", alpha=0.2)\nax.set_xlim(0, DURATION)\nax.set_ylim(-3, 3)\nax.set_xlabel(\"time [s]\")\nax.set_ylabel(\"amplitude\")\nax.set_title(\"Slope：抓變化率，門檻 5.0\")",
+      "execution_count": 6,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "Text(0.5, 1.0, 'Slope：抓變化率，門檻 5.0')",
+          "execution_count": 6
+        },
+        {
+          "type": "image",
+          "src": "images/cell-12-out-02.webp",
+          "alt": "訊號上以紫色標出斜率超過門檻的片段",
+          "caption": "斜率法抓到高頻運轉，也抓到一些噪聲。門檻是它的主要弱點。",
+          "width": 1453,
+          "height": 493,
+          "execution_count": 6
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 滑動窗是什麼\n\n滑動窗把訊號切成固定長度的片段，每次往前移動一小步。每個片段可以算一個分數：RMS、能量、與模板的距離，或任何你想比較的特徵。\n\n下面這支動畫用 0.5 秒的窗掃過整段訊號。上圖是窗的位置，下圖是窗內 RMS 的變化。窗經過運轉區間時，RMS 會明顯上升。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "def animate_window(sig, fs, window=0.5, step_seconds=0.02,\n                   filename=\"sliding_window_scan.mp4\", poster=\"sliding_window_scan.png\"):\n    window_n = int(window * fs)\n    step_n = int(step_seconds * fs)\n    starts = np.arange(0, len(sig) - window_n, step_n)\n    rms = np.sqrt(uniform_filter1d(sig ** 2, window_n))\n\n    fig, axes = plt.subplots(\n        2, 1, figsize=(10, 6), sharex=True,\n        gridspec_kw={\"height_ratios\": [2, 1]}, constrained_layout=True,\n    )\n    axes[0].plot(time, sig, color=\"0.65\", lw=0.6)\n    axes[0].set_xlim(0, DURATION)\n    axes[0].set_ylim(-3, 3)\n    axes[0].set_ylabel(\"amplitude\")\n    axes[0].set_title(\"滑動窗：每次看 0.5 秒\")\n\n    rect = plt.Rectangle((0, -3), window, 6, color=\"tab:orange\", alpha=0.2)\n    axes[0].add_patch(rect)\n\n    axes[1].plot(time, rms, color=\"tab:green\", lw=1)\n    axes[1].set_xlim(0, DURATION)\n    axes[1].set_ylim(0, 1.6)\n    axes[1].set_xlabel(\"time [s]\")\n    axes[1].set_ylabel(\"RMS\")\n    point, = axes[1].plot([], [], \"o\", color=\"tab:red\", ms=5)\n\n    def update(frame):\n        start = starts[frame]\n        center = start + window_n // 2\n        rect.set_x(time[start])\n        point.set_data([time[center]], [rms[center]])\n        return rect, point\n\n    anim = FuncAnimation(fig, update, frames=len(starts), interval=50, blit=True)\n    for i in range(len(starts)):\n        update(i)\n    fig.savefig(poster, dpi=120, bbox_inches=\"tight\")\n    anim.save(\n        filename,\n        writer=\"ffmpeg\",\n        fps=40,\n        codec=\"libx264\",\n        extra_args=[\"-pix_fmt\", \"yuv420p\", \"-crf\", \"23\"],\n    )\n    plt.close(fig)\n\n\nanimate_window(signal, FS)",
+      "execution_count": 7,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "video",
+          "src": "videos/sliding_window_scan.mp4",
+          "poster": "images/sliding_window_scan.webp",
+          "alt": "0.5 秒滑動窗掃過震動訊號，下圖同步顯示窗內 RMS",
+          "caption": "滑動窗把時間切段，每個窗算一個分數。這裡的分數是 RMS。影片以 2 倍速播放。",
+          "width": 1200,
+          "height": 720,
+          "controls": true,
+          "autoplay": false,
+          "muted": true,
+          "loop": true,
+          "playsinline": true
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 方法四：滑動窗相似度\n\n第四種做法拿一段已知的運轉波形當模板，讓它跟每個滑動窗比距離。這裡的模板取自第一個運轉區間，長度 0.25 秒，步長 0.05 秒。每個窗先做 z-score，再算歐氏距離；距離最小的前 10% 當成命中。\n\n這個方法不是 DTW。它只是把每個窗正規化後直接比對，所以對相位與波形形狀很敏感。模板從第一個事件來，對其他頻率不同的事件就不一定有效。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "window_n = int(0.25 * FS)\nstep_n = int(0.05 * FS)\ntemplate_start = int(1.1 * FS)\ntemplate = signal[template_start:template_start + window_n]\n\nwindows = sliding_window_view(signal, window_n)[::step_n]\n\ndef zscore(v):\n    return (v - v.mean()) / (v.std() + 1e-9)\n\ntemplate_z = zscore(template)\ndistances = np.array([np.linalg.norm(zscore(w) - template_z) for w in windows])\ndistance_threshold = np.percentile(distances, 10)\n\nm_pattern = np.zeros_like(signal, dtype=bool)\nfor i, distance in enumerate(distances):\n    if distance <= distance_threshold:\n        start = i * step_n\n        m_pattern[start:start + window_n] = True\n\nfig, axes = plt.subplots(2, 1, figsize=(12, 5), sharex=True,\n                         gridspec_kw={\"height_ratios\": [2, 1]}, constrained_layout=True)\naxes[0].plot(time, signal, color=\"0.65\", lw=0.6)\nshade(axes[0], m_pattern, color=\"tab:green\", alpha=0.25)\naxes[0].set_xlim(0, DURATION)\naxes[0].set_ylim(-3, 3)\naxes[0].set_ylabel(\"amplitude\")\naxes[0].set_title(\"Pattern matching：z-score 後的歐氏距離\")\n\naxes[1].plot(np.arange(len(distances)) * step_n / FS, distances, color=\"tab:blue\", lw=1)\naxes[1].axhline(distance_threshold, color=\"tab:red\", ls=\"--\", lw=1)\naxes[1].set_xlim(0, DURATION)\naxes[1].set_xlabel(\"time [s]\")\naxes[1].set_ylabel(\"distance\")",
+      "execution_count": 8,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "Text(0, 0.5, 'distance')",
+          "execution_count": 8
+        },
+        {
+          "type": "image",
+          "src": "images/cell-16-out-02.webp",
+          "alt": "上圖以綠色標出模板相似度高的片段，下圖是每個滑動窗的距離曲線",
+          "caption": "模板只取第一個事件。距離門檻抓到的片段，不一定涵蓋其他頻率不同的事件。",
+          "width": 1453,
+          "height": 613,
+          "execution_count": 8
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 方法五：Rolling energy\n\n第五種做法看區間能量。先把訊號平方，再做 150 ms 的 moving average，最後對能量取門檻。能量法對振幅敏感，對相位不敏感；它很適合找事件的開始與結束。\n\n代價是窗長與門檻都要調。窗太短會讓輸出跳動，窗太長會讓邊界變鈍。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "energy = uniform_filter1d(signal ** 2, int(0.15 * FS))\nm_energy = energy > 0.15\n\nfig, ax = plt.subplots(figsize=(12, 4), constrained_layout=True)\nax.plot(time, signal, color=\"0.65\", lw=0.6)\nshade(ax, m_energy, color=\"tab:green\", alpha=0.25)\nax.set_xlim(0, DURATION)\nax.set_ylim(-3, 3)\nax.set_xlabel(\"time [s]\")\nax.set_ylabel(\"amplitude\")\nax.set_title(\"Rolling energy：門檻 0.15\")",
+      "execution_count": 9,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "Text(0.5, 1.0, 'Rolling energy：門檻 0.15')",
+          "execution_count": 9
+        },
+        {
+          "type": "image",
+          "src": "images/cell-18-out-02.webp",
+          "alt": "訊號上以綠色標出 rolling energy 超過門檻的區間",
+          "caption": "能量法給出連續區間，邊界比 threshold 穩定。",
+          "width": 1453,
+          "height": 493,
+          "execution_count": 9
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 五張圖一起看\n\n把五種結果排在一起，差異就很清楚。threshold 與 slope 會被零點或噪聲切碎。peaks 只有點，pattern 只認得模板形狀。energy 給出比較完整的區間。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "fig, axes = plt.subplots(5, 1, figsize=(12, 10), sharex=True, constrained_layout=True)\n\naxes[0].plot(time, np.abs(signal), color=\"0.65\", lw=0.5)\naxes[0].axhline(0.8, color=\"tab:red\", ls=\"--\", lw=0.8)\nshade(axes[0], m_threshold)\naxes[0].set_ylabel(\"|x|\")\naxes[0].set_title(\"1. Threshold\")\n\naxes[1].plot(time, signal, color=\"0.65\", lw=0.5)\naxes[1].plot(time[peaks], signal[peaks], \"o\", color=\"tab:red\", ms=4)\naxes[1].set_ylabel(\"x\")\naxes[1].set_title(\"2. Peaks\")\n\naxes[2].plot(time, signal, color=\"0.65\", lw=0.5)\nshade(axes[2], m_slope, color=\"tab:purple\", alpha=0.2)\naxes[2].set_ylabel(\"x\")\naxes[2].set_title(\"3. Slope\")\n\naxes[3].plot(time, signal, color=\"0.65\", lw=0.5)\nshade(axes[3], m_pattern, color=\"tab:green\", alpha=0.25)\naxes[3].set_ylabel(\"x\")\naxes[3].set_title(\"4. Pattern\")\n\naxes[4].plot(time, signal, color=\"0.65\", lw=0.5)\nshade(axes[4], m_energy, color=\"tab:green\", alpha=0.25)\naxes[4].set_ylabel(\"x\")\naxes[4].set_xlabel(\"time [s]\")\naxes[4].set_title(\"5. Rolling energy\")\n\nfor ax in axes:\n    ax.set_xlim(0, DURATION)\n    ax.set_ylim(-3, 3)",
+      "execution_count": 10,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "image",
+          "src": "images/cell-20-out-01.webp",
+          "alt": "五個子圖依序顯示 threshold、peaks、slope、pattern、rolling energy 的結果",
+          "caption": "同一段訊號，五種看法。每一種都只回答一部分問題。",
+          "width": 1453,
+          "height": 1213,
+          "execution_count": 10
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 量化比較\n\n下面把四種區間方法與峰值法放在同一張表。Threshold 的 precision 很高，因為它很少誤判；但 recall 受零點切段影響。Peaks 的事件 recall 很好，卻沒有區間長度。Slope 與 pattern 的分數較低，原因是它們對噪聲與模板形狀太敏感。Energy 在這次的訊號上最平衡。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "rows = []\nfor name, pred in [\n    (\"Threshold\", m_threshold),\n    (\"Slope\", m_slope),\n    (\"Pattern\", m_pattern),\n    (\"Energy\", m_energy),\n]:\n    precision, recall, f1 = sample_metrics(pred, truth)\n    rows.append([name, f\"{precision:.2f}\", f\"{recall:.2f}\", f\"{f1:.2f}\",\n                 len(intervals_from_mask(pred))])\n\npeak_precision, peak_recall = event_metrics(peaks, truth)\nrows.append([\"Peaks (event)\", f\"{peak_precision:.2f}\", f\"{peak_recall:.2f}\", \"—\", len(peaks)])\n\ndf = pd.DataFrame(rows, columns=[\"方法\", \"Precision\", \"Recall\", \"F1\", \"區間/峰值數\"])\ndf",
+      "execution_count": 11,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "html",
+          "html": "<div>\n\n<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr>\n      <th></th>\n      <th>方法</th>\n      <th>Precision</th>\n      <th>Recall</th>\n      <th>F1</th>\n      <th>區間/峰值數</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>0</th>\n      <td>Threshold</td>\n      <td>1.00</td>\n      <td>0.71</td>\n      <td>0.83</td>\n      <td>78</td>\n    </tr>\n    <tr>\n      <th>1</th>\n      <td>Slope</td>\n      <td>0.92</td>\n      <td>0.81</td>\n      <td>0.86</td>\n      <td>86</td>\n    </tr>\n    <tr>\n      <th>2</th>\n      <td>Pattern</td>\n      <td>0.80</td>\n      <td>0.75</td>\n      <td>0.77</td>\n      <td>3</td>\n    </tr>\n    <tr>\n      <th>3</th>\n      <td>Energy</td>\n      <td>0.90</td>\n      <td>1.00</td>\n      <td>0.95</td>\n      <td>4</td>\n    </tr>\n    <tr>\n      <th>4</th>\n      <td>Peaks (event)</td>\n      <td>1.00</td>\n      <td>1.00</td>\n      <td>—</td>\n      <td>4</td>\n    </tr>\n  </tbody>\n</table>\n</div>",
+          "execution_count": 11
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 什麼時候用哪一種\n\n| 方法 | 看到什麼 | 適合 | 弱點 |\n|---|---|---|---|\n| Threshold | 振幅 | 快速篩選、線上監測 | 零點切段、門檻難調 |\n| Peaks | 事件中心 | 計算發生次數 | 沒有事件長度 |\n| Slope | 變化率 | 突發高頻、撞擊 | 對噪聲敏感 |\n| Pattern | 波形相似度 | 已知模板的重複事件 | 模板不易泛化 |\n| Energy | 區間能量 | 找開始與結束 | 窗長與門檻要調 |\n\n如果只需要知道「有沒有發生」，threshold 或 peaks 就夠。如果需要「什麼時候開始、什麼時候結束」，energy 或滑動窗會更合適。實務上通常會把兩三種方法串起來：先用 energy 找候選區間，再用 peaks 或頻譜特徵確認。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 小結\n\n- 時間域方法各自看到不同的東西。沒有一種方法能同時給你事件、長度與原因。\n- Threshold 與 slope 容易被零點或噪聲切碎。Peaks 只有點，沒有長度。\n- Pattern matching 對模板形狀很敏感；它不等於 DTW。\n- Rolling energy 在這次的訊號上最平衡，但窗長與門檻仍需調整。\n- 下一篇用頻譜看馬達故障。時間域找「什麼時候」，頻譜找「為什麼」。\n\n〈[馬達的八種壞法](/notebooks/motor-fault-spectra/)〉用同樣的 2000 Hz 取樣率，把訊號轉成頻譜，看不同故障留下的特徵頻率。〈[用轉動的圓畫出方波](/notebooks/fourier-epicycles/)〉則從另一個角度解釋「訊號可以由頻率疊出來」。",
+      "tags": []
+    }
+  ]
+}
