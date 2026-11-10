@@ -6,8 +6,8 @@
     "kernel": "Python 3 (ipykernel)",
     "language": "python",
     "python_version": "3.13.14",
-    "executed_at": "2026-11-10 18:00 CST",
-    "duration_ms": 2800,
+    "executed_at": "2026-11-10 18:19 CST",
+    "duration_ms": 2976,
     "cell_count": 16,
     "code_cell_count": 6,
     "readonly": true
@@ -94,7 +94,7 @@
     },
     {
       "type": "code",
-      "source": "frequency, amplitude = amplitude_spectrum(signals[\"Misalignment\"])\n\nfig, ax = plt.subplots(figsize=(10, 4), constrained_layout=True)\nax.plot(frequency, amplitude, color=\"#1f4e79\", lw=1.2)\n\nfor target, label, offset in [(F_ROT, \"1x\", 0.25), (2 * F_ROT, \"2x\", 0.25)]:\n    idx = np.argmin(np.abs(frequency - target))\n    ax.annotate(\n        f\"{label} = {target:.0f} Hz\",\n        xy=(frequency[idx], amplitude[idx]),\n        xytext=(target + 25, amplitude[idx] + offset),\n        arrowprops=dict(arrowstyle=\"->\", color=\"0.4\", lw=0.8),\n        fontsize=9,\n    )\n\nax.set_xlim(0, 150)\nax.set_ylim(0, 1.6)\nax.set_xlabel(\"frequency [Hz]\")\nax.set_ylabel(\"amplitude\")\nax.set_title(\"Misalignment：1x 與 2x\")",
+      "source": "frequency, amplitude = amplitude_spectrum(signals[\"Misalignment\"])\n\nfig, ax = plt.subplots(figsize=(10, 4), constrained_layout=True)\nax.plot(frequency, amplitude, color=\"#1f4e79\", lw=1.2)\n\nfor target, label, dx, dy in [(F_ROT, \"1x\", -22, 0.25), (2 * F_ROT, \"2x\", 25, 0.25)]:\n    idx = np.argmin(np.abs(frequency - target))\n    ax.annotate(\n        f\"{label} = {target:.0f} Hz\",\n        xy=(frequency[idx], amplitude[idx]),\n        xytext=(target + dx, amplitude[idx] + dy),\n        arrowprops=dict(arrowstyle=\"->\", color=\"0.4\", lw=0.8),\n        fontsize=9,\n    )\n\nax.set_xlim(0, 150)\nax.set_ylim(0, 1.6)\nax.set_xlabel(\"frequency [Hz]\")\nax.set_ylabel(\"amplitude\")\nax.set_title(\"Misalignment：1x 與 2x\")",
       "execution_count": 5,
       "tags": [],
       "outputs": [
@@ -127,7 +127,7 @@
       "outputs": [
         {
           "type": "result",
-          "text": "<matplotlib.lines.Line2D at 0x12a2311d0>",
+          "text": "<matplotlib.lines.Line2D at 0x10f3151d0>",
           "execution_count": 6
         },
         {

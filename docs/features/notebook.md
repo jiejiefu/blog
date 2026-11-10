@@ -100,7 +100,8 @@ Output 型別：`stream`、`result`、`image`、`html`、`video`、`error`。`re
 
 ## 版面
 
-- 桌機與手機都以 `90vw` 顯示，透過 `margin-left: calc(50% - 45vw)` 置中；列印回到 `100%`。
+- 桌機以 `75vw` 顯示，透過 `margin-left: calc(50% - 37.5vw)` 置中；`max-width: 1024px` 以下回到 `90vw`，列印回到 `100%`。
+- 影片寬度不超過原始尺寸、高度上限 `calc(100svh - 4rem)`，避免長影片超出視窗；放大交給原生 controls 的全螢幕按鈕。
 - 每個 code cell 的 input 與所有 outputs 共用一個外框；outputs 不再有獨立框線或底色，背景沿用 `.jp-notebook` 的 `--jp-bg`。
 - code block 保留 `--jp-code-bg` 淡色底；code 與 output 共用 `--jp-mono-size: 14px`。
 - PaperMod 的 `.post-content code` 是 `0.78em`，會讓 code 比 output 小；`.jp-code .highlight pre code` 必須覆寫成 `font-size: inherit`，並清掉 `margin`／`padding`／`background`。

@@ -17,9 +17,9 @@
     --radius: 6px;
 
     position: relative;
-    width: 90vw;
+    width: 75vw;
     max-width: none;
-    margin: 1.5rem 0 2rem calc(50% - 45vw);
+    margin: 1.5rem 0 2rem calc(50% - 37.5vw);
     overflow: hidden;
     background: var(--jp-bg);
     border: 1px solid var(--jp-border);
@@ -626,9 +626,10 @@
 
 .jp-video {
     display: block;
-    width: 100%;
+    width: auto;
     max-width: 100%;
     height: auto;
+    max-height: calc(100svh - 4rem);
     margin: 0 auto;
     background: #000;
     border-radius: 6px;
@@ -679,6 +680,13 @@
     margin-left: auto;
     color: var(--jp-green);
     font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+    .jp-notebook {
+        width: 90vw;
+        margin-left: calc(50% - 45vw);
+    }
 }
 
 @media (max-width: 720px) {
