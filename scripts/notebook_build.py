@@ -9,6 +9,7 @@ import datetime as dt
 import json
 import platform
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -95,9 +96,61 @@ def _image_output(output, cell_index, output_index, image_dir, cell_meta):
     }
 
 
-def _convert_outputs(cell, cell_index, image_dir):
+def _video_output(cell, cell_index, image_dir, video_dir, source_dir):
+    cell_meta = cell.get("metadata", {})
+    video_meta = cell_meta.get("video")
+    if not video_meta:
+        return None
+    if isinstance(video_meta, str):
+        video_meta = {"src": video_meta}
+
+    src_name = Path(str(video_meta["src"])).name
+    src_path = source_dir / src_name
+    if not src_path.is_file():
+        raise FileNotFoundError(
+            f"notebook video not found: {src_path} (cell {cell_index})"
+        )
+
+    video_dir.mkdir(parents=True, exist_ok=True)
+    dest = video_dir / src_name
+    shutil.copy2(src_path, dest)
+
+    poster_src = ""
+    poster = video_meta.get("poster")
+    if poster:
+        poster_path = source_dir / Path(str(poster)).name
+        if not poster_path.is_file():
+            raise FileNotFoundError(
+                f"notebook video poster not found: {poster_path} (cell {cell_index})"
+            )
+        poster_name = f"{Path(poster).stem}.webp"
+        poster_dest = image_dir / poster_name
+        png_to_webp(poster_path, poster_dest)
+        poster_src = f"images/{poster_name}"
+
+    return {
+        "type": "video",
+        "src": f"videos/{src_name}",
+        "poster": poster_src,
+        "alt": video_meta.get("alt", f"Cell {cell_index} video"),
+        "caption": video_meta.get("caption", ""),
+        "width": int(video_meta.get("width", 0) or 0),
+        "height": int(video_meta.get("height", 0) or 0),
+        "controls": bool(video_meta.get("controls", True)),
+        "autoplay": bool(video_meta.get("autoplay", False)),
+        "muted": bool(video_meta.get("muted", True)),
+        "loop": bool(video_meta.get("loop", True)),
+        "playsinline": bool(video_meta.get("playsinline", True)),
+    }
+
+
+def _convert_outputs(cell, cell_index, image_dir, video_dir, source_dir):
     cell_meta = cell.get("metadata", {})
     outputs = []
+
+    video = _video_output(cell, cell_index, image_dir, video_dir, source_dir)
+    if video:
+        outputs.append(video)
 
     for output_index, output in enumerate(cell.get("outputs", []), 1):
         kind = output.get("output_type")
@@ -159,7 +212,7 @@ def _convert_outputs(cell, cell_index, image_dir):
     return outputs
 
 
-def _build_cells(nb, image_dir):
+def _build_cells(nb, image_dir, video_dir, source_dir):
     cells = []
 
     for cell_index, cell in enumerate(nb.cells, 1):
@@ -185,7 +238,9 @@ def _build_cells(nb, image_dir):
                     "source": _text(cell.source).rstrip(),
                     "execution_count": cell.get("execution_count"),
                     "tags": tags,
-                    "outputs": _convert_outputs(cell, cell_index, image_dir),
+                    "outputs": _convert_outputs(
+                        cell, cell_index, image_dir, video_dir, source_dir
+                    ),
                 }
             )
 
@@ -213,6 +268,10 @@ def _write_markdown(cells, path):
                 lines.extend(["```html", output["html"], "```", ""])
             elif output["type"] == "image":
                 lines.append(f"![{output['alt']}]({output['src']})")
+                if output["caption"]:
+                    lines.extend([f"*{output['caption']}*", ""])
+            elif output["type"] == "video":
+                lines.append(f"[影片：{output['alt']}]({output['src']})")
                 if output["caption"]:
                     lines.extend([f"*{output['caption']}*", ""])
             elif output["type"] == "error":
@@ -243,6 +302,11 @@ def build(
     for stale in image_dir.glob("cell-*-out-*.webp"):
         stale.unlink()
 
+    video_dir = bundle / "videos"
+    video_dir.mkdir(parents=True, exist_ok=True)
+    for stale in list(video_dir.glob("*.mp4")) + list(video_dir.glob("*.webm")):
+        stale.unlink()
+
     nb = nbformat.read(source, as_version=4)
     nbformat.validate(nb)
 
@@ -267,7 +331,7 @@ def build(
             raise
     duration_ms = int((time.perf_counter() - started) * 1000)
 
-    cells = _build_cells(nb, image_dir)
+    cells = _build_cells(nb, image_dir, video_dir, source.parent)
     kernelspec = nb.metadata.get("kernelspec", {})
     meta = {
         "title": nb.metadata.get("title", source.stem),

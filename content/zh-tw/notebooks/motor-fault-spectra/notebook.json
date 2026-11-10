@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "meta": {
+    "title": "馬達的八種壞法：用頻譜讀出故障指紋",
+    "filename": "notebook.ipynb",
+    "kernel": "Python 3 (ipykernel)",
+    "language": "python",
+    "python_version": "3.13.14",
+    "executed_at": "2026-11-10 18:00 CST",
+    "duration_ms": 2800,
+    "cell_count": 16,
+    "code_cell_count": 6,
+    "readonly": true
+  },
+  "cells": [
+    {
+      "type": "markdown",
+      "source": "## 這頁在做什麼\n\n這一頁把八種常見的馬達與旋轉機械狀態，各自轉成一張頻譜。訊號是簡化的教學模型：每個狀態用幾個正弦波與噪聲組合，頻率與振幅都是設定值。真實機器還會有軸承幾何、轉速波動、共振與負載變化。這裡的頻譜是「讀圖練習」，不是診斷公式。\n\n先看九張圖。每一張的 x 軸是 0–500 Hz，y 軸是振幅。標題是狀態名稱。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "%matplotlib inline\nimport numpy as np\nimport matplotlib.pyplot as plt\n\nplt.rcParams.update({\n    \"figure.dpi\": 120,\n    \"savefig.dpi\": 120,\n    \"font.sans-serif\": [\"PingFang TC\", \"Heiti TC\", \"Arial Unicode MS\", \"DejaVu Sans\"],\n    \"axes.unicode_minus\": False,\n    \"axes.grid\": True,\n    \"grid.alpha\": 0.25,\n    \"axes.spines.top\": False,\n    \"axes.spines.right\": False,\n})\n\nFS = 2000\nDURATION = 1.2\nT = np.arange(0, DURATION, 1 / FS)\nF_ROT = 30.0\nF_LINE = 60.0\nF_BEARING = 123.5\nF_MESH = 250.0\nRNG = np.random.default_rng(42)",
+      "execution_count": 1,
+      "tags": [],
+      "outputs": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 先把八種狀態造出來\n\n每個狀態都只看 1.2 秒。取樣率 2000 Hz，所以頻率上限是 1000 Hz；圖只畫到 500 Hz。`Normal` 是基準，其他八個是常見故障的簡化模型。\n\n這些模型不模擬真實機器的完整物理。它們只把「某個故障會在哪個頻率留下峰值」單獨拉出來。這樣讀者可以先學會看圖，再去面對真實資料的複雜度。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "def noise(scale=0.05):\n    return scale * RNG.normal(size=T.size)\n\nsignals = {\n    \"Normal\": 0.10 * np.sin(2 * np.pi * F_ROT * T) + noise(0.04),\n    \"Unbalance\": 1.50 * np.sin(2 * np.pi * F_ROT * T) + noise(0.05),\n    \"Misalignment\": (\n        0.80 * np.sin(2 * np.pi * F_ROT * T)\n        + 1.20 * np.sin(2 * np.pi * 2 * F_ROT * T)\n        + noise(0.05)\n    ),\n    \"Looseness\": (\n        sum((0.8 / n) * np.sin(2 * np.pi * n * F_ROT * T) for n in range(1, 6))\n        + noise(0.08)\n    ),\n    \"Bearing fault\": (\n        1.20 * np.sin(2 * np.pi * F_BEARING * T)\n        + 0.35 * np.sin(2 * np.pi * 2 * F_BEARING * T)\n        + noise(0.10)\n    ),\n    \"Gear mesh\": (\n        0.80 * np.sin(2 * np.pi * F_MESH * T)\n        * (1 + 0.5 * np.sin(2 * np.pi * F_ROT * T))\n        + noise(0.06)\n    ),\n    \"Rubbing\": (\n        0.60 * np.sin(2 * np.pi * 0.5 * F_ROT * T)\n        + 0.80 * np.sin(2 * np.pi * F_ROT * T)\n        + 0.50 * np.sin(2 * np.pi * 1.5 * F_ROT * T)\n        + noise(0.05)\n    ),\n    \"Electrical\": (\n        1.00 * np.sin(2 * np.pi * 2 * F_LINE * T)\n        + 0.20 * np.sin(2 * np.pi * F_ROT * T)\n        + noise(0.05)\n    ),\n    \"Bent shaft\": 1.30 * np.sin(2 * np.pi * F_ROT * T + np.pi / 4) + noise(0.05),\n}",
+      "execution_count": 2,
+      "tags": [],
+      "outputs": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 九張頻譜\n\n把每個狀態做 FFT，取單邊振幅頻譜。這裡用 Hann window 降低 leakage，振幅用 window 的總和歸一化，所以峰值高度大致可以互相比較。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "def amplitude_spectrum(x, fs=FS):\n    n = len(x)\n    window = np.hanning(n)\n    spectrum = np.fft.rfft(x * window)\n    amplitude = 2 * np.abs(spectrum) / window.sum()\n    frequency = np.fft.rfftfreq(n, 1 / fs)\n    return frequency, amplitude\n\n\nfig, axes = plt.subplots(3, 3, figsize=(12, 8), sharex=True, constrained_layout=True)\n\nfor ax, (name, sig) in zip(axes.flat, signals.items()):\n    frequency, amplitude = amplitude_spectrum(sig)\n    ax.plot(frequency, amplitude, color=\"#1f4e79\", lw=1)\n    ax.set_xlim(0, 500)\n    ax.set_ylim(0, 1.6)\n    ax.set_title(name, fontsize=10)\n\nfor ax in axes[-1, :]:\n    ax.set_xlabel(\"frequency [Hz]\")\nfor ax in axes[:, 0]:\n    ax.set_ylabel(\"amplitude\")",
+      "execution_count": 3,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "image",
+          "src": "images/cell-06-out-01.webp",
+          "alt": "九張頻譜排成 3×3，分別是正常、不平衡、不對心、鬆動、軸承、齒輪、摩擦、電氣與彎軸",
+          "caption": "八種故障與正常狀態的簡化頻譜。先看峰值出現在哪裡，再看它有幾個。",
+          "width": 1453,
+          "height": 973,
+          "execution_count": 3
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 這張圖的解析度\n\n訊號長度 1.2 秒，頻率解析度是 $f_s/N = 2000/2400 \\approx 0.83$ Hz。這代表兩個很接近的峰值，在圖上可能黏在一起。軸承特徵頻率 123.5 Hz 與 4 倍轉頻 120 Hz 只差 3.5 Hz，大約是 4 個 bin。這個長度下還分得開，但再短就未必。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "n = len(T)\ndf = FS / n\nprint(f\"frequency resolution = {df:.2f} Hz\")\nprint(f\"1x = {F_ROT:.1f} Hz, 2x = {2 * F_ROT:.1f} Hz\")\nprint(f\"line = {F_LINE:.1f} Hz, 2*line = {2 * F_LINE:.1f} Hz\")\nprint(f\"bearing = {F_BEARING:.1f} Hz, gear mesh = {F_MESH:.1f} Hz\")",
+      "execution_count": 4,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "frequency resolution = 0.83 Hz\n1x = 30.0 Hz, 2x = 60.0 Hz\nline = 60.0 Hz, 2*line = 120.0 Hz\nbearing = 123.5 Hz, gear mesh = 250.0 Hz"
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 怎麼讀這張圖\n\n先記住幾個參考頻率：\n\n- **1x**：轉頻，這裡是 30 Hz。\n- **2x**：兩倍轉頻，60 Hz。\n- **2× line**：電源頻率的兩倍，這裡是 120 Hz。\n- **軸承**：123.5 Hz，通常不是轉頻的整數倍。\n- **齒輪噛合**：250 Hz，兩側可能出現轉頻間隔的 sideband。\n\n同一個峰值可能有多種解釋。120 Hz 可以是 4x，也可以是 2× line。只靠一張頻譜無法區分，還需要轉速、電源頻率與感測器位置。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 逐項對照\n\n| 狀態 | 主要頻率 | 讀法 |\n|---|---|---|\n| Normal | 1x 很小 | 沒有明顯突出的峰值 |\n| Unbalance | 1x | 1x 振幅高，2x 相對小 |\n| Misalignment | 1x、2x | 2x 明顯，甚至超過 1x |\n| Looseness | 1x、2x、3x… | 多個諧波一起出現 |\n| Bearing fault | 123.5 Hz、247 Hz | 高頻、非整數倍，可能出現邊帶 |\n| Gear mesh | 250 Hz、250±30 Hz | 噛合頻率與轉頻 sideband |\n| Rubbing | 0.5x、1x、1.5x | 分數諧波 |\n| Electrical | 120 Hz | 2× line，可能伴隨 1x |\n| Bent shaft | 1x | 與不平衡相似，需要相位或軸向資訊 |\n\n這張表是「頻率位置」的對照，不是「看到就確診」。真實診斷會把頻譜、時域波形、包絡、相位、趨勢與維修紀錄一起看。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 不對心：1x 與 2x 一起出現\n\n下圖把「不對心」的頻譜放大，標出 1x 與 2x。兩個峰值都存在，而且 2x 比 1x 高。這是徑向頻譜的典型教學例子；實際比例會受轉速、負載與感測器方向影響。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "frequency, amplitude = amplitude_spectrum(signals[\"Misalignment\"])\n\nfig, ax = plt.subplots(figsize=(10, 4), constrained_layout=True)\nax.plot(frequency, amplitude, color=\"#1f4e79\", lw=1.2)\n\nfor target, label, offset in [(F_ROT, \"1x\", 0.25), (2 * F_ROT, \"2x\", 0.25)]:\n    idx = np.argmin(np.abs(frequency - target))\n    ax.annotate(\n        f\"{label} = {target:.0f} Hz\",\n        xy=(frequency[idx], amplitude[idx]),\n        xytext=(target + 25, amplitude[idx] + offset),\n        arrowprops=dict(arrowstyle=\"->\", color=\"0.4\", lw=0.8),\n        fontsize=9,\n    )\n\nax.set_xlim(0, 150)\nax.set_ylim(0, 1.6)\nax.set_xlabel(\"frequency [Hz]\")\nax.set_ylabel(\"amplitude\")\nax.set_title(\"Misalignment：1x 與 2x\")",
+      "execution_count": 5,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "Text(0.5, 1.0, 'Misalignment：1x 與 2x')",
+          "execution_count": 5
+        },
+        {
+          "type": "image",
+          "src": "images/cell-12-out-02.webp",
+          "alt": "不對心的頻譜在 30 Hz 與 60 Hz 各有一個峰值，60 Hz 較高",
+          "caption": "不對心的教學頻譜。1x 與 2x 同時出現，2x 可能比 1x 高。",
+          "width": 1213,
+          "height": 493,
+          "execution_count": 5
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 軸承與齒輪：高頻區的指紋\n\n軸承故障的特徵頻率由軸承幾何決定，通常不是轉頻的整數倍。這裡用 123.5 Hz 當代表，並加上 247 Hz 的二次諧波。真實軸承會出現撞擊重複頻率與共振帶，單看低頻頻譜不夠，通常還要做 envelope analysis。\n\n齒輪噛合頻率是齒數乘上轉頻。這裡設 250 Hz，並用 30 Hz 的轉頻去調變，所以主峰兩側會出現 220 Hz 與 280 Hz 的 sideband。",
+      "tags": []
+    },
+    {
+      "type": "code",
+      "source": "fig, axes = plt.subplots(1, 2, figsize=(12, 4), constrained_layout=True)\n\nfor ax, name, xmax in [\n    (axes[0], \"Bearing fault\", 320),\n    (axes[1], \"Gear mesh\", 340),\n]:\n    frequency, amplitude = amplitude_spectrum(signals[name])\n    ax.plot(frequency, amplitude, color=\"#1f4e79\", lw=1.2)\n    ax.set_xlim(0, xmax)\n    ax.set_ylim(0, 1.0)\n    ax.set_xlabel(\"frequency [Hz]\")\n    ax.set_ylabel(\"amplitude\")\n    ax.set_title(name)\n\naxes[0].axvline(F_BEARING, color=\"tab:red\", ls=\":\", lw=1)\naxes[1].axvline(F_MESH, color=\"tab:red\", ls=\":\", lw=1)\naxes[1].axvline(F_MESH - F_ROT, color=\"0.5\", ls=\"--\", lw=0.8)\naxes[1].axvline(F_MESH + F_ROT, color=\"0.5\", ls=\"--\", lw=0.8)",
+      "execution_count": 6,
+      "tags": [],
+      "outputs": [
+        {
+          "type": "result",
+          "text": "<matplotlib.lines.Line2D at 0x12a2311d0>",
+          "execution_count": 6
+        },
+        {
+          "type": "image",
+          "src": "images/cell-14-out-02.webp",
+          "alt": "左圖軸承頻譜在 123.5 Hz 有峰值，右圖齒輪頻譜在 250 Hz 與兩側 sideband 有峰值",
+          "caption": "高頻區的兩種指紋：軸承的非整數倍頻率，與齒輪的噛合頻率加 sideband。",
+          "width": 1453,
+          "height": 493,
+          "execution_count": 6
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "source": "## 實務上不能只看一張頻譜\n\n- **轉速不是常數**：負載與電源頻率會讓轉速漂移，峰值也跟著移動。變轉速下要用 order tracking。\n- **感測器位置會改變振幅**。徑向與軸向看到的分量不同，同一個故障在兩個方向可能長得不一樣。\n- **共振會放大某些頻率**：峰值高不代表故障嚴重，可能只是剛好接近結構共振。\n- **相位與軸向資訊**。彎軸與不平衡在振幅頻譜上都可能是 1x，要靠相位或軸向差異區分。\n- **軸承需要包絡**：軸承的撞擊重複頻率常被低頻成分蓋住，envelope analysis 比直接看頻譜有效。\n\n資料來源是 gng.tw 的「[馬達的八種壞法](https://www.gng.tw/)」整理。本文把常見的故障頻率改寫成可執行的簡化模型。數字與比例是教學設定，不是原始資料的逐字重現。",
+      "tags": []
+    },
+    {
+      "type": "markdown",
+      "source": "## 小結\n\n- 頻譜把時間域看不到的頻率成分攤開。1x、2x、分數諧波、軸承頻率、齒輪噛合，各自對應不同的物理來源。\n- 同一個峰值可能有多種解釋。120 Hz 可以是 4x，也可以是 2× line。\n- 振幅頻譜只給大小，不給相位。彎軸與不平衡需要更多資訊才能分開。\n- 真實診斷要把頻譜、時域、包絡、相位、趨勢與維修紀錄一起看。\n\n上一篇〈[一段震動訊號的五種看法](/notebooks/vibration-signal-five-views/)〉從時間域找事件。這一篇把同一套 2000 Hz 取樣率拿來看頻率。兩篇合起來，就是「什麼時候」與「為什麼」的兩半。〈[用轉動的圓畫出方波](/notebooks/fourier-epicycles/)〉則從視覺直覺解釋為什麼訊號可以拆成頻率。",
+      "tags": []
+    }
+  ]
+}

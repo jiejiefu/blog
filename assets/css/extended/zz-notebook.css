@@ -620,6 +620,20 @@
     text-align: left;
 }
 
+.jp-video-figure {
+    text-align: left;
+}
+
+.jp-video {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    background: #000;
+    border-radius: 6px;
+}
+
 .jp-html-table {
     overflow-x: auto;
 }

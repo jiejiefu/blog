@@ -62,6 +62,38 @@
     </figure>
   </div>
 </div>
+{{- else if eq $output.type "video" -}}
+{{- $video := $page.Resources.GetMatch $output.src -}}
+{{- if not $video -}}
+  {{- errorf "notebook output: missing video %q in %s" $output.src $page.File.Path -}}
+{{- end -}}
+{{- $poster := "" -}}
+{{- with $output.poster -}}
+  {{- $posterResource := $page.Resources.GetMatch . -}}
+  {{- if $posterResource -}}{{- $poster = $posterResource.RelPermalink -}}{{- end -}}
+{{- end -}}
+<div class="jp-output jp-output-video" data-jp-output-type="video">
+  <div class="jp-output-prompt">
+    <div class="jp-prompt" aria-hidden="true"></div>
+  </div>
+  <div class="jp-output-body">
+    <figure class="jp-figure jp-video-figure">
+      <video class="jp-video" src="{{ $video.RelPermalink }}"
+             {{- with $poster }} poster="{{ . }}"{{ end }}
+             {{- with $output.width }} width="{{ . }}"{{ end }}
+             {{- with $output.height }} height="{{ . }}"{{ end }}
+             {{- if $output.controls }} controls{{ end }}
+             {{- if $output.autoplay }} autoplay{{ end }}
+             {{- if $output.muted }} muted{{ end }}
+             {{- if $output.loop }} loop{{ end }}
+             {{- if $output.playsinline }} playsinline{{ end }}
+             preload="metadata" aria-label="{{ $output.alt }}"></video>
+      {{- with $output.caption -}}
+      <figcaption>{{ . }}</figcaption>
+      {{- end -}}
+    </figure>
+  </div>
+</div>
 {{- else if eq $output.type "html" -}}
 <div class="jp-output jp-output-html" data-jp-output-type="html">
   <div class="jp-output-prompt">

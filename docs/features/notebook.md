@@ -15,6 +15,7 @@ scripts/<slug>/notebook.ipynb
   → scripts/<slug>/build.py
   → content/zh-tw/notebooks/<slug>/notebook.json
   → content/zh-tw/notebooks/<slug>/images/*.webp
+  → content/zh-tw/notebooks/<slug>/videos/*.mp4
   → {{< notebook >}} → layouts/partials/notebook/*
 ```
 
@@ -49,7 +50,7 @@ python3 scripts/intro-to-jupyter-notebook/build.py
 }
 ```
 
-Output 型別：`stream`、`result`、`image`、`html`、`error`。`result`、`image`、`html` 帶 `execution_count`；`image` 一定有 `src`、`alt`、`width`、`height`，可選 `caption`。
+Output 型別：`stream`、`result`、`image`、`html`、`video`、`error`。`result`、`image`、`html` 帶 `execution_count`；`image` 一定有 `src`、`alt`、`width`、`height`，可選 `caption`。`video` 帶 `src`、`poster`、`alt`、`width`、`height`，可選 `caption`、`controls`、`autoplay`、`muted`、`loop`、`playsinline`；影片不帶 `execution_count`，所以不會出現輸出選單。
 
 ## Cell metadata
 
@@ -60,6 +61,7 @@ Output 型別：`stream`、`result`、`image`、`html`、`error`。`result`、`i
 - `tags: ["remove-cell"]`：整顆 cell 不進 JSON。
 - `alt`：圖片替代文字。
 - `caption`：圖片說明。
+- `video`：把同一顆 cell 產生的 mp4 放進 notebook 流程。
 
 ```json
 {
@@ -69,11 +71,28 @@ Output 型別：`stream`、`result`、`image`、`html`、`error`。`result`、`i
 }
 ```
 
+影片使用 cell metadata。`src` 與 `poster` 是相對 `notebook.ipynb` 的檔名；builder 會把 mp4 複製到 bundle 的 `videos/`，poster 轉成 WebP 放進 `images/`。
+
+```json
+{
+  "video": {
+    "src": "square_wave_increasing_terms.mp4",
+    "poster": "square_wave_increasing_terms.png",
+    "alt": "方波逼近動畫",
+    "caption": "n=1、3、5、7 的方波逼近。",
+    "width": 1200,
+    "height": 960
+  }
+}
+```
+
+影片預設 `controls`、`muted`、`loop`、`playsinline` 開啟，`autoplay` 關閉以節省流量。要自動播放，在 cell metadata 設 `"autoplay": true`。
+
 ## 硬規則
 
-- **Notebook markdown cell 不支援 Hugo shortcode。** 需要 callout、影片、音檔時，改寫進頁面 markdown 或另做 partial。
+- **Notebook markdown cell 不支援 Hugo shortcode。** 需要 callout、音檔時，改寫進頁面 markdown 或另做 partial。影片用 cell metadata 的 `video`，不要用 shortcode。
 - **HTML output 只接受清洗後的 `<table>`。** builder 會移除 `<script>`、`<style>`、事件屬性、`style` 與 `javascript:`；不是表格就 fallback 成 `text/plain`。
-- **圖片只放 zh-tw bundle。** en 沒有 `images/`，靠 Hugo 跨 bundle 解析。
+- **圖片與影片只放 zh-tw bundle。** en 沒有 `images/`，靠 Hugo 跨 bundle 解析。
 - **Notebook 頁面不進首頁。** 首頁查詢只取 `mainSections`；不要為了 notebook 改動首頁查詢。
 - **`notebook.json` 是 page resource。** 不要搬到 `static/`，否則 shortcode 的 `Resources.GetMatch` 找不到。
 - **CSS 檔名要排序在 chroma 之後。** 使用 `assets/css/extended/zz-notebook.css`，才能覆寫 `--code-block-bg`。
@@ -113,6 +132,7 @@ Output 型別：`stream`、`result`、`image`、`html`、`error`。`result`、`i
 ```sh
 rm -rf public && hugo --minify --buildDrafts
 rg -o 'jp-output-prompt|jp-output-actions|data-jp-copy-output|複製儲存格輸出' public/notebooks/intro-to-jupyter-notebook/index.html
+rg -o 'jp-output-video|jp-video' public/notebooks/<slug>/index.html
 rm -rf public && hugo --minify
 python3 scripts/check_slug_style.py
 python3 scripts/ai_slop_check.py scripts/intro-to-jupyter-notebook/notebook.md
