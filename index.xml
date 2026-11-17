@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/</link><description>Recent content on Jay Fu 的科技部落格</description><generator>Hugo -- 0.169.0</generator><language>zh-tw</language><lastBuildDate>Fri, 06 Nov 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>一段震動訊號的五種看法</title><link>https://jiejiefu.github.io/blog/notebooks/vibration-signal-five-views/</link><pubDate>Fri, 06 Nov 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/notebooks/vibration-signal-five-views/</guid><description>用同一段模擬震動訊號，比較振幅門檻、峰值、斜率、滑動窗相似度與 rolling energy 五種時間域方法。</description><content:encoded><![CDATA[<section class="jp-notebook" aria-label="Jupyter Notebook snapshot">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Jay Fu 的科技部落格</title><link>https://jiejiefu.github.io/blog/</link><description>Recent content on Jay Fu 的科技部落格</description><generator>Hugo -- 0.170.0</generator><language>zh-tw</language><lastBuildDate>Fri, 06 Nov 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>一段震動訊號的五種看法</title><link>https://jiejiefu.github.io/blog/notebooks/vibration-signal-five-views/</link><pubDate>Fri, 06 Nov 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/notebooks/vibration-signal-five-views/</guid><description>用同一段模擬震動訊號，比較振幅門檻、峰值、斜率、滑動窗相似度與 rolling energy 五種時間域方法。</description><content:encoded><![CDATA[<section class="jp-notebook" aria-label="Jupyter Notebook snapshot">
   <div class="jp-menubar" aria-hidden="true">
     <span>File</span>
     <span>Edit</span>
@@ -1660,12 +1660,12 @@ bearing = 123.5 Hz, gear mesh = 250.0 Hz</pre>
 </span></span><span class="line"><span class="cl"><span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">frequency</span><span class="p">,</span> <span class="n">amplitude</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;#1f4e79&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">1.2</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">target</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">offset</span> <span class="ow">in</span> <span class="p">[(</span><span class="n">F_ROT</span><span class="p">,</span> <span class="s2">&#34;1x&#34;</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">F_ROT</span><span class="p">,</span> <span class="s2">&#34;2x&#34;</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">)]:</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="n">target</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span> <span class="ow">in</span> <span class="p">[(</span><span class="n">F_ROT</span><span class="p">,</span> <span class="s2">&#34;1x&#34;</span><span class="p">,</span> <span class="o">-</span><span class="mi">22</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">F_ROT</span><span class="p">,</span> <span class="s2">&#34;2x&#34;</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">)]:</span>
 </span></span><span class="line"><span class="cl">    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">frequency</span> <span class="o">-</span> <span class="n">target</span><span class="p">))</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ax</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span>
 </span></span><span class="line"><span class="cl">        <span class="sa">f</span><span class="s2">&#34;</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">target</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> Hz&#34;</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">        <span class="n">xy</span><span class="o">=</span><span class="p">(</span><span class="n">frequency</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="n">amplitude</span><span class="p">[</span><span class="n">idx</span><span class="p">]),</span>
-</span></span><span class="line"><span class="cl">        <span class="n">xytext</span><span class="o">=</span><span class="p">(</span><span class="n">target</span> <span class="o">+</span> <span class="mi">25</span><span class="p">,</span> <span class="n">amplitude</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">+</span> <span class="n">offset</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">        <span class="n">xytext</span><span class="o">=</span><span class="p">(</span><span class="n">target</span> <span class="o">+</span> <span class="n">dx</span><span class="p">,</span> <span class="n">amplitude</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">+</span> <span class="n">dy</span><span class="p">),</span>
 </span></span><span class="line"><span class="cl">        <span class="n">arrowprops</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">arrowstyle</span><span class="o">=</span><span class="s2">&#34;-&gt;&#34;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&#34;0.4&#34;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">),</span>
 </span></span><span class="line"><span class="cl">        <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">    <span class="p">)</span>
@@ -1761,7 +1761,7 @@ bearing = 123.5 Hz, gear mesh = 250.0 Hz</pre>
 </div>
 </div>
   <div class="jp-output-body">
-    <pre class="jp-output-text">&lt;matplotlib.lines.Line2D at 0x12a2311d0&gt;</pre>
+    <pre class="jp-output-text">&lt;matplotlib.lines.Line2D at 0x10f3151d0&gt;</pre>
   </div>
 </div><div class="jp-output jp-output-image" data-jp-output-type="image">
   <div class="jp-output-prompt">
@@ -1811,8 +1811,8 @@ bearing = 123.5 Hz, gear mesh = 250.0 Hz</pre>
   <div class="jp-statusbar">
     <span class="jp-status-note">唯讀快照 · 本地執行後產生</span>
     <span>16 cells</span>
-    <span>2026-11-10 18:00 CST</span>
-    <span>2800 ms</span>
+    <span>2026-11-10 18:19 CST</span>
+    <span>2976 ms</span>
     <span class="jp-status-idle">Idle</span>
   </div>
 </section>
@@ -6311,7 +6311,8 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
   <p class="tldr__label">TL;DR</p>
   <ul>
 <li>五層架構：React／MUI、Flask API、分析、邊緣執行、SQLite／檔案持久化。</li>
-<li>有界 deque 批次緩衝近期樣本（500 筆或約 5 秒），但不是持久化佇列。</li>
+<li>平台端以有界 deque 批次緩衝特徵（500 筆或約 5 秒），但不是持久化佇列。</li>
+<li>即時推論在 Edge；中央負責蓄流、監控、離線訓練與 DTW 分析。</li>
 <li>PHM 結合 RMS／FFT、One-Class SVM、DTW 與 PCA 漂移監控；判讀仍由工程師負責。</li>
 <li>AI Agent 是受控的應用程式用戶端：工具白名單、授權、驗證與稽核紀錄由後端強制執行，不依賴 LLM 提示詞。</li>
 <li>部署從 Docker Compose 邊緣單體開始；待量測證明有必要，才解耦為獨立 Worker。</li>
@@ -6340,20 +6341,21 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <h3 id="11-專案定位">1.1 專案定位</h3>
 <p>這套平台的核心目標，是將感測器資料、機器學習模型、設備端推論、監控告警與 AI 輔助診斷整合成一條完整的工程工作流程。</p>
 <p>整體流程可以分成五個階段：</p>
-<p><strong>Sensor Data → Feature Engineering &amp; ML → Edge Inference → Health Monitoring → AI Agent</strong></p>
+<p><strong>Sensor Data → Edge Signal Processing → Edge Inference → Platform Monitoring → AI Agent</strong></p>
 <pre class="mermaid">flowchart LR
-    A[感測器資料] --&gt; B[特徵工程]
-    B --&gt; C[模型分析]
-    C --&gt; D[設備端推論]
-    D --&gt; E[健康度監控]
+    A[感測器資料] --&gt; B[Edge 切段與特徵萃取]
+    B --&gt; C[Edge 健康推論]
+    C --&gt; D[平台蓄流與入庫]
+    D --&gt; E[健康度監控與告警]
     E --&gt; F[AI Agent]
     F --&gt; G[工程決策]</pre><ol>
 <li><strong>Sensor Data：</strong> 收集設備振動、溫度等感測器資料。</li>
-<li><strong>Feature Engineering &amp; ML：</strong> 將原始訊號轉換為具有分析價值的時域與頻域特徵，並進行模型訓練與異常偵測。</li>
-<li><strong>Edge Inference：</strong> 在設備端執行資料處理與模型推論，降低對遠端服務的即時依賴。</li>
-<li><strong>Health Monitoring：</strong> 持續追蹤設備健康度、異常分數與告警狀態。</li>
+<li><strong>Edge Signal Processing：</strong> 在設備端以 2 kHz 取樣、30 秒 chunk、2000／250 視窗，萃取 87 維時域與頻域特徵。</li>
+<li><strong>Edge Inference：</strong> 以 OCSVM/IForest 計算健康分數，降低對遠端服務的即時依賴。</li>
+<li><strong>Platform Monitoring：</strong> 以 HTTP POST 接收特徵，經有界佇列批次寫入 SQLite，持續追蹤健康度與告警。</li>
 <li><strong>AI Agent：</strong> 整合設備狀態、歷史紀錄與分析工具，協助工程師理解異常並整理後續處置建議。</li>
 </ol>
+<p>中央端另負責離線模型訓練、PCA 漂移分析與 DTW 序列比對，與 Edge 即時路徑分開。</p>
 <p>這五個階段並非彼此獨立的工具，而是透過資料格式、API、模型檔案與狀態管理串接起來的系統。</p>
 <h3 id="12-四大核心能力">1.2 四大核心能力</h3>
 <table>
@@ -6387,6 +6389,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 			</tr>
 	</tbody>
 </table>
+<p>即時路徑的切段、特徵與健康推論在 Edge；平台端負責緩衝、持久化、監控與告警，中央端另負責離線訓練與 DTW／PCA 分析。</p>
 <p>平台使用 React 建立操作介面，Flask 提供後端 API，SQLite 負責資料持久化，Docker Compose 管理容器化服務，並透過 AI Agent 把資料分析延伸到自然語言互動。</p>
 <hr>
 <h2 id="2-為什麼需要-edge-ai-平台">2. 為什麼需要 Edge AI 平台？</h2>
@@ -6494,6 +6497,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 </table>
 <p>分層是職責邊界，不是獨立部署的微服務：前端不直接存取資料庫，模型推論與 UI 分離以利重複使用。</p>
 <p>邊緣執行在本機讀取感測器，降低網路依賴並讓高頻樣本留在設備端；切分取決於延遲、運算、網路、資料量與部署限制。</p>
+<p>即時路徑的特徵萃取與健康推論在 L4 Edge；L3 負責離線訓練、批次分析與模型管理。</p>
 <h3 id="32-前端與後端如何協作">3.2 前端與後端如何協作？</h3>
 <p>前端使用 React 18、Material UI 與 React Flow；後端使用 Flask REST API，並以 Blueprint 分離感測器、模型、設備、使用者與 Agent 等領域。</p>
 <ul>
@@ -6506,27 +6510,30 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <hr>
 <h2 id="4-端到端資料流從高頻訊號到健康度監控">4. 端到端資料流：從高頻訊號到健康度監控</h2>
 <p><img alt="端到端資料流" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/04_end_to_end_data_flow.png"></p>
-<p>資料流定義資料如何進入、被處理，以及流量突增時如何維持穩定。</p>
+<p>資料流定義資料如何在 Edge 端被切段、萃取與推論，以及平台端如何蓄流、入庫與監控。</p>
 <pre class="mermaid">flowchart LR
-    A[&#34;感測器 /&lt;br/&gt;檔案輸入&#34;] --&gt; B[&#34;記憶體&lt;br/&gt;緩衝區&#34;]
-    B --&gt; C{&#34;批次&lt;br/&gt;觸發條件&lt;br/&gt;（時間或筆數）&#34;}</pre><pre class="mermaid">flowchart LR
-    D[&#34;持久化並&lt;br/&gt;準備批次&#34;] --&gt; E[&#34;特徵&lt;br/&gt;擷取&#34;]
-    E --&gt; F[&#34;ML / PHM&lt;br/&gt;分析&#34;]</pre><pre class="mermaid">flowchart LR
-    G[&#34;健康度分數&lt;br/&gt;與異常結果&#34;] --&gt; H[&#34;儀表板 /&lt;br/&gt;報告 / 告警&#34;]
-    H --&gt; I[&#34;工程師檢視&lt;br/&gt;與處置&#34;]</pre><h3 id="41-stage-1資料接入與緩衝ingestion">4.1 Stage 1：資料接入與緩衝（Ingestion）</h3>
-<p>感測器持續產生資料；平台以 <code>collections.deque(maxlen=5000)</code> 作為有界記憶體緩衝，每 5 秒或批次條件成立時，將最多 500 筆寫入 SQLite，讓高頻 I/O 不與查詢競爭。</p>
+    A[&#34;感測器&lt;br/&gt;2 kHz&#34;] --&gt; B[&#34;切段 / 視窗&lt;br/&gt;2000 樣本 · 250 跳距&#34;]
+    B --&gt; C[&#34;特徵萃取&lt;br/&gt;87 維&#34;]
+    C --&gt; D[&#34;健康推論&lt;br/&gt;OCSVM / IForest&#34;]</pre><pre class="mermaid">flowchart LR
+    E[&#34;HTTP POST&lt;br/&gt;特徵 + 分數&#34;] --&gt; F[&#34;有界佇列&lt;br/&gt;deque(maxlen=5000)&#34;]
+    F --&gt; G[&#34;批次寫入&lt;br/&gt;5 秒 / max 500&#34;]
+    G --&gt; H[&#34;SQLite&lt;br/&gt;10,000 筆特徵&#34;]</pre><pre class="mermaid">flowchart LR
+    I[&#34;健康度分數&lt;br/&gt;與異常結果&#34;] --&gt; J[&#34;儀表板 /&lt;br/&gt;報告 / 告警&#34;]
+    J --&gt; K[&#34;工程師檢視&lt;br/&gt;與處置&#34;]</pre><h3 id="41-stage-1edge-訊號處理與健康推論">4.1 Stage 1：Edge 訊號處理與健康推論</h3>
+<p>感測器以 2 kHz 取樣，Edge 端累積 30 秒 chunk；切段時使用 2000 樣本窗（約 1 秒）與 250 跳距，萃取 87 維時域／頻域特徵，再以 OCSVM/IForest 計算健康分數。這條路徑讓高頻資料留在設備端，只把特徵與分數送出去。</p>
+<h3 id="42-stage-2平台蓄流與批次入庫">4.2 Stage 2：平台蓄流與批次入庫</h3>
+<p>平台以 <code>collections.deque(maxlen=5000)</code> 作為有界記憶體緩衝，每 5 秒批次寫入、單批最多 500 筆特徵，SQLite 保留上限為 10,000 筆特徵。這讓高頻 I/O 不與查詢競爭。</p>
 <pre class="mermaid">flowchart LR
-    A[&#34;感測器串流&#34;] --&gt; B[&#34;有界記憶體緩衝區&#34;]
+    A[&#34;HTTP POST 特徵&#34;] --&gt; B[&#34;有界記憶體佇列&#34;]
     B --&gt; C[&#34;批次寫出 Worker&#34;]
-    C --&gt; D[&#34;SQLite 持久化&#34;]</pre><p>有界佇列滿載時會丟棄最舊資料，適合限制記憶體用量，但<strong>不是可靠訊息佇列</strong>；若樣本必須完整保存，需額外設計持久化佇列、溢位處理、背壓與遺失監控。</p>
-<h3 id="42-stage-2特徵擷取與模型推論scoring">4.2 Stage 2：特徵擷取與模型推論（Scoring）</h3>
-<p>批次輸出特徵、異常指標、健康度分數與中介資料。</p>
-<h3 id="43-stage-3監控告警與-agent-分析action">4.3 Stage 3：監控、告警與 Agent 分析（Action）</h3>
-<p>平台透過儀表板、報告或告警呈現結果；<strong>異常偵測辨識偏離，根因分析提出解釋</strong>，後者需結合歷史資料、設備知識與工程師驗證，不能只憑一個分數斷言故障。</p>
+    C --&gt; D[&#34;SQLite 特徵庫&#34;]</pre><p>有界佇列滿載時會丟棄最舊資料，適合限制記憶體用量，但<strong>不是可靠訊息佇列</strong>；若每筆特徵都必須完整保存，需額外設計持久化佇列、溢位處理、背壓與遺失監控。</p>
+<h3 id="43-stage-3監控告警與-agent-分析">4.3 Stage 3：監控、告警與 Agent 分析</h3>
+<p>平台以 APScheduler 每 5 分鐘進行健康檢查，前端每 10 秒輪詢最新狀態，並透過 SSE 接收 Agent 串流。<strong>異常偵測辨識偏離，根因分析提出解釋</strong>，後者需結合歷史資料、設備知識與工程師驗證，不能只憑一個分數斷言故障。</p>
 <hr>
 <h2 id="5-ml--phm-pipeline如何從感測器資料辨識異常">5. ML &amp; PHM Pipeline：如何從感測器資料辨識異常？</h2>
 <p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/05_ml_phm_pipeline.png"></p>
 <p>PHM 結合領域知識、訊號處理、統計分析與機器學習；沒有單一演算法能回答所有設備健康問題。</p>
+<p>即時路徑的特徵萃取與健康推論在 Edge；中央端負責離線訓練、批次分析與歷史比較。</p>
 <h3 id="51-訊號特徵">5.1 訊號特徵</h3>
 <p>常見的訊號特徵包括：</p>
 <ul>
@@ -6535,6 +6542,7 @@ $$<p>這不是 REA 原始碼裡的字面公式，而是把文件描述的「必�
 <li><strong>峭度（Kurtosis）：</strong> 描述分布尾部與衝擊性；解讀取決於分布假設與實作方式。</li>
 <li><strong>FFT（Fast Fourier Transform）：</strong> 將時域訊號轉為頻域成分，觀察主要頻率與頻譜變化。</li>
 </ul>
+<p>在本平台，Edge 端以 2 kHz 取樣、30 秒 chunk、2000 樣本窗與 250 跳距，將一個視窗整理成 87 維時域／頻域特徵。</p>
 <p>對訊號 \(x = [x_1, x_2, \ldots, x_N]\)，RMS 定義為：</p>
 $$
 \mathrm{RMS} = \sqrt{\frac{1}{N}\sum_{i=1}^{N} x_i^2}
@@ -6548,6 +6556,7 @@ $$<p>特徵定義、視窗大小、取樣率、單位與前處理必須一致；
 <li>監控誤報與漏報；異常分數不是診斷。</li>
 <li>運轉條件或設備改變時重新檢視基準。</li>
 </ul>
+<p>執行位置：One-Class SVM 主要用於 Edge 端的即時健康推論；中央端可做離線訓練與分析。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;歷史正常資料&#34;] --&gt; B[&#34;特徵標準化&#34;]
     B --&gt; C[&#34;訓練 One-Class SVM&#34;]
@@ -6557,9 +6566,11 @@ $$<p>特徵定義、視窗大小、取樣率、單位與前處理必須一致；
 $$
 D(i,j) = d(x_i,y_j) + \min\left\{ D(i-1,j),\; D(i,j-1),\; D(i-1,j-1) \right\}
 $$<p>其中 \(d(x_i,y_j)\) 是局部距離。Warping window 可降低運算量並避免不合理的對齊。<strong>DTW 不是萬用解</strong>；結果取決於參考序列、距離度量、正規化與領域條件。</p>
+<p>執行位置：DTW 目前是中央網頁的離線分析，不在 Edge 即時路徑上。</p>
 <h3 id="54-pca漂移監控">5.4 PCA：漂移監控</h3>
 <p>PCA（Principal Component Analysis）將相關特徵線性投影到較少的主成分；以歷史基準比較新資料，可觀察分布變化。</p>
 <p>漂移不等於故障；製程配方改變、感測器更換、運轉條件或前處理版本不同，都可能造成漂移。</p>
+<p>執行位置：PCA 用於 Edge 健康模型的特徵基準，也用於中央離線漂移分析。</p>
 <pre class="mermaid">flowchart LR
     A[&#34;歷史基準特徵&#34;] --&gt; B[&#34;擬合 PCA 模型&#34;]
     B --&gt; C[&#34;參考特徵空間&#34;]
@@ -6569,6 +6580,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是局部距離。Warping window 可降低運算量�
 			<tr>
 					<th>方法</th>
 					<th>主要目的</th>
+					<th>執行位置</th>
 					<th>主要限制</th>
 			</tr>
 	</thead>
@@ -6576,26 +6588,31 @@ $$<p>其中 \(d(x_i,y_j)\) 是局部距離。Warping window 可降低運算量�
 			<tr>
 					<td>RMS / Peak / Kurtosis</td>
 					<td>量化時域訊號特性</td>
+					<td>Edge 特徵萃取；中央離線分析</td>
 					<td>對視窗、雜訊與運轉條件敏感</td>
 			</tr>
 			<tr>
 					<td>FFT</td>
 					<td>觀察頻譜成分與頻率變化</td>
+					<td>Edge 特徵萃取；中央離線分析</td>
 					<td>需適當取樣與解讀</td>
 			</tr>
 			<tr>
 					<td>One-Class SVM</td>
 					<td>偵測偏離正常資料邊界的觀測</td>
+					<td>Edge 即時推論；中央離線訓練</td>
 					<td>取決於基準品質與參數選擇</td>
 			</tr>
 			<tr>
 					<td>DTW</td>
 					<td>比較時間軸不對齊的序列</td>
+					<td>中央網頁離線分析</td>
 					<td>運算成本較高，且依賴參考序列</td>
 			</tr>
 			<tr>
 					<td>PCA</td>
 					<td>監控多變量結構與潛在漂移</td>
+					<td>Edge 健康模型；中央離線分析</td>
 					<td>漂移不等於故障</td>
 			</tr>
 	</tbody>
@@ -6615,11 +6632,11 @@ $$<p>其中 \(d(x_i,y_j)\) 是局部距離。Warping window 可降低運算量�
     D --&gt; E[&#34;後端權限檢查&#34;]</pre><h3 id="63-sqlite-雙資料庫設計">6.3 SQLite 雙資料庫設計</h3>
 <ul>
 <li><code>edge_ai.db</code>：使用者、專案、設定、模型歷程。</li>
-<li><code>vibration.db</code>：振動資料與告警。</li>
+<li><code>vibration.db</code>：振動特徵、健康分數與告警。</li>
 </ul>
-<p>SQLAlchemy 管理存取，<code>ATTACH DATABASE</code> 支援跨庫查詢；但<strong>分庫不保證跨庫交易原子性</strong>，備份、還原、版本與併發寫入仍需測試。</p>
+<p>SQLAlchemy 管理存取，<code>ATTACH DATABASE</code> 支援跨庫查詢；但<strong>分庫不保證跨庫交易原子性</strong>，備份、還原、版本與併發寫入仍需測試。即時監控與查詢以特徵欄位為主；原始資料欄位不是主要查詢路徑。</p>
 <h3 id="64-背景任務與模型生命週期">6.4 背景任務與模型生命週期</h3>
-<p>APScheduler 執行週期性工作（漂移檢查、報表、維護摘要）；工作需容忍重試、失敗與部分完成。<strong>多個 Web Worker 同時啟動 scheduler 會重複執行</strong>，需專用 scheduler 或單一擁有者機制。<code>ModelBuildingHistory</code> 保存模型版本、訓練資料參考、設定、時間與評估結果；建置狀態需區分失敗與未啟動。</p>
+<p>APScheduler 執行週期性工作（健康檢查、漂移檢查、報表、維護摘要）；工作需容忍重試、失敗與部分完成。<strong>多個 Web Worker 同時啟動 scheduler 會重複執行</strong>，需專用 scheduler 或單一擁有者機制。<code>ModelBuildingHistory</code> 保存模型版本、訓練資料參考、設定、時間與評估結果；建置狀態需區分失敗與未啟動。</p>
 <pre class="mermaid">stateDiagram-v2
     [*] --&gt; building
     building --&gt; completed
@@ -6704,7 +6721,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是局部距離。Warping window 可降低運算量�
     E --&gt; F[&#34;前端 API 端點&#34;]</pre><h3 id="83-監控">8.3 監控</h3>
 <ul>
 <li>API 請求量、延遲與錯誤率。</li>
-<li>資料接入延遲、佇列長度、批次大小與丟棄樣本數。</li>
+<li>特徵接入延遲、佇列長度、批次大小與丟棄特徵數。</li>
 <li>模型推論時間與分析失敗率。</li>
 <li>背景任務開始時間、執行時間與結果。</li>
 <li>Agent 工具呼叫成功率、timeout 與成本。</li>
@@ -6726,7 +6743,7 @@ $$<p>其中 \(d(x_i,y_j)\) 是局部距離。Warping window 可降低運算量�
 	<tbody>
 			<tr>
 					<td>緩衝區滿載</td>
-					<td>舊樣本可能被丟棄</td>
+					<td>舊特徵可能被丟棄</td>
 					<td>追蹤丟棄數量；不能接受遺失時改用持久化緩衝</td>
 			</tr>
 			<tr>

@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Backend Engineering on Jay Fu's Tech Blog</title><link>https://jiejiefu.github.io/blog/en/tags/backend-engineering/</link><description>Recent content in Backend Engineering on Jay Fu's Tech Blog</description><generator>Hugo -- 0.169.0</generator><language>en</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/en/tags/backend-engineering/index.xml" rel="self" type="application/rss+xml"/><item><title>Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions</title><link>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</guid><description>System design for a semiconductor equipment Edge AI and PHM platform, from sensor data to governed AI agents.</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Backend Engineering on Jay Fu's Tech Blog</title><link>https://jiejiefu.github.io/blog/en/tags/backend-engineering/</link><description>Recent content in Backend Engineering on Jay Fu's Tech Blog</description><generator>Hugo -- 0.170.0</generator><language>en</language><lastBuildDate>Sun, 18 Oct 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://jiejiefu.github.io/blog/en/tags/backend-engineering/index.xml" rel="self" type="application/rss+xml"/><item><title>Designing a Semiconductor Equipment Edge AI Platform: From Sensor Data to Intelligent Decisions</title><link>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</link><pubDate>Sun, 18 Oct 2026 00:00:00 +0000</pubDate><guid>https://jiejiefu.github.io/blog/en/projects/edge-ai-platform-ppt169/</guid><description>System design for a semiconductor equipment Edge AI and PHM platform, from sensor data to governed AI agents.</description><content:encoded><![CDATA[<aside class="tldr" role="note" aria-label="TL;DR">
   <p class="tldr__label">TL;DR</p>
   <ul>
 <li>Five layers: React/MUI, Flask APIs, analytics, edge execution, and SQLite persistence.</li>
-<li>A bounded deque batches recent samples (500 records or ~5s) but is not a durable queue.</li>
+<li>The platform uses a bounded deque to batch recent feature rows (500 records or ~5s); it is not a durable queue.</li>
+<li>Live inference runs on the edge; central services handle buffering, monitoring, offline training, and DTW analysis.</li>
 <li>PHM uses RMS/FFT, One-Class SVM, DTW, and PCA drift monitoring; engineers interpret results.</li>
 <li>AI agents are controlled clients: the backend enforces allowlists, authorization, validation, and audit logging.</li>
 <li>Deployment starts as a Docker Compose edge monolith; decouple workers only when measurements justify it.</li>
@@ -29,9 +30,9 @@
 <p><img alt="Project overview: Semiconductor Equipment Edge AI Platform" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/01_project_overview.png"></p>
 <p>The platform turns equipment signals into information engineers can use to investigate health and plan maintenance. The main workflow:</p>
 <pre class="mermaid">flowchart LR
-    A[Sensor Data] --&gt; B[Feature Engineering]
-    B --&gt; C[ML Analysis]
-    C --&gt; D[Edge Inference]
+    A[Sensor Data] --&gt; B[Edge Slicing / Features]
+    B --&gt; C[Edge Health Inference]
+    C --&gt; D[Platform Buffering / Persistence]
     D --&gt; E[Health Monitoring]
     E --&gt; F[AI Agent]
     F --&gt; G[Engineering Decision]</pre><p>The platform provides four capabilities:</p>
@@ -45,15 +46,15 @@
 	<tbody>
 			<tr>
 					<td>Sensor-data processing</td>
-					<td>Collect, organize, and transform equipment signals into usable data</td>
+					<td>Collect 2 kHz vibration signals and prepare 30-second chunks</td>
 			</tr>
 			<tr>
-					<td>Feature engineering and ML</td>
-					<td>Extract signal characteristics, identify unusual patterns, and support health assessment</td>
+					<td>Edge feature engineering and inference</td>
+					<td>Extract 87 time/frequency features and compute a health score with OCSVM/IForest on the edge</td>
 			</tr>
 			<tr>
 					<td>Health monitoring</td>
-					<td>Track health scores, historical changes, and potential abnormal conditions</td>
+					<td>Track health scores and alerts; central services buffer feature rows and persist them to SQLite</td>
 			</tr>
 			<tr>
 					<td>AI-assisted workflows</td>
@@ -61,6 +62,7 @@
 			</tr>
 	</tbody>
 </table>
+<p>Central services handle buffering, persistence, offline training, PCA drift analysis, and DTW comparison separately from the live edge path.</p>
 <p>The AI agent is an assistance layer, not an autonomous replacement for engineering judgment.</p>
 <h2 id="2-why-edge-ai">2. Why Edge AI?</h2>
 <p><img alt="Why an Edge AI Platform" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/02_why.png"></p>
@@ -166,6 +168,7 @@
 </table>
 <p>Layering is a responsibility boundary, not independent microservices: the frontend does not access the database directly, and inference is separate from UI so it can be reused.</p>
 <p>Edge execution runs locally to keep high-frequency samples off the central service; the split depends on latency, compute, network, data volume, and deployment.</p>
+<p>On the live path, feature extraction and health inference run in L4 Edge; L3 handles offline training, batch analysis, and model management.</p>
 <h3 id="32-frontend-and-backend-collaboration">3.2 Frontend and backend collaboration</h3>
 <p>The frontend uses React 18, Material UI, and React Flow; the backend uses Flask REST APIs with Blueprints for sensors, models, devices, users, and agents.</p>
 <ul>
@@ -177,26 +180,29 @@
 <p>Latency metrics need consistent start and end points, must distinguish average, P95, P99, and cold start, and should not be summed across sources.</p>
 <h2 id="4-end-to-end-data-flow">4. End-to-End Data Flow</h2>
 <p><img alt="End-to-end data flow" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/04_end_to_end_data_flow.png"></p>
-<p>The data flow defines how data enters, is processed, and stays stable under bursts.</p>
+<p>The data flow defines how data is sliced, featurized, and scored on the edge, and how the platform buffers, persists, and monitors it.</p>
 <pre class="mermaid">flowchart LR
-    A[&#34;Sensor /&lt;br/&gt;File Input&#34;] --&gt; B[&#34;In-Memory&lt;br/&gt;Buffer&#34;]
-    B --&gt; C{&#34;Batch&lt;br/&gt;Trigger&lt;br/&gt;(time or size)&#34;}</pre><pre class="mermaid">flowchart LR
-    D[&#34;Persist /&lt;br/&gt;Prepare Batch&#34;] --&gt; E[&#34;Feature&lt;br/&gt;Extraction&#34;]
-    E --&gt; F[&#34;ML / PHM&lt;br/&gt;Analysis&#34;]</pre><pre class="mermaid">flowchart LR
-    G[&#34;Health Score&lt;br/&gt;and Anomaly&lt;br/&gt;Results&#34;] --&gt; H[&#34;Dashboard /&lt;br/&gt;Report / Alert&#34;]
-    H --&gt; I[&#34;Engineer&lt;br/&gt;Review and&lt;br/&gt;Action&#34;]</pre><h3 id="41-buffering-and-batching">4.1 Buffering and batching</h3>
-<p>Sensors produce data continuously; a bounded <code>deque(maxlen=5000)</code> buffers samples and flushes up to 500 records to SQLite every ~5s or when the batch threshold is reached, keeping high-frequency I/O from competing with queries.</p>
-<p>At capacity it discards the oldest samples: a useful memory bound, <strong>not a durable queue</strong>. If every sample must survive, add a persistent queue, overflow handling, backpressure, and loss monitoring.</p>
+    A[&#34;Sensor&lt;br/&gt;2 kHz&#34;] --&gt; B[&#34;Slicing / Window&lt;br/&gt;2000 samples · 250 hop&#34;]
+    B --&gt; C[&#34;Feature Extraction&lt;br/&gt;87 dimensions&#34;]
+    C --&gt; D[&#34;Health Inference&lt;br/&gt;OCSVM / IForest&#34;]</pre><pre class="mermaid">flowchart LR
+    E[&#34;HTTP POST&lt;br/&gt;features + score&#34;] --&gt; F[&#34;Bounded Queue&lt;br/&gt;deque(maxlen=5000)&#34;]
+    F --&gt; G[&#34;Batch Write&lt;br/&gt;5s / max 500&#34;]
+    G --&gt; H[&#34;SQLite&lt;br/&gt;10,000 feature rows&#34;]</pre><pre class="mermaid">flowchart LR
+    I[&#34;Health Score&lt;br/&gt;and Anomaly&lt;br/&gt;Results&#34;] --&gt; J[&#34;Dashboard /&lt;br/&gt;Report / Alert&#34;]
+    J --&gt; K[&#34;Engineer&lt;br/&gt;Review and&lt;br/&gt;Action&#34;]</pre><h3 id="41-edge-signal-processing-and-health-inference">4.1 Edge signal processing and health inference</h3>
+<p>Sensors sample at 2 kHz, and the edge accumulates 30-second chunks. Each chunk is sliced with a 2000-sample window (about 1 second) and a 250-sample hop, turned into 87 time/frequency features, and passed to OCSVM/IForest for a health score. High-frequency data stays on the device; only features and scores leave it.</p>
+<h3 id="42-platform-buffering-and-batch-persistence">4.2 Platform buffering and batch persistence</h3>
+<p>A bounded <code>deque(maxlen=5000)</code> buffers feature rows and flushes up to 500 rows to SQLite every 5s, with a 10,000-row feature cap. This keeps high-frequency I/O from competing with queries.</p>
 <pre class="mermaid">flowchart LR
-    A[&#34;Sensor Stream&#34;] --&gt; B[&#34;Bounded In-Memory Queue&#34;]
+    A[&#34;HTTP POST features&#34;] --&gt; B[&#34;Bounded In-Memory Queue&#34;]
     B --&gt; C[&#34;Batch Flush Worker&#34;]
-    C --&gt; D[&#34;SQLite Persistence&#34;]</pre><h3 id="42-feature-extraction-and-analysis">4.2 Feature extraction and analysis</h3>
-<p>The batch yields features, anomaly indicators, a health score, and metadata.</p>
-<h3 id="43-results-and-action">4.3 Results and action</h3>
-<p>The platform presents results through dashboards, reports, or alerts; <strong>anomaly detection identifies deviation, while root-cause analysis explains it</strong> and needs history, equipment knowledge, and engineer validation—not a score alone.</p>
+    C --&gt; D[&#34;SQLite Feature Store&#34;]</pre><p>At capacity it discards the oldest feature rows: a useful memory bound, <strong>not a durable queue</strong>. If every feature row must survive, add a persistent queue, overflow handling, backpressure, and loss monitoring.</p>
+<h3 id="43-monitoring-alerts-and-agent-analysis">4.3 Monitoring, alerts, and agent analysis</h3>
+<p>APScheduler runs a health check every 5 minutes, the frontend polls the latest state every 10s, and SSE streams agent events. <strong>Anomaly detection identifies deviation, while root-cause analysis explains it</strong> and needs history, equipment knowledge, and engineer validation—not a score alone.</p>
 <h2 id="5-machine-learning-and-phm-methods">5. Machine Learning and PHM Methods</h2>
 <p><img alt="ML &amp; PHM Pipeline" loading="lazy" src="/blog/projects/edge-ai-platform-ppt169/images/05_ml_phm_pipeline.png"></p>
 <p>PHM systems combine domain knowledge, signal processing, statistical analysis, and machine learning. No single algorithm answers every equipment-health question.</p>
+<p>The live path runs feature extraction and health inference on the edge; central services handle offline training, batch analysis, and historical comparison.</p>
 <h3 id="51-signal-features">5.1 Signal features</h3>
 <p>Common signal features include:</p>
 <ul>
@@ -205,6 +211,7 @@
 <li><strong>Kurtosis:</strong> measures tail behavior and can flag impulsive signals. Interpretation depends on the distribution and implementation.</li>
 <li><strong>FFT (Fast Fourier Transform):</strong> converts a time-domain signal into frequency components, revealing dominant frequencies and spectral changes.</li>
 </ul>
+<p>In this platform, the edge samples at 2 kHz, uses 30-second chunks and a 2000/250 window, and turns each window into 87 time/frequency features.</p>
 <p>For a signal \(x = [x_1, x_2, \ldots, x_N]\), RMS is defined as:</p>
 $$
 \mathrm{RMS} = \sqrt{\frac{1}{N}\sum_{i=1}^{N} x_i^2}
@@ -219,6 +226,7 @@ $$<p>Feature definitions, window sizes, sampling rates, units, and preprocessing
 <li>Monitor false positives and negatives; an anomaly score is not a diagnosis.</li>
 <li>Revisit the baseline when conditions or equipment change.</li>
 </ul>
+<p>Execution: real-time health inference runs on the edge; central services can train and analyze offline.</p>
 <pre class="mermaid">flowchart LR
     A[&#34;Historical Normal Data&#34;] --&gt; B[&#34;Feature Scaling&#34;]
     B --&gt; C[&#34;Train One-Class SVM&#34;]
@@ -229,9 +237,11 @@ $$<p>Feature definitions, window sizes, sampling rates, units, and preprocessing
 $$
 D(i,j) = d(x_i,y_j) + \min\left\{ D(i-1,j),\; D(i,j-1),\; D(i-1,j-1) \right\}
 $$<p>where \(d(x_i,y_j)\) is the local distance. A warping window cuts computation and prevents implausible alignments. <strong>DTW is not universal</strong>; results depend on references, distance metric, normalization, and domain.</p>
+<p>Execution: DTW is a central web-based offline analysis, not part of the edge live path.</p>
 <h3 id="54-pca-for-data-drift-monitoring">5.4 PCA for data-drift monitoring</h3>
 <p>Principal Component Analysis (PCA) projects correlated features into fewer dimensions. Comparing current data with a baseline reveals distribution changes.</p>
 <p>Drift does not mean failure; a changed recipe, sensor replacement, operating regime, or preprocessing change can all produce it.</p>
+<p>Execution: PCA supports the edge health model and central offline drift analysis.</p>
 <pre class="mermaid">flowchart LR
     A[&#34;Historical Baseline Features&#34;] --&gt; B[&#34;Fit PCA Model&#34;]
     B --&gt; C[&#34;Reference Feature Space&#34;]
@@ -241,6 +251,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance. A warping window cuts computati
 			<tr>
 					<th>Method</th>
 					<th>Primary purpose</th>
+					<th>Execution</th>
 					<th>Key limitation</th>
 			</tr>
 	</thead>
@@ -248,26 +259,31 @@ $$<p>where \(d(x_i,y_j)\) is the local distance. A warping window cuts computati
 			<tr>
 					<td>RMS / Peak / Kurtosis</td>
 					<td>Summarize time-domain signal characteristics</td>
+					<td>Edge feature extraction; central offline analysis</td>
 					<td>Can be sensitive to windowing, noise, and operating conditions</td>
 			</tr>
 			<tr>
 					<td>FFT</td>
 					<td>Identify spectral components and frequency changes</td>
+					<td>Edge feature extraction; central offline analysis</td>
 					<td>Requires appropriate sampling and interpretation</td>
 			</tr>
 			<tr>
 					<td>One-Class SVM</td>
 					<td>Detect deviations from a learned normal-data boundary</td>
+					<td>Edge real-time inference; central offline training</td>
 					<td>Depends on baseline quality and parameter selection</td>
 			</tr>
 			<tr>
 					<td>DTW</td>
 					<td>Compare sequences with temporal misalignment</td>
+					<td>Central web-based offline analysis</td>
 					<td>Can be computationally expensive and reference-dependent</td>
 			</tr>
 			<tr>
 					<td>PCA</td>
 					<td>Monitor multivariate structure and potential drift</td>
+					<td>Edge health model; central offline analysis</td>
 					<td>Drift is not equivalent to failure</td>
 			</tr>
 	</tbody>
@@ -286,11 +302,11 @@ $$<p>where \(d(x_i,y_j)\) is the local distance. A warping window cuts computati
     D --&gt; E[&#34;Backend Permission Checks&#34;]</pre><h3 id="63-sqlite-and-data-separation">6.3 SQLite and data separation</h3>
 <ul>
 <li><code>edge_ai.db</code> — application records, configuration, model history.</li>
-<li><code>vibration.db</code> — vibration data and alerts.</li>
+<li><code>vibration.db</code> — vibration features, health scores, and alerts.</li>
 </ul>
-<p>SQLAlchemy manages access; <code>ATTACH DATABASE</code> supports cross-database queries. <strong>Separate files do not provide cross-database atomicity</strong>; transactions, backups, migrations, and concurrent writes still need testing.</p>
+<p>SQLAlchemy manages access; <code>ATTACH DATABASE</code> supports cross-database queries. <strong>Separate files do not provide cross-database atomicity</strong>; transactions, backups, migrations, and concurrent writes still need testing. Monitoring and queries primarily use feature columns; raw-data fields are not the main query path.</p>
 <h3 id="64-scheduled-tasks-and-model-history">6.4 Scheduled tasks and model history</h3>
-<p>APScheduler runs periodic jobs such as drift checks, reports, or maintenance summaries. Jobs must tolerate retries, failures, and partial completion. Starting the scheduler in <strong>multiple web workers can duplicate jobs</strong>; use a dedicated scheduler or single-owner mechanism. Model-build history records model version, training-data reference, configuration, timestamp, and evaluation results. Builds need explicit states so a failed run differs from one that never started:</p>
+<p>APScheduler runs periodic jobs such as health checks, drift checks, reports, or maintenance summaries. Jobs must tolerate retries, failures, and partial completion. Starting the scheduler in <strong>multiple web workers can duplicate jobs</strong>; use a dedicated scheduler or single-owner mechanism. Model-build history records model version, training-data reference, configuration, timestamp, and evaluation results. Builds need explicit states so a failed run differs from one that never started:</p>
 <pre class="mermaid">stateDiagram-v2
     [*] --&gt; building
     building --&gt; completed
@@ -373,7 +389,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance. A warping window cuts computati
     E --&gt; F[&#34;Frontend API Endpoint&#34;]</pre><h3 id="83-monitoring">8.3 Monitoring</h3>
 <ul>
 <li>API request rate, latency, and error rate.</li>
-<li>Ingestion delay, queue depth, batch size, and dropped samples.</li>
+<li>Feature ingestion delay, queue depth, batch size, and dropped feature rows.</li>
 <li>Model execution duration and analysis failures.</li>
 <li>Scheduler job start time, duration, and outcome.</li>
 <li>Agent tool-call success rate, timeouts, and cost.</li>
@@ -394,7 +410,7 @@ $$<p>where \(d(x_i,y_j)\) is the local distance. A warping window cuts computati
 	<tbody>
 			<tr>
 					<td>Buffer full</td>
-					<td>Old samples may be dropped</td>
+					<td>Old feature rows may be dropped</td>
 					<td>Track drops; use durable buffering if loss is unacceptable</td>
 			</tr>
 			<tr>
