@@ -20,7 +20,8 @@ cover:
 
 {{< tldr >}}
 - Five layers: React/MUI, Flask APIs, analytics, edge execution, and SQLite persistence.
-- A bounded deque batches recent samples (500 records or ~5s) but is not a durable queue.
+- The platform uses a bounded deque to batch recent feature rows (500 records or ~5s); it is not a durable queue.
+- Live inference runs on the edge; central services handle buffering, monitoring, offline training, and DTW analysis.
 - PHM uses RMS/FFT, One-Class SVM, DTW, and PCA drift monitoring; engineers interpret results.
 - AI agents are controlled clients: the backend enforces allowlists, authorization, validation, and audit logging.
 - Deployment starts as a Docker Compose edge monolith; decouple workers only when measurements justify it.
@@ -40,9 +41,9 @@ The platform turns equipment signals into information engineers can use to inves
 
 ```mermaid
 flowchart LR
-    A[Sensor Data] --> B[Feature Engineering]
-    B --> C[ML Analysis]
-    C --> D[Edge Inference]
+    A[Sensor Data] --> B[Edge Slicing / Features]
+    B --> C[Edge Health Inference]
+    C --> D[Platform Buffering / Persistence]
     D --> E[Health Monitoring]
     E --> F[AI Agent]
     F --> G[Engineering Decision]
@@ -52,10 +53,12 @@ The platform provides four capabilities:
 
 | Capability | Purpose |
 | --- | --- |
-| Sensor-data processing | Collect, organize, and transform equipment signals into usable data |
-| Feature engineering and ML | Extract signal characteristics, identify unusual patterns, and support health assessment |
-| Health monitoring | Track health scores, historical changes, and potential abnormal conditions |
+| Sensor-data processing | Collect 2 kHz vibration signals and prepare 30-second chunks |
+| Edge feature engineering and inference | Extract 87 time/frequency features and compute a health score with OCSVM/IForest on the edge |
+| Health monitoring | Track health scores and alerts; central services buffer feature rows and persist them to SQLite |
 | AI-assisted workflows | Retrieve relevant data, summarize findings, and help engineers investigate the next step |
+
+Central services handle buffering, persistence, offline training, PCA drift analysis, and DTW comparison separately from the live edge path.
 
 The AI agent is an assistance layer, not an autonomous replacement for engineering judgment.
 
@@ -141,6 +144,8 @@ Layering is a responsibility boundary, not independent microservices: the fronte
 
 Edge execution runs locally to keep high-frequency samples off the central service; the split depends on latency, compute, network, data volume, and deployment.
 
+On the live path, feature extraction and health inference run in L4 Edge; L3 handles offline training, batch analysis, and model management.
+
 ### 3.2 Frontend and backend collaboration
 
 The frontend uses React 18, Material UI, and React Flow; the backend uses Flask REST APIs with Blueprints for sensors, models, devices, users, and agents.
@@ -157,52 +162,56 @@ Latency metrics need consistent start and end points, must distinguish average, 
 
 ![End-to-end data flow](images/04_end_to_end_data_flow.png)
 
-The data flow defines how data enters, is processed, and stays stable under bursts.
+The data flow defines how data is sliced, featurized, and scored on the edge, and how the platform buffers, persists, and monitors it.
 
 ```mermaid
 flowchart LR
-    A["Sensor /<br/>File Input"] --> B["In-Memory<br/>Buffer"]
-    B --> C{"Batch<br/>Trigger<br/>(time or size)"}
+    A["Sensor<br/>2 kHz"] --> B["Slicing / Window<br/>2000 samples · 250 hop"]
+    B --> C["Feature Extraction<br/>87 dimensions"]
+    C --> D["Health Inference<br/>OCSVM / IForest"]
 ```
 
 ```mermaid
 flowchart LR
-    D["Persist /<br/>Prepare Batch"] --> E["Feature<br/>Extraction"]
-    E --> F["ML / PHM<br/>Analysis"]
+    E["HTTP POST<br/>features + score"] --> F["Bounded Queue<br/>deque(maxlen=5000)"]
+    F --> G["Batch Write<br/>5s / max 500"]
+    G --> H["SQLite<br/>10,000 feature rows"]
 ```
 
 ```mermaid
 flowchart LR
-    G["Health Score<br/>and Anomaly<br/>Results"] --> H["Dashboard /<br/>Report / Alert"]
-    H --> I["Engineer<br/>Review and<br/>Action"]
+    I["Health Score<br/>and Anomaly<br/>Results"] --> J["Dashboard /<br/>Report / Alert"]
+    J --> K["Engineer<br/>Review and<br/>Action"]
 ```
 
-### 4.1 Buffering and batching
+### 4.1 Edge signal processing and health inference
 
-Sensors produce data continuously; a bounded `deque(maxlen=5000)` buffers samples and flushes up to 500 records to SQLite every ~5s or when the batch threshold is reached, keeping high-frequency I/O from competing with queries.
+Sensors sample at 2 kHz, and the edge accumulates 30-second chunks. Each chunk is sliced with a 2000-sample window (about 1 second) and a 250-sample hop, turned into 87 time/frequency features, and passed to OCSVM/IForest for a health score. High-frequency data stays on the device; only features and scores leave it.
 
-At capacity it discards the oldest samples: a useful memory bound, **not a durable queue**. If every sample must survive, add a persistent queue, overflow handling, backpressure, and loss monitoring.
+### 4.2 Platform buffering and batch persistence
+
+A bounded `deque(maxlen=5000)` buffers feature rows and flushes up to 500 rows to SQLite every 5s, with a 10,000-row feature cap. This keeps high-frequency I/O from competing with queries.
 
 ```mermaid
 flowchart LR
-    A["Sensor Stream"] --> B["Bounded In-Memory Queue"]
+    A["HTTP POST features"] --> B["Bounded In-Memory Queue"]
     B --> C["Batch Flush Worker"]
-    C --> D["SQLite Persistence"]
+    C --> D["SQLite Feature Store"]
 ```
 
-### 4.2 Feature extraction and analysis
+At capacity it discards the oldest feature rows: a useful memory bound, **not a durable queue**. If every feature row must survive, add a persistent queue, overflow handling, backpressure, and loss monitoring.
 
-The batch yields features, anomaly indicators, a health score, and metadata.
+### 4.3 Monitoring, alerts, and agent analysis
 
-### 4.3 Results and action
-
-The platform presents results through dashboards, reports, or alerts; **anomaly detection identifies deviation, while root-cause analysis explains it** and needs history, equipment knowledge, and engineer validation—not a score alone.
+APScheduler runs a health check every 5 minutes, the frontend polls the latest state every 10s, and SSE streams agent events. **Anomaly detection identifies deviation, while root-cause analysis explains it** and needs history, equipment knowledge, and engineer validation—not a score alone.
 
 ## 5. Machine Learning and PHM Methods
 
 ![ML & PHM Pipeline](images/05_ml_phm_pipeline.png)
 
 PHM systems combine domain knowledge, signal processing, statistical analysis, and machine learning. No single algorithm answers every equipment-health question.
+
+The live path runs feature extraction and health inference on the edge; central services handle offline training, batch analysis, and historical comparison.
 
 ### 5.1 Signal features
 
@@ -212,6 +221,8 @@ Common signal features include:
 - **Peak:** captures the largest absolute amplitude in a window.
 - **Kurtosis:** measures tail behavior and can flag impulsive signals. Interpretation depends on the distribution and implementation.
 - **FFT (Fast Fourier Transform):** converts a time-domain signal into frequency components, revealing dominant frequencies and spectral changes.
+
+In this platform, the edge samples at 2 kHz, uses 30-second chunks and a 2000/250 window, and turns each window into 87 time/frequency features.
 
 For a signal \(x = [x_1, x_2, \ldots, x_N]\), RMS is defined as:
 
@@ -233,6 +244,8 @@ Important considerations include:
 - Monitor false positives and negatives; an anomaly score is not a diagnosis.
 - Revisit the baseline when conditions or equipment change.
 
+Execution: real-time health inference runs on the edge; central services can train and analyze offline.
+
 ```mermaid
 flowchart LR
     A["Historical Normal Data"] --> B["Feature Scaling"]
@@ -253,11 +266,15 @@ $$
 
 where \(d(x_i,y_j)\) is the local distance. A warping window cuts computation and prevents implausible alignments. **DTW is not universal**; results depend on references, distance metric, normalization, and domain.
 
+Execution: DTW is a central web-based offline analysis, not part of the edge live path.
+
 ### 5.4 PCA for data-drift monitoring
 
 Principal Component Analysis (PCA) projects correlated features into fewer dimensions. Comparing current data with a baseline reveals distribution changes.
 
 Drift does not mean failure; a changed recipe, sensor replacement, operating regime, or preprocessing change can all produce it.
+
+Execution: PCA supports the edge health model and central offline drift analysis.
 
 ```mermaid
 flowchart LR
@@ -268,13 +285,13 @@ flowchart LR
 
 ### 5.5 Choosing the method
 
-| Method | Primary purpose | Key limitation |
-| --- | --- | --- |
-| RMS / Peak / Kurtosis | Summarize time-domain signal characteristics | Can be sensitive to windowing, noise, and operating conditions |
-| FFT | Identify spectral components and frequency changes | Requires appropriate sampling and interpretation |
-| One-Class SVM | Detect deviations from a learned normal-data boundary | Depends on baseline quality and parameter selection |
-| DTW | Compare sequences with temporal misalignment | Can be computationally expensive and reference-dependent |
-| PCA | Monitor multivariate structure and potential drift | Drift is not equivalent to failure |
+| Method | Primary purpose | Execution | Key limitation |
+| --- | --- | --- | --- |
+| RMS / Peak / Kurtosis | Summarize time-domain signal characteristics | Edge feature extraction; central offline analysis | Can be sensitive to windowing, noise, and operating conditions |
+| FFT | Identify spectral components and frequency changes | Edge feature extraction; central offline analysis | Requires appropriate sampling and interpretation |
+| One-Class SVM | Detect deviations from a learned normal-data boundary | Edge real-time inference; central offline training | Depends on baseline quality and parameter selection |
+| DTW | Compare sequences with temporal misalignment | Central web-based offline analysis | Can be computationally expensive and reference-dependent |
+| PCA | Monitor multivariate structure and potential drift | Edge health model; central offline analysis | Drift is not equivalent to failure |
 
 The methods are complementary; validate combinations against the equipment and data.
 
@@ -301,13 +318,13 @@ flowchart LR
 ### 6.3 SQLite and data separation
 
 - `edge_ai.db` — application records, configuration, model history.
-- `vibration.db` — vibration data and alerts.
+- `vibration.db` — vibration features, health scores, and alerts.
 
-SQLAlchemy manages access; `ATTACH DATABASE` supports cross-database queries. **Separate files do not provide cross-database atomicity**; transactions, backups, migrations, and concurrent writes still need testing.
+SQLAlchemy manages access; `ATTACH DATABASE` supports cross-database queries. **Separate files do not provide cross-database atomicity**; transactions, backups, migrations, and concurrent writes still need testing. Monitoring and queries primarily use feature columns; raw-data fields are not the main query path.
 
 ### 6.4 Scheduled tasks and model history
 
-APScheduler runs periodic jobs such as drift checks, reports, or maintenance summaries. Jobs must tolerate retries, failures, and partial completion. Starting the scheduler in **multiple web workers can duplicate jobs**; use a dedicated scheduler or single-owner mechanism. Model-build history records model version, training-data reference, configuration, timestamp, and evaluation results. Builds need explicit states so a failed run differs from one that never started:
+APScheduler runs periodic jobs such as health checks, drift checks, reports, or maintenance summaries. Jobs must tolerate retries, failures, and partial completion. Starting the scheduler in **multiple web workers can duplicate jobs**; use a dedicated scheduler or single-owner mechanism. Model-build history records model version, training-data reference, configuration, timestamp, and evaluation results. Builds need explicit states so a failed run differs from one that never started:
 
 ```mermaid
 stateDiagram-v2
@@ -398,7 +415,7 @@ flowchart LR
 ### 8.3 Monitoring
 
 - API request rate, latency, and error rate.
-- Ingestion delay, queue depth, batch size, and dropped samples.
+- Feature ingestion delay, queue depth, batch size, and dropped feature rows.
 - Model execution duration and analysis failures.
 - Scheduler job start time, duration, and outcome.
 - Agent tool-call success rate, timeouts, and cost.
@@ -414,7 +431,7 @@ Failure handling must be designed into the data path, not added after an inciden
 
 | Failure | Risk | Mitigation |
 | --- | --- | --- |
-| Buffer full | Old samples may be dropped | Track drops; use durable buffering if loss is unacceptable |
+| Buffer full | Old feature rows may be dropped | Track drops; use durable buffering if loss is unacceptable |
 | Source unavailable | Stale or incomplete analysis | Track freshness; surface missing data; do not treat stale values as current |
 | Model fails | Missing or invalid result | Record context, bounded retries, keep the last valid result with a timestamp |
 | SQLite contention | Delayed or failed writes | Reduce competing writers, batch writes, tune transactions, or migrate |
